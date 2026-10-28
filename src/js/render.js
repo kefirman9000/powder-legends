@@ -10,7 +10,13 @@ function draw(){
   const ck=1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
   cx.setTransform(Z,0,0,Z,-cam.x*Z,-cam.y*Z);
   if(LVc.drawBack){cx.save();LVc.drawBack();cx.restore()}   // scenery behind the slope
-  {const a=T[0],b=T[T.length-1],E=1e5,lo=Math.max(...T.map(p=>p[1]))+3000;cx.beginPath();cx.moveTo(a[0]-E,lo);cx.lineTo(a[0]-E,a[1]);T.forEach(([x,y])=>cx.lineTo(x,y));cx.lineTo(b[0]+E,b[1]);cx.lineTo(b[0]+E,lo);cx.closePath()}   // ground runs flat forever past the last point
+  {   // ground: only the stretch on screen (plus a margin). Huge off-screen coordinates made some phone GPUs draw a torn, shimmering edge
+    const m=60/Z,x0=cam.x-m,x1=cam.x+W/Z+m;let lo=-1e9;
+    let i=0,hi=T.length-1;while(i<hi){const mid=(i+hi)>>1;if(T[mid][0]<x0)i=mid+1;else hi=mid}   // first point at or after the left edge
+    cx.beginPath();const y0=ter(x0).y;cx.moveTo(x0,y0);lo=y0;
+    for(;i<T.length&&T[i][0]<x1;i++){cx.lineTo(T[i][0],T[i][1]);if(T[i][1]>lo)lo=T[i][1]}
+    const y1=ter(x1).y;cx.lineTo(x1,y1);lo=Math.max(lo,y1,cam.y+H/Z)+60;
+    cx.lineTo(x1,lo);cx.lineTo(x0,lo);cx.closePath()}
 
   cx.fillStyle=LVc.snow;cx.fill();cx.strokeStyle=LVc.edge;cx.lineWidth=3;cx.lineJoin='round';cx.stroke();
   drawCheckpoints();

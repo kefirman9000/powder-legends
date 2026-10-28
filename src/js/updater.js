@@ -3,9 +3,9 @@
 // stores the new game in localStorage and reloads. The bootloader in <head> then runs the stored version.
 // Works when opened as a local file, on GitHub Pages, or anywhere else.
 (function(){
-const $=id=>document.getElementById(id),modal=$('upd-modal'),msgE=$('upd-msg'),notesE=$('upd-notes'),actE=$('upd-act'),btn=$('upd-btn');
+const $=id=>document.getElementById(id),modal=$('upd-modal'),msgE=$('upd-msg'),notesE=$('upd-notes'),actE=$('upd-act');
 const running=window.__SKI_FROM_UPDATE||GAME_VERSION;
-$('ver-tag').textContent='v'+GAME_VERSION+(window.__SKI_FROM_UPDATE?' (installed update)':'');
+
 let found=null,busy=false;
 const RAW=()=>'https://raw.githubusercontent.com/'+UPDATE_REPO+'/'+UPDATE_BRANCH+'/index.html?t='+Date.now();
 const API=()=>'https://api.github.com/repos/'+UPDATE_REPO+'/contents/index.html?ref='+UPDATE_BRANCH;
@@ -22,7 +22,9 @@ function show(title,text,notes,buttons){$('upd-title').textContent=title;msgE.te
 const close=()=>{modal.style.display='none'};
 modal.addEventListener('pointerdown',e=>{if(e.target===modal&&!busy)close()});
 modal.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'&&!busy)close()});
-function badge(on){let d=btn.querySelector('.dot');if(on&&!d){d=document.createElement('span');d.className='dot';d.textContent='NEW';btn.append(d)}else if(!on&&d)d.remove()}
+function badge(on){   // an update was found: show the install banner on the main menu (hidden otherwise)
+  const b=$('upd-banner');if(!b)return;b.hidden=!on;if(on&&found){$('upd-banner-txt').textContent='Version '+found.v+' is ready'}}
+window.updCheck=()=>check();window.updRunning=running;
 function undoBtn(){return window.__SKI_FROM_UPDATE?[['Undo update',()=>{try{localStorage.removeItem('skiUpdateVer');localStorage.removeItem('skiUpdateHTML')}catch(e){}location.reload()},'ghost']]:[]}
 async function check(){
   if(busy)return;busy=true;show('Checking for updates…','Looking at github.com/'+UPDATE_REPO,'',[]);
@@ -43,7 +45,8 @@ function install(){
     const url=URL.createObjectURL(new Blob([found.html],{type:'text/html'}));
     show('Couldn\'t install automatically','Your browser blocked saving the update. Download the new version and open it instead.','',[['Close',close,'ghost'],['Download v'+found.v,()=>{const a=document.createElement('a');a.href=url;a.download='Ski_Stunt_Simulator_v'+found.v+'.html';a.click()}]])}
 }
-btn.addEventListener('click',check);
+$('upd-banner-go').addEventListener('click',()=>{if(found)install()});
+$('upd-banner-more').addEventListener('click',()=>{if(found)show('Update available!','You have v'+running+'. Version '+found.v+' is ready to install.',found.notes,[['Later',close,'ghost'],['Install v'+found.v,install]])});
 // quiet background check shortly after launch: just lights up the NEW badge
 setTimeout(async()=>{try{const f=await fetchLatest();if(verCmp(f.v,running)>0){found=f;badge(true)}}catch(e){}},4000);
 })();
