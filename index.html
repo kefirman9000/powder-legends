@@ -4,8 +4,8 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.3.3';
-window.GAME_NOTES='Smoother menus: the game behind the level select and results screens now settles and holds still instead of stuttering.';
+window.GAME_VERSION='1.3.4';
+window.GAME_NOTES='Smoother menus: the camera is already in place when a menu opens, and the scene behind it holds perfectly still instead of stuttering.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
 window.verCmp=function(a,b){a=String(a).split('.').map(Number);b=String(b).split('.').map(Number);for(var i=0;i<Math.max(a.length,b.length);i++){var d=(a[i]||0)-(b[i]||0);if(d)return d>0?1:-1}return 0};
@@ -934,6 +934,7 @@ function camVel(){   // hip velocity in px/s, also during replays (read from the
 }
 function camTick(Q){
   if(!P||!P.length||!st)return;
+  if(paused&&!replayMode){camK.z=1;camK.lx=0;camK.ly=0;return}   // behind a menu: plain framing, no pull-back or look-ahead easing in
   const dt=Math.min(fdt,.05),[vx,vy]=camVel(),sp=Math.hypot(vx,vy);
   const mx=(Q[0].x+Q[1].x)/2,ht=Math.max(0,ter(mx).y-Math.max(Q[0].y,Q[1].y));
   const s=t=>t*t*(3-2*t);   // smoothstep
@@ -956,8 +957,9 @@ function draw(){
   const sk=cx.createLinearGradient(0,0,0,H);sk.addColorStop(0,LVc.sky[0]);sk.addColorStop(1,LVc.sky[1]);
   cx.fillStyle=sk;cx.fillRect(0,0,W,H);
   drawMountains();   // parallax mountain layers (scenery.js)
-  zoom+=(zoomT-zoom)*(1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale
-  const ck=1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
+  const camHold=paused&&!replayMode;   // behind a menu: no easing, the camera is placed exactly where it belongs
+  zoom+=(zoomT-zoom)*(camHold?1:1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale
+  const ck=camHold?1:1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
   cx.setTransform(Z,0,0,Z,-cam.x*Z,-cam.y*Z);
   if(LVc.drawBack){cx.save();LVc.drawBack();cx.restore()}   // scenery behind the slope
   {   // ground: only the stretch on screen (plus a margin). Huge off-screen coordinates made some phone GPUs draw a torn, shimmering edge

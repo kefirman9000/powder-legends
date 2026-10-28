@@ -6,8 +6,9 @@ function draw(){
   const sk=cx.createLinearGradient(0,0,0,H);sk.addColorStop(0,LVc.sky[0]);sk.addColorStop(1,LVc.sky[1]);
   cx.fillStyle=sk;cx.fillRect(0,0,W,H);
   drawMountains();   // parallax mountain layers (scenery.js)
-  zoom+=(zoomT-zoom)*(1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale
-  const ck=1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
+  const camHold=paused&&!replayMode;   // behind a menu: no easing, the camera is placed exactly where it belongs
+  zoom+=(zoomT-zoom)*(camHold?1:1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale
+  const ck=camHold?1:1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
   cx.setTransform(Z,0,0,Z,-cam.x*Z,-cam.y*Z);
   if(LVc.drawBack){cx.save();LVc.drawBack();cx.restore()}   // scenery behind the slope
   {   // ground: only the stretch on screen (plus a margin). Huge off-screen coordinates made some phone GPUs draw a torn, shimmering edge
