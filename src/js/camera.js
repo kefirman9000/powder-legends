@@ -17,6 +17,7 @@ function camVel(){   // hip velocity in px/s, also during replays (read from the
 }
 function camTick(Q){
   if(!P||!P.length||!st)return;
+  if(paused&&!replayMode){camK.z=1;camK.lx=0;camK.ly=0;return}   // behind a menu: plain framing, no pull-back or look-ahead easing in
   const dt=Math.min(fdt,.05),[vx,vy]=camVel(),sp=Math.hypot(vx,vy);
   const mx=(Q[0].x+Q[1].x)/2,ht=Math.max(0,ter(mx).y-Math.max(Q[0].y,Q[1].y));
   const s=t=>t*t*(3-2*t);   // smoothstep
