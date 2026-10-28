@@ -4,8 +4,8 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.3.0';
-window.GAME_NOTES='Endless Run mode, graded landings (PERFECT pays extra, landings that are not flat score nothing), a new sunset intro, taller mountains, and no more saplings on the Lantern Forest track. All saved scores have been reset for the new landing grades.';
+window.GAME_VERSION='1.3.1';
+window.GAME_NOTES='New Settings screen (updates, vibration, reset scores); updates now show as a banner on the main menu; smoother ground drawing on phones.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
 window.verCmp=function(a,b){a=String(a).split('.').map(Number);b=String(b).split('.').map(Number);for(var i=0;i<Math.max(a.length,b.length);i++){var d=(a[i]||0)-(b[i]||0);if(d)return d>0?1:-1}return 0};
@@ -281,7 +281,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;cursor:default;-we
 <div id="sel"><div id="g"><button class="ar" id="pv" aria-label="Previous level">&#9664;</button><div id="card"><canvas id="th" width="480" height="200"></canvas><div id="ln"></div><div id="ld"></div><div id="level-length" aria-live="polite"></div></div><button class="ar" id="nx" aria-label="Next level">&#9654;</button></div>
 <div id="dots"></div>
 <div id="hs"><div id="hsn"></div><div id="hsl"><span>GRADE</span><b id="hsg"></b></div></div>
-<div class="pr"><button class="b" id="play">&#9654; Play</button><button class="b" id="customize-open" style="background:#147c83">🎨 Customize</button><button class="b" id="tut-open" style="background:#2e8a52" onclick="startTutorial()">&#127891; Tutorial</button><button class="b" id="faqb">? FAQ</button><button class="b" id="upd-btn" style="background:#5b49b8;position:relative">&#11014; Update</button></div><div id="ver-tag"></div></div>
+<div class="pr"><button class="b" id="play">&#9654; Play</button><button class="b" id="customize-open" style="background:#147c83">🎨 Customize</button><button class="b" id="tut-open" style="background:#2e8a52" onclick="startTutorial()">&#127891; Tutorial</button><button class="b" id="faqb">? FAQ</button><button class="b" id="set-btn" style="background:#4b5a72">&#9881; Settings</button></div><div id="upd-banner" role="status" hidden><span id="upd-banner-txt"></span><button type="button" id="upd-banner-more">What's new</button><button type="button" id="upd-banner-go">Install</button></div></div>
 <section id="customizer" aria-label="Character customization">
 <h3>🎨 Customize your skier</h3>
 <div id="custom-layout">
@@ -960,7 +960,13 @@ function draw(){
   const ck=1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
   cx.setTransform(Z,0,0,Z,-cam.x*Z,-cam.y*Z);
   if(LVc.drawBack){cx.save();LVc.drawBack();cx.restore()}   // scenery behind the slope
-  {const a=T[0],b=T[T.length-1],E=1e5,lo=Math.max(...T.map(p=>p[1]))+3000;cx.beginPath();cx.moveTo(a[0]-E,lo);cx.lineTo(a[0]-E,a[1]);T.forEach(([x,y])=>cx.lineTo(x,y));cx.lineTo(b[0]+E,b[1]);cx.lineTo(b[0]+E,lo);cx.closePath()}   // ground runs flat forever past the last point
+  {   // ground: only the stretch on screen (plus a margin). Huge off-screen coordinates made some phone GPUs draw a torn, shimmering edge
+    const m=60/Z,x0=cam.x-m,x1=cam.x+W/Z+m;let lo=-1e9;
+    let i=0,hi=T.length-1;while(i<hi){const mid=(i+hi)>>1;if(T[mid][0]<x0)i=mid+1;else hi=mid}   // first point at or after the left edge
+    cx.beginPath();const y0=ter(x0).y;cx.moveTo(x0,y0);lo=y0;
+    for(;i<T.length&&T[i][0]<x1;i++){cx.lineTo(T[i][0],T[i][1]);if(T[i][1]>lo)lo=T[i][1]}
+    const y1=ter(x1).y;cx.lineTo(x1,y1);lo=Math.max(lo,y1,cam.y+H/Z)+60;
+    cx.lineTo(x1,lo);cx.lineTo(x0,lo);cx.closePath()}
 
   cx.fillStyle=LVc.snow;cx.fill();cx.strokeStyle=LVc.edge;cx.lineWidth=3;cx.lineJoin='round';cx.stroke();
   drawCheckpoints();
@@ -2442,8 +2448,6 @@ window.tutFrame=function(){const show=tut.on&&!paused&&!replayMode;if((box.style
 })();
 </script>
 <style>
-#ver-tag{font:600 11px system-ui;letter-spacing:.08em;opacity:.55;margin-top:2px}
-#upd-btn .dot{position:absolute;top:-6px;right:-6px;font:800 9px system-ui;letter-spacing:.06em;padding:3px 5px;border-radius:8px;background:#ff3d6e;color:#fff;box-shadow:0 0 10px #ff3d6e;animation:pulse .7s ease-in-out infinite alternate}
 #upd-modal{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(5,10,18,.82);padding:16px}
 #upd-card{width:min(440px,94vw);background:#18222f;border:1px solid #ffffff30;border-radius:14px;padding:18px 20px;color:#fff;text-align:left;box-shadow:0 10px 40px #000a}
 #upd-card h3{margin:0 0 6px;font:400 26px/1.1 var(--gf);color:#b8a6ff}
@@ -2452,6 +2456,10 @@ window.tutFrame=function(){const show=tut.on&&!paused&&!replayMode;if((box.style
 #upd-act{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:16px}
 #upd-act .b{padding:8px 16px;font-size:14px}
 #upd-act .ghost{background:#ffffff22}
+#upd-banner{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px;padding:7px 8px 7px 14px;border-radius:12px;background:linear-gradient(90deg,#3b2a7a,#5b2a86);border:1px solid #b8a6ff88;box-shadow:0 0 18px #8a6bff55;font:700 13px system-ui;animation:updIn .5s cubic-bezier(.2,1.4,.4,1)}
+#upd-banner[hidden]{display:none}#upd-banner span::before{content:'⬆ ';color:#d9ccff}
+#upd-banner button{border:0;border-radius:8px;padding:6px 12px;font:700 12px system-ui;cursor:pointer;color:#fff;background:#ffffff22}#upd-banner #upd-banner-go{background:#7cffa0;color:#0d2a17}
+@keyframes updIn{from{opacity:0;transform:translateY(8px) scale(.95)}}
 </style>
 <div id="upd-modal" role="dialog" aria-modal="true" aria-labelledby="upd-title"><div id="upd-card"><h3 id="upd-title">Updates</h3><div id="upd-msg"></div><div id="upd-notes"></div><div id="upd-act"></div></div></div>
 <script>
@@ -2460,9 +2468,9 @@ window.tutFrame=function(){const show=tut.on&&!paused&&!replayMode;if((box.style
 // stores the new game in localStorage and reloads. The bootloader in <head> then runs the stored version.
 // Works when opened as a local file, on GitHub Pages, or anywhere else.
 (function(){
-const $=id=>document.getElementById(id),modal=$('upd-modal'),msgE=$('upd-msg'),notesE=$('upd-notes'),actE=$('upd-act'),btn=$('upd-btn');
+const $=id=>document.getElementById(id),modal=$('upd-modal'),msgE=$('upd-msg'),notesE=$('upd-notes'),actE=$('upd-act');
 const running=window.__SKI_FROM_UPDATE||GAME_VERSION;
-$('ver-tag').textContent='v'+GAME_VERSION+(window.__SKI_FROM_UPDATE?' (installed update)':'');
+
 let found=null,busy=false;
 const RAW=()=>'https://raw.githubusercontent.com/'+UPDATE_REPO+'/'+UPDATE_BRANCH+'/index.html?t='+Date.now();
 const API=()=>'https://api.github.com/repos/'+UPDATE_REPO+'/contents/index.html?ref='+UPDATE_BRANCH;
@@ -2479,7 +2487,9 @@ function show(title,text,notes,buttons){$('upd-title').textContent=title;msgE.te
 const close=()=>{modal.style.display='none'};
 modal.addEventListener('pointerdown',e=>{if(e.target===modal&&!busy)close()});
 modal.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'&&!busy)close()});
-function badge(on){let d=btn.querySelector('.dot');if(on&&!d){d=document.createElement('span');d.className='dot';d.textContent='NEW';btn.append(d)}else if(!on&&d)d.remove()}
+function badge(on){   // an update was found: show the install banner on the main menu (hidden otherwise)
+  const b=$('upd-banner');if(!b)return;b.hidden=!on;if(on&&found){$('upd-banner-txt').textContent='Version '+found.v+' is ready'}}
+window.updCheck=()=>check();window.updRunning=running;
 function undoBtn(){return window.__SKI_FROM_UPDATE?[['Undo update',()=>{try{localStorage.removeItem('skiUpdateVer');localStorage.removeItem('skiUpdateHTML')}catch(e){}location.reload()},'ghost']]:[]}
 async function check(){
   if(busy)return;busy=true;show('Checking for updates…','Looking at github.com/'+UPDATE_REPO,'',[]);
@@ -2500,9 +2510,47 @@ function install(){
     const url=URL.createObjectURL(new Blob([found.html],{type:'text/html'}));
     show('Couldn\'t install automatically','Your browser blocked saving the update. Download the new version and open it instead.','',[['Close',close,'ghost'],['Download v'+found.v,()=>{const a=document.createElement('a');a.href=url;a.download='Ski_Stunt_Simulator_v'+found.v+'.html';a.click()}]])}
 }
-btn.addEventListener('click',check);
+$('upd-banner-go').addEventListener('click',()=>{if(found)install()});
+$('upd-banner-more').addEventListener('click',()=>{if(found)show('Update available!','You have v'+running+'. Version '+found.v+' is ready to install.',found.notes,[['Later',close,'ghost'],['Install v'+found.v,install]])});
 // quiet background check shortly after launch: just lights up the NEW badge
 setTimeout(async()=>{try{const f=await fetchLatest();if(verCmp(f.v,running)>0){found=f;badge(true)}}catch(e){}},4000);
+})();
+</script>
+<script>
+// ======================= SETTINGS =======================
+// Opened from the ⚙ Settings button on the main menu. Holds the version and update check, vibration,
+// and a reset for saved scores. (Sound levels stay in the speaker menu at the top of the screen.)
+(function(){
+const $=id=>document.getElementById(id);
+const css=document.createElement('style');css.textContent=`
+#set-modal{position:fixed;inset:0;z-index:25;display:none;align-items:center;justify-content:center;background:rgba(5,10,18,.82);padding:16px}
+#set-card{width:min(420px,94vw);max-height:90vh;overflow:auto;background:#18222f;border:1px solid #ffffff30;border-radius:14px;padding:16px 18px;color:#fff;box-shadow:0 10px 40px #000a}
+#set-card h3{margin:0 0 10px;font:400 26px/1 var(--gf);color:#ffd36b;display:flex;justify-content:space-between;align-items:center}
+#set-card h3 button{font:600 13px system-ui;padding:5px 12px;border-radius:8px;border:1px solid #ffffff40;background:#ffffff14;color:#fff;cursor:pointer}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid #ffffff18;font:600 14px system-ui}
+.set-row small{display:block;font:500 12px system-ui;opacity:.65;margin-top:2px}
+.set-row button{flex:none;font:700 13px system-ui;padding:8px 14px;border-radius:9px;border:0;background:#2f7ddd;color:#fff;cursor:pointer}
+.set-row button.danger{background:#7a2a33}
+.set-row input[type=checkbox]{width:22px;height:22px;accent-color:#7cffa0}`;
+document.head.appendChild(css);
+const m=document.createElement('div');m.id='set-modal';m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');
+m.innerHTML=`<div id="set-card"><h3>⚙ Settings <button type="button" id="set-close">Done</button></h3>
+ <div class="set-row"><div>Game version<small id="set-ver"></small></div><button type="button" id="set-upd">Check for updates</button></div>
+ <div class="set-row" id="set-hap-row"><div>Vibration<small>Short buzzes on landings, flips and crashes (Android phones)</small></div><input type="checkbox" id="set-hap"></div>
+ <div class="set-row"><div>Reset all scores<small>Clears best scores, grades and records. Unlocked gear is kept.</small></div><button type="button" class="danger" id="set-reset">Reset</button></div></div>`;
+document.body.appendChild(m);
+function open(){
+  $('set-ver').textContent='v'+GAME_VERSION+(window.__SKI_FROM_UPDATE?' (installed update)':'');
+  const ok=typeof HAPTIC_OK!=='undefined'&&HAPTIC_OK;$('set-hap-row').style.display=ok?'':'none';if(ok)$('set-hap').checked=hapOn;
+  $('set-reset').textContent='Reset';m.style.display='flex'}
+const close=()=>{m.style.display='none'};
+$('set-btn').addEventListener('click',open);$('set-close').addEventListener('click',close);
+m.addEventListener('pointerdown',e=>{if(e.target===m)close()});m.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape')close()});
+$('set-upd').addEventListener('click',()=>{close();if(window.updCheck)updCheck()});
+$('set-hap').addEventListener('change',e=>{setHaptics(e.target.checked);const b=$('v-hap');if(b)b.checked=e.target.checked});
+$('set-reset').addEventListener('click',e=>{const b=e.target;if(b.textContent==='Reset'){b.textContent='Tap again to confirm';return}   // two taps, so it can't happen by accident
+  best.fill(0);bestG.fill(-1);save();['skiJumpRecord','skiEndlessM'].forEach(k=>{try{localStorage.removeItem(k)}catch(_){}});
+  LV.forEach(l=>{delete l._preview});showSel(0);b.textContent='Scores cleared ✓'});
 })();
 </script>
 </body></html>
