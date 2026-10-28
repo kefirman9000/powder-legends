@@ -10,13 +10,12 @@ function endlessNewTrack(){const k=track();k.line(1100,.38);EN.k=k;EN.features=0
 function endlessExtend(toX){while(EN.k.x<toX)endlessFeature()}
 function endlessFeature(){
   const k=EN.k,r=EN.rand,d=Math.min(1,EN.features/24),v=Math.max(900,EN.maxV),gap=600+v*.8;   // d: 0 → 1 difficulty; gap: landing room for your speed
-  const pool=[['kicker',4],['rollers',2],['rocks',2]];if(EN.features>=3)pool.push(['drop',2]);if(EN.features>=5)pool.push(['bridge',2]);
+  const pool=[['kicker',4],['rollers',2]];if(EN.features>=3)pool.push(['drop',2]);if(EN.features>=5)pool.push(['bridge',2]);
   let kind;for(let tries=0;tries<6;tries++){let t=r()*pool.reduce((a,p)=>a+p[1],0);kind=pool.find(p=>(t-=p[1])<0)[0];if(kind!==EN.last||kind==='kicker')break}
   EN.last=kind;k.ease(260,.4);k.line(250+r()*250,.4);   // short run-in before every feature
   if(kind==='kicker'){jmp(k,.32+.4*d+r()*.1,270+130*d);k.line(gap,.35);k.ease(300,.42);k.line(250,.42)}
   else if(kind==='rollers'){const n=2+Math.floor(r()*2+d*2);for(let i=0;i<n;i++){k.ease(150,-.1-.08*d);k.ease(190,.55);k.line(220,.55);k.ease(160,.3)}k.line(gap*.6,.35)}
   else if(kind==='drop'){k.ease(60,.25);k.ease(70,1.2);k.line(90+130*d,1.2);k.ease(150,.42);k.line(gap,.42)}
-  else if(kind==='rocks'){k.ease(220,.12);const s=k.x;k.line(760,.12);[140,400,640].forEach(o=>{const rr=8+r()*3+d*2;enProp(()=>{addRock(s+o,rr,false);rocks[rocks.length-1].soft=1})});k.ease(250,.35);k.line(gap*.5,.35)}
   else if(kind==='bridge'){k.ease(260,.08);k.line(200,.08);k.ease(100,0);const g=gorge(k,520+520*d,520);enProp(()=>bridge(g,30,10));k.line(140,0);k.ease(260,.42);k.line(gap*.6,.45)}
   EN.features++;
   if(EN.features%4===0){k.ease(300,.05);k.line(700+v*.35,.05);k.ease(300,.35)}   // breather: a long, nearly flat stretch that bleeds off speed

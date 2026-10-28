@@ -5,8 +5,8 @@
 // Not used on Ski School or the Endless Run (its course is different every time).
 const GH={fps:20,per:6,frames:null,n:0,best:0,fade:0};   // per: physics steps (120/s) per ghost frame
 const GH_KEY=n=>'skiGhost:'+n;
-function ghostOn(){try{return localStorage.getItem('skiGhostOn')!=='0'}catch(e){return true}}
-function setGhost(on){try{localStorage.setItem('skiGhostOn',on?'1':'0')}catch(e){}}
+function ghostOn(){try{return localStorage.getItem('skiGhostOn')==='1'}catch(e){return false}}   // off unless turned on in Settings
+function setGhost(on){try{localStorage.setItem('skiGhostOn',on?'1':'0')}catch(e){}ghostLoad()}
 const ghostAllowed=l=>l&&!l.endless&&!l.tutorial;
 function b64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)}
 function unb64(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
@@ -37,7 +37,9 @@ function drawGhost(){
   const f=(RP.tick+(paused?0:al))/GH.per;
   let alpha=.32;if(f>GH.n-1){GH.fade=Math.min(1,GH.fade+fdt);alpha*=1-GH.fade;if(alpha<=0)return}   // the ghost finished: fade it out
   const q=ghostPose(f);
-  cx.save();cx.globalAlpha=alpha;cx.strokeStyle='#e8f6ff';cx.fillStyle='#e8f6ff';cx.lineCap='round';
+  // Fade the ghost out when it's close to your skier: overlapping, it read as a glow / doubled image (laggy-looking).
+  const gap=Math.hypot(q[4].x-P[4].x,q[4].y-P[4].y);alpha*=Math.max(0,Math.min(1,(gap-28)/90));if(alpha<=.01)return;
+  cx.save();cx.globalAlpha=alpha;cx.strokeStyle='#9fd8ff';cx.fillStyle='#9fd8ff';cx.lineCap='round';
   const seg=(a,b,w)=>{cx.lineWidth=w;cx.beginPath();cx.moveTo(q[a].x,q[a].y);cx.lineTo(q[b].x,q[b].y);cx.stroke()};
   seg(0,1,3.5);seg(2,3,5);seg(3,4,6);seg(4,5,7);seg(5,7,3.5);seg(5,6,3);
   cx.beginPath();cx.arc(q[6].x,q[6].y,6,0,7);cx.fill();

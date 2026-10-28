@@ -4,7 +4,7 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.5.0';
+window.GAME_VERSION='1.5.1';
 window.GAME_NOTES='Steadier camera during flips: it now follows the skier\'s centre of mass, so spins no longer make the view bob up and down.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
@@ -298,6 +298,8 @@ canvas{width:100%;height:100%;display:block;touch-action:none;cursor:default;-we
  #dots{gap:5px}#dots i{width:7px;height:7px}
  .pr .b{padding:7px 14px;font-size:14px}
 }
+/* The awards frame still sizes and positions the award cards, but is no longer drawn */
+#aw::before{border-color:transparent!important;background:none!important;box-shadow:none!important}
 </style><style>
 /* Touch devices: swap animations that repaint every frame (filter, text-shadow, letter-spacing) for transform/opacity ones the GPU composites cheaply. */
 @media (pointer:coarse){
@@ -384,7 +386,8 @@ function stepColor(dir){const part=currentPart();let i=COLOR_PALETTE.findIndex(c
 document.getElementById('part-prev').addEventListener('click',()=>stepPart(-1));document.getElementById('part-next').addEventListener('click',()=>stepPart(1));document.getElementById('color-prev').addEventListener('click',()=>stepColor(-1));document.getElementById('color-next').addEventListener('click',()=>stepColor(1));document.querySelectorAll('#custom-color-picker input[data-filter]').forEach(input=>input.addEventListener('input',()=>{colorAdjustments[currentPart()][input.dataset.filter]=Number(input.value);applySkierColors()}));
 document.getElementById('custom-reset').addEventListener('click',()=>{baseSkierColors={...DEFAULT_SKIER_COLORS};colorAdjustments=Object.fromEntries(Object.keys(DEFAULT_SKIER_COLORS).map(k=>[k,{brightness:100,saturation:100}]));applySkierColors()});
 const customizer=document.getElementById('customizer'),selPanel=document.getElementById('sel'),customOpen=document.getElementById('customize-open');
-function showCustomize(){customizer.style.display='block';if(window.gearPanel)gearPanel();customizer.setAttribute('aria-hidden','false');drawCustomizationPreview()}
+function showCustomize(){if(st&&(st.done||st.crash||st.skisOff||st.fireDeath||st.sharkDeath)&&!LVc.tutorial)reset();   // after a wipeout, burn or shark there's no skier to show: start the level fresh behind the menu
+  customizer.style.display='block';if(window.gearPanel)gearPanel();customizer.setAttribute('aria-hidden','false');drawCustomizationPreview()}
 function hideCustomize(){customizer.style.display='none';customizer.setAttribute('aria-hidden','true')}
 customOpen.addEventListener('click',showCustomize);document.getElementById('custom-back').addEventListener('click',hideCustomize);
 applySkierColors();
@@ -398,14 +401,21 @@ if(qMode==='high')qLevel=0;else if(qMode==='medium')qLevel=1;else if(qMode==='lo
 const qCur=()=>Q_LEVELS[qLevel];
 function partRoom(){return Math.max(0,qCur().parts-(typeof FW!=='undefined'?FW.sp.length:0)-(typeof snow!=='undefined'?snow.length:0)-(typeof gfx!=='undefined'?gfx.sp.length:0))}
 function setQuality(level){if(level===qLevel)return;qLevel=level;fit();if(typeof WX!=='undefined')WX.p.length=0}
-const QA={sum:0,n:0,skip:0};   // auto-quality: if play runs below ~45 fps for 2 seconds, step down one level (never back up mid-session)
+// Auto-quality, deliberately cautious: measured over 3-second windows of actual play. Two slow windows in a row
+// (under ~40 fps) step down one level, but Auto never goes below Medium (Low is only by choice in Settings).
+// Four smooth windows in a row (55+ fps) step back up, so a one-off slowdown doesn't stick for the session.
+const QA={sum:0,n:0,skip:0,slow:0,fast:0};
 function qualityTick(rawDt){
-  if(qMode!=='auto'||paused||replayMode||qLevel>=2)return;
+  if(qMode!=='auto'||paused||replayMode)return;
   if(rawDt>.25){QA.sum=QA.n=0;QA.skip=60;return}   // a hitch (tab switch, level load): ignore and wait a moment
   if(QA.skip>0){QA.skip--;return}
   QA.sum+=rawDt;QA.n++;
-  if(QA.sum>=2){if(QA.sum/QA.n>1/45)setQuality(qLevel+1);QA.sum=QA.n=0;QA.skip=90}}
-function setQualityMode(m){qMode=m;try{localStorage.setItem('skiGfx',m)}catch(e){}setQuality(m==='high'?0:m==='medium'?1:m==='low'?2:0);QA.sum=QA.n=0}
+  if(QA.sum<3)return;
+  const avg=QA.sum/QA.n;QA.sum=QA.n=0;
+  if(avg>1/40){QA.fast=0;if(++QA.slow>=2&&qLevel<1){setQuality(qLevel+1);QA.slow=0;QA.skip=120}}
+  else if(avg<1/55){QA.slow=0;if(++QA.fast>=4&&qLevel>0){setQuality(qLevel-1);QA.fast=0;QA.skip=120}}
+  else{QA.slow=0;QA.fast=0}}
+function setQualityMode(m){qMode=m;try{localStorage.setItem('skiGfx',m)}catch(e){}setQuality(m==='high'?0:m==='medium'?1:m==='low'?2:0);QA.sum=QA.n=QA.slow=QA.fast=0}
 window.DPR=1;
 function fit(){const r=box.getBoundingClientRect(),d=window.DPR=Math.min(devicePixelRatio||1,qCur().dpr);W=cv.width=Math.max(r.width*d,2);H=cv.height=Math.max(r.height*d,2);ZB=Math.min(W/520,H/300);Z=ZB*zoom}
 addEventListener('resize',fit);fit();
@@ -1529,13 +1539,16 @@ let gear={unlocked:[],on:{}};
 try{const g=JSON.parse(localStorage.getItem('skiGear')||'null');if(g&&Array.isArray(g.unlocked))gear={unlocked:g.unlocked,on:g.on||{}}}catch(e){}
 const gearSave=()=>{try{localStorage.setItem('skiGear',JSON.stringify(gear))}catch(e){}};
 const gearHas=id=>gear.unlocked.includes(id),gearOn=slot=>gear.on[slot]||null;
-function gearUnlock(id){if(gearHas(id))return false;gear.unlocked.push(id);const g=GEAR.find(x=>x.id===id);if(g&&!gear.on[g.slot])gear.on[g.slot]=id;gearSave();return true}   // a new item is worn right away if that slot is empty
+function gearUnlock(id,ask){if(gearHas(id))return false;gear.unlocked.push(id);gearSave();if(ask&&!gearPending.includes(id))gearPending.push(id);return true}   // nothing is worn automatically; earned-in-play unlocks ask first
+const gearPending=[];   // unlocks waiting for the "wear it now?" prompt
+// one-time cleanup (v1.5.1): earlier versions put unlocked gear on automatically; take it all off once so nobody is stuck glowing
+try{if(!localStorage.getItem('skiGearFix151')){gear.on={};gearSave();localStorage.setItem('skiGearFix151','1')}}catch(e){}
 function gearSync(){GEAR.forEach(g=>{if(g.level){const i=LV.findIndex(l=>l.n===g.level);if(i>=0&&best[i]>0)gearUnlock(g.id)}})}   // players who already beat a level get its gear
 function gearNewUnlocks(){   // called by the results screen
   if(!st||!st.finishedLevel||st.noSkiFinish||!LVc)return[];
-  return GEAR.filter(g=>g.level===LVc.n&&gearUnlock(g.id));
+  return GEAR.filter(g=>g.level===LVc.n&&gearUnlock(g.id,true));
 }
-function gearJump(m){if(m>=100&&gearUnlock('wings'))spray('UNLOCKED: JUMP WINGS','equip them in Customize',true)}
+function gearJump(m){if(m>=100&&gearUnlock('wings',true))spray('UNLOCKED: JUMP WINGS','',true)}
 // ---- customizer panel
 function gearPanel(){
   gearSync();let box=document.getElementById('gear-panel');
@@ -1588,6 +1601,28 @@ function drawGearFront(Q){   // on top of the skier: skis, suit and helmet effec
     if(he==='fin'){cx.fillStyle='#5f7f97';cx.strokeStyle='#2c4252';cx.lineWidth=1;cx.beginPath();cx.moveTo(-4,-7);cx.quadraticCurveTo(1,-19,7,-21);cx.quadraticCurveTo(4,-13,4,-7);cx.closePath();cx.fill();cx.stroke()}}
   cx.restore();
 }
+
+// ---- "New gear! Wear it now?" prompt, shown after the results screen (one item at a time)
+{const css=document.createElement('style');css.textContent=`
+#gear-ask{position:fixed;inset:0;z-index:26;display:none;align-items:center;justify-content:center;background:rgba(5,10,18,.72);padding:16px}
+#gear-ask .ga{width:min(360px,92vw);background:#18222f;border:1px solid #c58bff88;border-radius:16px;padding:18px;color:#fff;text-align:center;box-shadow:0 0 30px #8a5bff55,0 10px 40px #000a;animation:gaIn .45s cubic-bezier(.2,1.4,.4,1)}
+#gear-ask .gai{font-size:46px;line-height:1}#gear-ask small{display:block;margin-top:8px;font:800 10px system-ui;letter-spacing:.2em;color:#d7b8ff}
+#gear-ask b{display:block;font:400 26px/1.1 var(--gf);margin:4px 0 2px;color:#ffe9a8}#gear-ask p{margin:0 0 14px;font:13px system-ui;opacity:.75}
+#gear-ask .gab{display:flex;gap:8px;justify-content:center}#gear-ask button{border:0;border-radius:10px;padding:9px 16px;font:700 14px system-ui;cursor:pointer;color:#fff;background:#ffffff22}
+#gear-ask button.yes{background:#7c4dff}
+@keyframes gaIn{from{opacity:0;transform:scale(.85) translateY(10px)}}`;document.head.appendChild(css)}
+const gearAsk=document.createElement('div');gearAsk.id='gear-ask';gearAsk.innerHTML='<div class="ga"><div class="gai"></div><small>NEW GEAR UNLOCKED</small><b></b><p></p><div class="gab"><button type="button" class="no">Not now</button><button type="button" class="yes">Wear it now</button></div></div>';
+document.body.appendChild(gearAsk);
+function gearPromptPending(){
+  if(gearAsk.style.display==='flex'||!gearPending.length)return;
+  const id=gearPending.shift(),g=GEAR.find(x=>x.id===id);if(!g)return gearPromptPending();
+  const cur=gear.on[g.slot]&&GEAR.find(x=>x.id===gear.on[g.slot]);
+  gearAsk.querySelector('.gai').textContent=g.ic;gearAsk.querySelector('b').textContent=g.name;
+  gearAsk.querySelector('p').textContent=g.how+(cur?' · replaces your '+cur.name:'')+'. You can change it any time in Customize.';
+  const done=wear=>{if(wear){gear.on[g.slot]=g.id;gearSave()}gearAsk.style.display='none';setTimeout(gearPromptPending,250)};
+  gearAsk.querySelector('.yes').onclick=()=>done(true);gearAsk.querySelector('.no').onclick=()=>done(false);
+  gearAsk.style.display='flex';
+}
 // ======================= WIND TRAILS =======================
 // Thin, faint white streaks off the ski tips, ski tails and hand while you're in the air. They start tiny and grow the
 // longer you stay up (to a short cap), then shrink away after you land. Hidden while the rainbow adrenaline trail shows.
@@ -1619,8 +1654,8 @@ function windReset(){WIND.hist.length=0;WIND.len=0}
 // Not used on Ski School or the Endless Run (its course is different every time).
 const GH={fps:20,per:6,frames:null,n:0,best:0,fade:0};   // per: physics steps (120/s) per ghost frame
 const GH_KEY=n=>'skiGhost:'+n;
-function ghostOn(){try{return localStorage.getItem('skiGhostOn')!=='0'}catch(e){return true}}
-function setGhost(on){try{localStorage.setItem('skiGhostOn',on?'1':'0')}catch(e){}}
+function ghostOn(){try{return localStorage.getItem('skiGhostOn')==='1'}catch(e){return false}}   // off unless turned on in Settings
+function setGhost(on){try{localStorage.setItem('skiGhostOn',on?'1':'0')}catch(e){}ghostLoad()}
 const ghostAllowed=l=>l&&!l.endless&&!l.tutorial;
 function b64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)}
 function unb64(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
@@ -1651,7 +1686,9 @@ function drawGhost(){
   const f=(RP.tick+(paused?0:al))/GH.per;
   let alpha=.32;if(f>GH.n-1){GH.fade=Math.min(1,GH.fade+fdt);alpha*=1-GH.fade;if(alpha<=0)return}   // the ghost finished: fade it out
   const q=ghostPose(f);
-  cx.save();cx.globalAlpha=alpha;cx.strokeStyle='#e8f6ff';cx.fillStyle='#e8f6ff';cx.lineCap='round';
+  // Fade the ghost out when it's close to your skier: overlapping, it read as a glow / doubled image (laggy-looking).
+  const gap=Math.hypot(q[4].x-P[4].x,q[4].y-P[4].y);alpha*=Math.max(0,Math.min(1,(gap-28)/90));if(alpha<=.01)return;
+  cx.save();cx.globalAlpha=alpha;cx.strokeStyle='#9fd8ff';cx.fillStyle='#9fd8ff';cx.lineCap='round';
   const seg=(a,b,w)=>{cx.lineWidth=w;cx.beginPath();cx.moveTo(q[a].x,q[a].y);cx.lineTo(q[b].x,q[b].y);cx.stroke()};
   seg(0,1,3.5);seg(2,3,5);seg(3,4,6);seg(4,5,7);seg(5,7,3.5);seg(5,6,3);
   cx.beginPath();cx.arc(q[6].x,q[6].y,6,0,7);cx.fill();
@@ -1838,13 +1875,12 @@ function endlessNewTrack(){const k=track();k.line(1100,.38);EN.k=k;EN.features=0
 function endlessExtend(toX){while(EN.k.x<toX)endlessFeature()}
 function endlessFeature(){
   const k=EN.k,r=EN.rand,d=Math.min(1,EN.features/24),v=Math.max(900,EN.maxV),gap=600+v*.8;   // d: 0 → 1 difficulty; gap: landing room for your speed
-  const pool=[['kicker',4],['rollers',2],['rocks',2]];if(EN.features>=3)pool.push(['drop',2]);if(EN.features>=5)pool.push(['bridge',2]);
+  const pool=[['kicker',4],['rollers',2]];if(EN.features>=3)pool.push(['drop',2]);if(EN.features>=5)pool.push(['bridge',2]);
   let kind;for(let tries=0;tries<6;tries++){let t=r()*pool.reduce((a,p)=>a+p[1],0);kind=pool.find(p=>(t-=p[1])<0)[0];if(kind!==EN.last||kind==='kicker')break}
   EN.last=kind;k.ease(260,.4);k.line(250+r()*250,.4);   // short run-in before every feature
   if(kind==='kicker'){jmp(k,.32+.4*d+r()*.1,270+130*d);k.line(gap,.35);k.ease(300,.42);k.line(250,.42)}
   else if(kind==='rollers'){const n=2+Math.floor(r()*2+d*2);for(let i=0;i<n;i++){k.ease(150,-.1-.08*d);k.ease(190,.55);k.line(220,.55);k.ease(160,.3)}k.line(gap*.6,.35)}
   else if(kind==='drop'){k.ease(60,.25);k.ease(70,1.2);k.line(90+130*d,1.2);k.ease(150,.42);k.line(gap,.42)}
-  else if(kind==='rocks'){k.ease(220,.12);const s=k.x;k.line(760,.12);[140,400,640].forEach(o=>{const rr=8+r()*3+d*2;enProp(()=>{addRock(s+o,rr,false);rocks[rocks.length-1].soft=1})});k.ease(250,.35);k.line(gap*.5,.35)}
   else if(kind==='bridge'){k.ease(260,.08);k.line(200,.08);k.ease(100,0);const g=gorge(k,520+520*d,520);enProp(()=>bridge(g,30,10));k.line(140,0);k.ease(260,.42);k.line(gap*.6,.45)}
   EN.features++;
   if(EN.features%4===0){k.ease(300,.05);k.line(700+v*.35,.05);k.ease(300,.35)}   // breather: a long, nearly flat stretch that bleeds off speed
@@ -2049,9 +2085,9 @@ const LV=[
  {n:'Volcano Run',d:'Ash-grey snow on the flank of a live volcano. Jump two walls of fire and two pools of lava; touch either and you go up in smoke. Every hazard you clear pays a x2 bonus on that jump (x3 if you skim just over it).',
   T:vol.t,fin:vol.fin,lava:vol.lava,weather:'ash',sky:['#2a0d10','#c4471f'],far:'#4a2420',snow:'#d6d0cc',edge:'#6b4c44',
   build(){for(const wx of vol.walls){const hh=90;addBox(wx,ter(wx).y+8-hh,12,hh,{k:'fire-wall',lim:[420,200],say:'Touched the fire!',mu:.08})}}},
- {n:'Lantern Forest',d:'A night run through a lantern-lit pine forest. The trail is littered with rocks: small, quick hops get you over them cleanly, and every one you clip chips your skis. Three little kickers and one proper jump at the end.',
+ {n:'Lantern Forest',d:'A quiet night run through a lantern-lit pine forest. Three little kickers to warm up your timing, then one proper jump at the end. Keep it smooth and stomp every landing.',
   T:lan.t,fin:lan.fin,sky:['#060b20','#1f2d58'],far:'#121a38',snow:'#dbe4f5',edge:'#7c8fc2',drawBack:lanternBack,drawFront:lanternFront,
-  build(){const soft=()=>{rocks[rocks.length-1].soft=1};lan.secs.forEach((s,i)=>{addRock(s+140,9+rnd()*3,false);soft();addRock(s+400,8+rnd()*3,false);soft();addRock(s+640,10+rnd()*3,false);soft()})}},
+  },
  {n:'Ski Jump Hill',d:'One giant Olympic-style ski jump. Crouch on the inrun, pop off the edge of the table, and lean forward in the air so you do not rotate onto your back. Fly as far as you can and land it clean: every metre is worth 1,000 points, and your longest jump is saved as the hill record. K marks 120 m. Land past it and the hill flattens out under you, so the landings get harder.',
   T:sjh.t,fin:sjh.fin,jump:true,post:jumpPost,onReset:jumpReset,drawFront:jumpDrawFront,sky:['#3f86d6','#d9ecfb'],far:'#93add0',snow:'#f8fbff',edge:'#7ea6d0'},
  {n:'Fireworks Hill',d:'A night run down a long hill with three kickers while fireworks go off in the sky ahead of you the whole way down. Flip in time with the show.',
@@ -2065,7 +2101,7 @@ const LV=[
  {n:'The Long Haul',d:'The endurance run. A huge, clear mountain descent with rolling warm-ups, repeated jump sections, mogul-like rhythm changes and a final glacier-sized send. Settle in — this one is built to show off extended level length, with no stray trees or rocks blocking the route.',
   T:longHaul.t,fin:longHaul.fin,sky:['#18294f','#f2a16c'],far:'#596b91',snow:'#f4f6ff',edge:'#a5b7e8',par:2.5}
 ,
- {n:'Endless Run',d:'A mountain that never ends. The course builds itself ahead of you and keeps getting harder: kickers, rollers, sudden drops, crumbling bridges and rock fields. The run ends at your first crash, and your score at that moment is your record. Every metre is worth 20 points, and landing zones grow with your speed.',
+ {n:'Endless Run',d:'A mountain that never ends. The course builds itself ahead of you and keeps getting harder: kickers, rollers, sudden drops and crumbling bridges. The run ends at your first crash, and your score at that moment is your record. Every metre is worth 20 points, and landing zones grow with your speed.',
   T:[[-500,0],[0,0],[1100,418]],fin:1e9,endless:true,par:2,post:endlessPost,onReset:endlessReset,build:endlessBuild,sky:['#1e3c72','#f2a65a'],far:'#5d6f96',snow:'#f6f8ff',edge:'#8fa6d6'}
 ];
 // Finish lines sit a bit farther down every course so there's room to land and settle before crossing. The shark pool gets extra.
@@ -2162,6 +2198,7 @@ async function tally(){const id=++tId,ok=()=>id===tId;fast=false;fxStop();scE.st
   if(!ok())return;
   /* Start every award's shine on the same frame after the sequential reveal. */
   awE.querySelectorAll('.aw.t1,.aw.t2,.aw.t3').forEach(d=>{d.classList.remove('shine-sync');void d.offsetWidth;d.classList.add('shine-sync')});
+  setTimeout(()=>{if(ok()&&window.gearPromptPending)gearPromptPending()},900);   // ask about any gear just unlocked
   if(!ok())return;const nb=!st.noSkiFinish&&!st.fireDeath&&!st.sharkDeath&&st.score>st.pb;sbE.textContent=nb?'\u2605 NEW BEST \u2605':'Best '+best[cur].toLocaleString();sbE.className=nb?'nb':''}
 scE.onclick=()=>{fast=true};
 // Skip the end-of-level animation: tap or click anywhere on the results screen, or press Space / Enter / Esc.
@@ -2181,7 +2218,7 @@ function growFrame(){const els=[...awE.querySelectorAll('.aw:not(.pend)'),...[..
   const pad=6,first=awE.style.getPropertyValue('--fo')!=='1',set=()=>{awE.style.setProperty('--fl',(l-pad)+'px');awE.style.setProperty('--ft',(t-pad)+'px');awE.style.setProperty('--fw',(r-l+2*pad)+'px');awE.style.setProperty('--fh',(b-t+2*pad)+'px')};
   if(first){awE.classList.add('snap');set();void awE.offsetWidth;awE.classList.remove('snap');awE.style.setProperty('--fo','1')}else set()}
 addEventListener('resize',()=>fitResults());addEventListener('orientationchange',()=>setTimeout(fitResults,250));
-function openMenu(fin){commitRun();paused=true;customizer.style.display='none';document.getElementById('sc').style.display='';selPanel.style.display='';document.exitPointerLock&&document.exitPointerLock();updateResetButton();let runTally=false;
+function openMenu(fin){commitRun();paused=true;if(!fin&&window.gearPromptPending)setTimeout(gearPromptPending,300);customizer.style.display='none';document.getElementById('sc').style.display='';selPanel.style.display='';document.exitPointerLock&&document.exitPointerLock();updateResetButton();let runTally=false;
   closeFaq();scE.style.display=fin?'block':'none';selE.style.display=fin?'none':'';if(!fin){sel=cur;showSel(0)}
   if(fin){mh.textContent=LVc.endless?'⛷️ Run over · '+(st.endM||0).toLocaleString()+' m':st.sharkDeath?'🦈 Shark snack!':st.fireDeath?'🔥 Burned to a crisp!':'\u{1F3C1} '+LVc.n+' complete!';ms.textContent=st.sharkDeath?'The shark got you. Jump higher next time!':st.fireDeath?(st.lavaDeath?'You fell in the lava. F FOR FIRE!!!':'You touched the flames. F FOR FIRE!!!'):'';fb.style.display='flex';document.getElementById('replay-menu').style.display=RP.n>1?'':'none';runTally=true}
   else{tId++;fxStop();mh.textContent='Powder Legends';ms.textContent='Choose a level';fb.style.display='none'}
