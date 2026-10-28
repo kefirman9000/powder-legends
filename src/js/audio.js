@@ -21,7 +21,12 @@ function at(x,y,R){const q=P[4],dx=x-q.x,dy=y-q.y,d=Math.hypot(dx,dy),k=Math.max
 function thump(v){noise(.3,.5*v,'lowpass',900,150,0,'fx');tone(130,35,.35,.6*v,'sine',0,'fx')}
 const H0=window.hurt;window.hurt=function(a){const hp=dmg;H0.apply(this,arguments);if(ac&&dmg>hp)thump(cl(.3+a/60,.3,1))};
 const S0=window.skisFly;window.skisFly=function(){S0.apply(this,arguments);if(ac){noise(.15,.5,'highpass',2500,800,0,'fx');tone(900,300,.2,.2,'square',0,'fx')}};
-const C0=window.celebrateLanding;window.celebrateLanding=function(pts){C0.apply(this,arguments);if(!ac)return;const n=pts>9000?4:pts>2500?3:2,v=.15+.05*n;for(let i=0;i<n;i++)tone(520*Math.pow(1.26,i),520*Math.pow(1.26,i),.22,v,'triangle',0,'fx',i*.08)};
+// landing sounds: the chime plays only once a landing has actually counted (physics.js bankLanding), never on a crash
+window.sndLand=function(pts,perfect){if(!ac)return;const n=pts>9000?4:pts>2500?3:2,v=.15+.05*n;for(let i=0;i<n;i++)tone(520*Math.pow(1.26,i),520*Math.pow(1.26,i),.22,v,'triangle',0,'fx',i*.08);
+  if(perfect)tone(1568,1568,.35,.12,'sine',0,'fx',n*.08+.02)};   // a bright sparkle on top for PERFECT
+// failure: a short descending "bwomp" when a trick's points are lost (crash on or after touchdown, mid-air crash, not flat)
+let failAt=0;window.sndFail=function(){if(!ac)return;const n=performance.now();if(n-failAt<600)return;failAt=n;
+  tone(330,220,.18,.2,'triangle',0,'fx');tone(247,140,.32,.2,'triangle',0,'fx',.15);noise(.12,.08,'lowpass',600,200,0,'fx',.15)};
 // end-of-level tally sounds: a fast ticking blip while points count up (rising in pitch as the row fills), a 'ka-ching' when a row finishes, and a chime for every award (bigger tiers get longer, brighter fanfares)
 let tickAt=0;
 window.sndTick=function(u){if(!ac)return;const n=performance.now();if(n-tickAt<42)return;tickAt=n;const f=520+900*u+(Math.random()-.5)*40;tone(f,f*1.04,.05,.13,'square',0,'fx');noise(.025,.08,'highpass',4000,0,0,'fx')};
@@ -46,7 +51,7 @@ window.audioTick=function(){try{
  const s=st.sk;let sg=0,sp2=0;if(s&&s.go&&!s.done){const a=at(s.x,s.y,1500);sg=.6*a.g;sp2=a.p}
  T(L.shark.g.gain,sg);if(L.shark.p)T(L.shark.p.pan,sp2);
  // one-shots on state changes
- if(st.crash&&!pv.crash)thump(1);
+ if(st.crash&&!pv.crash){thump(1);if(st.onAir||st.pendingPts>0||st.failedPendingShown)window.sndFail()}   // crashed mid-trick: the points are gone
  if(st.fireDeath&&!pv.fd){noise(.9,.8,'lowpass',3000,200,0,'fx');tone(400,90,.7,.3,'sawtooth',0,'fx')}
  if(st.sharkDeath&&!pv.sd&&s){const a=at(s.x,s.y,1800);noise(.3,.9,'bandpass',900,300,a.p,'haz');tone(90,40,.4,.8*Math.max(.3,a.g),'sine',a.p,'haz')}
  if(st.finishedLevel&&!pv.fin)[0,4,7,12].forEach((n,i)=>tone(440*Math.pow(2,n/12),440*Math.pow(2,n/12),.35,.2,'triangle',0,'fx',i*.1));

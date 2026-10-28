@@ -83,7 +83,7 @@ function drawCheckpoints(){
   }
 }
 function reset(){
-  camSnap();sceneryReset();gearReset();windReset();ghostLoad();if(LVc&&LVc.onReset)LVc.onReset();
+  camSnap();sceneryReset();gearReset();windReset();spinReset();ghostLoad();if(LVc&&LVc.onReset)LVc.onReset();
   headHitFx=0; // clear concussion flash/dizziness whenever a level or full run is reset
   rpClear();replayMode=false;document.getElementById("replay-controls").style.removeProperty('display');document.getElementById("replay-controls").style.display="none";document.getElementById("replay-open").style.display="none";document.getElementById("replay-menu").style.display="none";
   clearTrickHUD();
@@ -274,7 +274,7 @@ function skiSlopeAngle(){   // degrees between the skis and the slope under them
   return Math.acos(Math.min(1,Math.abs((ux*g.tx+uy*g.ty)/(ul*tl))))*57.2958}
 function bankLanding(L){
   st.pendLand=null;const G=landingGrade(L.ang),raw=L.aP+L.fP+L.hB;
-  if(G.mult===0){queueTrickResult(raw,'failed');spray('NOT FLAT!',Math.round(L.ang)+'° off the slope · land with your skis flat to score',false,0,'failed');st.notFlat=(st.notFlat||0)+1;return}
+  if(G.mult===0){queueTrickResult(raw,'failed');if(window.sndFail)sndFail();spray('NOT FLAT!',Math.round(L.ang)+'° off the slope · land with your skis flat to score',false,0,'failed');st.notFlat=(st.notFlat||0)+1;return}
   const aP=Math.round(L.aP*G.mult),fP=Math.round(L.fP*G.mult),hB=Math.round(L.hB*G.mult),pts=aP+fP+hB,f=L.f;
   st.failedPendingShown=false;
   st.score+=pts;st.aPts+=aP;st.fPts+=fP;st.hPts+=hB;st.lastLandingHPts=hB;st.land++;st.tAir+=L.la;st.lastLandingPts=pts;st.lastLandingAPts=aP;st.lastLandingFPts=fP;st.lastLandingAt=performance.now();st.lastLandingRolledBack=false;st.adrenaline=Math.min(100,(st.adrenaline||0)+Math.min(44,10+Math.sqrt(Math.max(0,pts))*.28)*(G.mult>1?1.3:1));updateAdrenalineUI();
@@ -285,7 +285,7 @@ function bankLanding(L){
   queueTrickResult(pts,'landed');
   trickScoreE.classList.remove('failed','power-1','power-2','power-3','power-4','landed');
   trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';
-  trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');fwLand(pts,f);
+  trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');if(window.sndLand)sndLand(pts,G.name==='PERFECT');
 }
 function step(){
   // Fire does not change the skier's physics: after contact, normal gravity,
@@ -366,7 +366,7 @@ function step(){
   const ang=Math.atan2(P[5].y-P[2].y,P[5].x-P[2].x);
   if(st.ang!==null&&st.onAir){let d=ang-st.ang;if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;st.rot+=d}
   st.ang=ang;
-  if(st.onAir&&!st.crash){const n=Math.floor(Math.abs(st.rot)/6.2832+.08);if(n>st.fl){st.fl=n;spray((st.rot>0?'FRONT':'BACK')+'FLIP'+(n>1?' \u00d7'+n:'')+'!', '', n>=3, 0, n>=4?'mega-flip':n>=3?'big-flip':'');if(n>=2&&n>st.fwFlips){fwTrick(P[4].x,P[4].y-35,n);st.fwFlips=n}else if(n===1&&!st.fwFlips){fwBurst(P[4].x,P[4].y-35,RM()*360,90,3.6,true);st.fwFlips=1}}
+  if(st.onAir&&!st.crash){const n=Math.floor(Math.abs(st.rot)/6.2832+.08);if(n>st.fl){st.fl=n;spray((st.rot>0?'FRONT':'BACK')+'FLIP'+(n>1?' \u00d7'+n:'')+'!', '', n>=3, 0, n>=4?'mega-flip':n>=3?'big-flip':'');if(n>(st.fwFlips||0)){flipPulse(n);st.fwFlips=n}}
   // Trigger the heavenly big-air effect during the jump, not after touchdown.
   }
   if(!air)gT=0;else gT+=1/120;
@@ -374,7 +374,7 @@ function step(){
   if(!air&&st.onAir&&st.air>.15)lndT=LANDT;                      // only a real landing (not a little skip over a bump) arms the absorber
   if(air&&!st.onAir){st.air=0;st.rot=0;st.fl=0;st.fwFlips=0;st.fwDoves=0;st.lr=0;st.jumpScored=false;st.jumpFw=false;st.failedPendingShown=false;st.pendingPts=0;trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';trickScoreE.classList.remove('failed','landed','power-1','power-2','power-3','power-4');trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');st.t0=performance.now()}
   if(air)st.air+=1/120;
-  if(air&&!st.crash&&!st.done&&!st.jumpFw&&st.air>.3){st.jumpFw=true;fwJump()}
+  
   // Trick points are provisional while airborne. They only enter the real score
   // once BOTH skis touch down and the landing has not caused a crash.
   if(air&&!st.crash&&!st.fireDeath){
@@ -391,7 +391,7 @@ function step(){
     st.pendingPts=0;if(!st.crash)st.failedPendingShown=false;st.jumpScored=true;st.hzMult=1;st.hzFlat=0;
   }
   if(st.pendLand){const L=st.pendLand,total=L.aP+L.fP+L.hB;
-    if(st.crash||st.fireDeath||st.sharkDeath){st.pendLand=null;if(total>0&&!st.fireDeath&&!st.sharkDeath)queueTrickResult(total,'failed')}   // fell right after touching down: nothing banked
+    if(st.crash||st.fireDeath||st.sharkDeath){st.pendLand=null;if(total>0&&!st.fireDeath&&!st.sharkDeath){queueTrickResult(total,'failed');if(window.sndFail)sndFail()}}   // fell right after touching down: nothing banked
     else if(++L.steps>=LAND_CONFIRM)bankLanding(L);
   }
   // Keep the same provisional score visible after a crash, and let the HUD turn it red.
