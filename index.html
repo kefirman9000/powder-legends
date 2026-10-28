@@ -4,7 +4,7 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.5.3';
+window.GAME_VERSION='1.5.4';
 window.GAME_NOTES='Steadier camera during flips: it now follows the skier\'s centre of mass, so spins no longer make the view bob up and down.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
@@ -305,6 +305,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;cursor:default;-we
 #pops{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 116px);flex-direction:column;justify-content:flex-end;gap:2px;max-height:38vh;overflow:visible}
 .pp{font-size:calc(clamp(24px,5vw,54px)*(1 + var(--g,0)*.35)*var(--s,1));white-space:normal;max-width:min(92vw,980px);margin-top:0;line-height:1.02}
 @media (max-height:520px){#pops{bottom:calc(env(safe-area-inset-bottom,0px) + 96px);max-height:30vh;left:32%;right:2%}#pops .pp{max-width:100%}.pp{font-size:calc(clamp(18px,4vw,34px)*(1 + var(--g,0)*.3)*var(--s,1))}}
+
 </style><style>
 /* Touch devices: swap animations that repaint every frame (filter, text-shadow, letter-spacing) for transform/opacity ones the GPU composites cheaply. */
 @media (pointer:coarse){
@@ -380,7 +381,7 @@ function colorToHsl(hex){const n=parseInt(hex.slice(1),16),r=((n>>16)&255)/255,g
 function adjustedHex(hex,adj){const hsl=colorToHsl(hex),sat=Math.max(0,Math.min(100,hsl.s*adj.saturation/100)),light=Math.max(0,Math.min(100,hsl.l*adj.brightness/100));return `hsl(${hsl.h} ${sat}% ${light}%)`}
 try{const saved=JSON.parse(localStorage.getItem('skiSkierColors')||'null');if(saved){if(saved.baseSkierColors){baseSkierColors={...baseSkierColors,...saved.baseSkierColors};colorAdjustments={...colorAdjustments,...saved.colorAdjustments}}else{baseSkierColors={...baseSkierColors,...Object.fromEntries(Object.keys(DEFAULT_SKIER_COLORS).filter(k=>/^#[0-9a-f]{6}$/i.test(saved[k]||'')).map(k=>[k,saved[k]]))}}}}catch(e){}
 function drawCustomizationPreview(){syncCustomizationPreview()}
-function syncCustomizationPreview(Qdraw){const canvas=document.getElementById('custom-preview');if(!canvas||!cv||!cam||!P||!P.length)return;const c=canvas.getContext('2d'),w=canvas.width,h=canvas.height;c.clearRect(0,0,w,h);c.fillStyle='#14283d';c.fillRect(0,0,w,h);if(customizer.style.display==='none')return;const q=Qdraw||P,pts=q.filter(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y));if(!pts.length)return;/* Frame the whole skier from all body/joint points, not one torso pivot. Keep source and destination aspect ratios identical so nothing stretches. */const xs=pts.map(p=>(p.x-cam.x)*Z),ys=pts.map(p=>(p.y-cam.y)*Z);let minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);const padX=Math.max(34,(maxX-minX)*.24),padY=Math.max(42,(maxY-minY)*.22);let bw=maxX-minX+padX*2,bh=maxY-minY+padY*2;const aspect=w/h;/* A little extra breathing room, then expand the shorter dimension to match preview aspect. */bw*=1.12;bh*=1.12;if(bw/bh<aspect)bw=bh*aspect;else bh=bw/aspect;/* Shift the crop center slightly left so the entire skier sits a touch right in the preview. */const cx=(minX+maxX)/2-bw*.045,cy=(minY+maxY)/2;const sw=Math.min(cv.width,bw),sh=sw/aspect,cropW=sh>cv.height?cv.height*aspect:sw,cropH=cropW/aspect;const x=Math.max(0,Math.min(cv.width-cropW,cx-cropW/2)),y=Math.max(0,Math.min(cv.height-cropH,cy-cropH/2));try{c.drawImage(cv,x,y,cropW,cropH,0,0,w,h)}catch(e){}}
+function syncCustomizationPreview(Qdraw){const canvas=document.getElementById('custom-preview');if(!canvas||!cv||!cam||!P||!P.length)return;const c=canvas.getContext('2d'),w=canvas.width,h=canvas.height;c.clearRect(0,0,w,h);{const g0=c.createLinearGradient(0,0,0,h);g0.addColorStop(0,LVc&&LVc.sky?LVc.sky[0]:'#14283d');g0.addColorStop(1,LVc&&LVc.sky?LVc.sky[1]:'#14283d');c.fillStyle=g0}c.fillRect(0,0,w,h);if(customizer.style.display==='none')return;const q=Qdraw||P,pts=q.filter(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y));if(!pts.length)return;/* Frame the whole skier from all body/joint points, not one torso pivot. Keep source and destination aspect ratios identical so nothing stretches. */const xs=pts.map(p=>(p.x-cam.x)*Z),ys=pts.map(p=>(p.y-cam.y)*Z);let minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);const padX=Math.max(34,(maxX-minX)*.24),padY=Math.max(42,(maxY-minY)*.22);let bw=maxX-minX+padX*2,bh=maxY-minY+padY*2;const aspect=w/h;/* A little extra breathing room, then expand the shorter dimension to match preview aspect. */bw*=1.12;bh*=1.12;if(bw/bh<aspect)bw=bh*aspect;else bh=bw/aspect;/* Shift the crop center slightly left so the entire skier sits a touch right in the preview. */const cx=(minX+maxX)/2-bw*.045,cy=(minY+maxY)/2;const sw=Math.min(cv.width,bw),sh=sw/aspect,cropW=sh>cv.height?cv.height*aspect:sw,cropH=cropW/aspect;const x=Math.max(0,Math.min(cv.width-cropW,cx-cropW/2)),y=Math.max(0,Math.min(cv.height-cropH,cy-cropH/2));try{c.drawImage(cv,x,y,cropW,cropH,0,0,w,h)}catch(e){}}
 
 const CUSTOM_PARTS=[['jacket','Jacket + gloves'],['pants','Pants'],['helmet','Helmet'],['skis','Skis'],['boots','Boots']];let selectedPartIndex=0;
 function currentPart(){return CUSTOM_PARTS[selectedPartIndex][0]}
@@ -400,7 +401,7 @@ const COARSE=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
 // ---- graphics quality: High / Medium / Low, picked automatically (Auto) or fixed in Settings.
 // dpr: max pixel density (phones cap at 2x; a 3x screen draws ~55% fewer pixels, hard to tell apart)
 // parts: one shared budget for every in-world particle (fireworks, snow puffs, gear sparks); weather: snowfall density
-const Q_LEVELS=[{name:'High',dpr:COARSE?2:4,parts:COARSE?700:2600,weather:1},{name:'Medium',dpr:COARSE?1.5:2,parts:COARSE?420:1400,weather:.6},{name:'Low',dpr:1,parts:COARSE?240:700,weather:.35}];
+const Q_LEVELS=[{name:'High',dpr:2,parts:COARSE?700:2600,weather:1},{name:'Medium',dpr:COARSE?1.5:2,parts:COARSE?420:1400,weather:.6},{name:'Low',dpr:1,parts:COARSE?240:700,weather:.35}];
 let qMode='auto',qLevel=0;try{qMode=localStorage.getItem('skiGfx')||'auto'}catch(e){}
 if(qMode==='high')qLevel=0;else if(qMode==='medium')qLevel=1;else if(qMode==='low')qLevel=2;
 const qCur=()=>Q_LEVELS[qLevel];
@@ -1049,8 +1050,6 @@ function draw(){
   crashWasActive=!!(st&&st.crash);
   const Q=P.map((p,i)=>snap?{x:snap[i][0]+(p.x-snap[i][0])*al,y:snap[i][1]+(p.y-snap[i][1])*al}:p); // draw between the last two physics steps so motion stays smooth
   cx.setTransform(1,0,0,1,0,0);
-  const skyKey=H+'|'+LVc.sky[0]+LVc.sky[1];if(skyCache.key!==skyKey){const g0=cx.createLinearGradient(0,0,0,H);g0.addColorStop(0,LVc.sky[0]);g0.addColorStop(1,LVc.sky[1]);skyCache={key:skyKey,g:g0}}const sk=skyCache.g;   // sky gradient built once per level/size
-  cx.fillStyle=sk;cx.fillRect(0,0,W,H);
   drawMountains();   // parallax mountain layers (scenery.js)
   const camHold=paused&&!replayMode;   // behind a menu: no easing, the camera is placed exactly where it belongs
   zoom+=(zoomT-zoom)*(camHold?1:1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale
@@ -1471,36 +1470,32 @@ const MTN=[{px:.04,py:.012,base:.44,amp:210,sharp:.55,seed:1.7,haze:.6,cap:1},
 let mtnY0=null;
 function mtnHeight(L,wx){const s=L.seed;let h=Math.sin(wx/310+s)*.5+Math.sin(wx/131+s*2.3)*.3+Math.sin(wx/57+s*.7)*.2;   // -1..1 rolling
   const pk=1-Math.abs(Math.sin(wx/(190+s*20)+s));return (h*.5+.5)*(1-L.sharp)+pk*pk*L.sharp}                          // add pointy peaks
-// Each layer is rendered once into its own image (wider and taller than the screen, at reduced resolution since the
-// shapes are soft) and simply shifted as the camera moves. A layer is re-rendered only when it has slid past its margin,
-// or the zoom, screen size, quality or level changes: three cheap image copies per frame instead of three big
-// gradient-filled paths.
-const MTC=MTN.map(()=>({cv:null,g:null,key:'',ox:0,dr:0,mw:0,pad:0}));
-let skyCache={key:'',g:null};
-function mtnRender(L,c,sc,off,drift){
-  const mw=Math.round(W*.35),pad=Math.round(H*.16),cw=W+mw*2,ch=H+pad*2;
-  const r=Math.min(qLevel>=2||COARSE?.5:.75,720/ch);
-  if(!c.cv)c.cv=document.createElement('canvas');
-  const pw=Math.max(2,Math.round(cw*r)),ph=Math.max(2,Math.round(ch*r));if(c.cv.width!==pw||c.cv.height!==ph){c.cv.width=pw;c.cv.height=ph}
-  const g=c.cv.getContext('2d');g.setTransform(r,0,0,r,0,0);g.clearRect(0,0,cw,ch);
-  const baseY=H*L.base-drift+pad,col=mixHex(LVc.far,LVc.sky[1],L.haze),top=mixHex(LVc.far,'#ffffff',.1+L.cap*.25);
-  const gr=g.createLinearGradient(0,baseY-L.amp*sc,0,baseY+40*sc);gr.addColorStop(0,top);gr.addColorStop(.45,col);gr.addColorStop(1,col);
-  g.fillStyle=gr;g.beginPath();g.moveTo(0,ch);const step=Math.max(12,Math.round(cw/90));
-  for(let X=0;X<=cw+step;X+=step){const wx=(X-mw)/sc+off;g.lineTo(X,baseY-L.amp*sc*mtnHeight(L,wx))}
-  g.lineTo(cw,ch);g.closePath();g.fill();
-  c.ox=off;c.dr=drift;c.mw=mw;c.pad=pad;c.cw=cw;c.ch=ch;
-}
+// Backdrop: each frame the sky and the three mountain layers are drawn into ONE small offscreen canvas (~40% of the
+// screen's resolution; the shapes are soft so it doesn't show) and then stretched onto the screen in a single copy.
+// That costs about the same as a plain sky fill. (Painting three full-screen mountain images per frame was the single
+// biggest cost in the game, and made it feel choppy on PCs.)
+const BGC={cv:document.createElement('canvas'),g:null,s:.4,key:'',sky:null};
+let skyCache={key:'',g:null};   // (kept for the customizer preview)
 function drawMountains(){
+  const s=COARSE||qLevel>=2?.33:.4,bw=Math.max(2,Math.round(W*s)),bh=Math.max(2,Math.round(H*s));
+  if(BGC.cv.width!==bw||BGC.cv.height!==bh){BGC.cv.width=bw;BGC.cv.height=bh;BGC.g=BGC.cv.getContext('2d',{alpha:false});BGC.key=''}
+  const g=BGC.g,key=bh+'|'+LVc.sky[0]+LVc.sky[1]+LVc.far;
+  if(BGC.key!==key){BGC.key=key;const sg=g.createLinearGradient(0,0,0,bh);sg.addColorStop(0,LVc.sky[0]);sg.addColorStop(1,LVc.sky[1]);BGC.sky=sg;
+    BGC.cols=MTN.map(L=>{const col=mixHex(LVc.far,LVc.sky[1],L.haze),top=mixHex(LVc.far,'#ffffff',.1+L.cap*.25);return{col,top}})}
+  g.setTransform(1,0,0,1,0,0);g.fillStyle=BGC.sky;g.fillRect(0,0,bw,bh);
   const sc=ZB*zoom;if(mtnY0===null)mtnY0=cam.y;
+  g.setTransform(s,0,0,s,0,0);   // draw in full-screen coordinates, scaled down
+  const step=Math.max(16,Math.round(W/60));
   MTN.forEach((L,li)=>{
-    const c=MTC[li],off=cam.x*L.px,drift=Math.max(-.12*H,Math.min(.12*H,(cam.y-mtnY0)*L.py*sc));
-    const key=W+'x'+H+'@'+sc.toFixed(4)+'|'+qLevel+'|'+(LVc&&LVc.n);
-    let dx=(off-c.ox)*sc,dy=drift-c.dr;
-    if(c.key!==key||Math.abs(dx)>c.mw*.92||Math.abs(dy)>c.pad*.92){mtnRender(L,c,sc,off,drift);c.key=key;dx=0;dy=0}
-    cx.drawImage(c.cv,-c.mw-dx,-c.pad-dy,c.cw,c.ch);
+    const drift=Math.max(-.12*H,Math.min(.12*H,(cam.y-mtnY0)*L.py*sc)),baseY=H*L.base-drift,off=cam.x*L.px,c=BGC.cols[li];
+    const gr=g.createLinearGradient(0,baseY-L.amp*sc,0,baseY+40*sc);gr.addColorStop(0,c.top);gr.addColorStop(.45,c.col);gr.addColorStop(1,c.col);
+    g.fillStyle=gr;g.beginPath();g.moveTo(0,H);
+    for(let X=0;X<=W+step;X+=step)g.lineTo(X,baseY-L.amp*sc*mtnHeight(L,X/sc+off));
+    g.lineTo(W,H);g.closePath();g.fill();
   });
+  cx.imageSmoothingEnabled=true;cx.drawImage(BGC.cv,0,0,W,H);
 }
-function mtnReset(){MTC.forEach(c=>{c.key=''})}
+function mtnReset(){BGC.key=''}
 // ---- weather: particles live in screen pixels and are pushed by the camera, nearer flakes moving more
 const WX={n:COARSE?55:140,p:[],lastX:null,lastY:null,kind:null};
 function weatherKind(){return(LVc&&LVc.weather)||'snow'}
@@ -2808,6 +2803,7 @@ const m=document.createElement('div');m.id='set-modal';m.setAttribute('role','di
 m.innerHTML=`<div id="set-card"><h3>⚙ Settings <button type="button" id="set-close">Done</button></h3>
  <div class="set-row"><div>Game version<small id="set-ver"></small></div><button type="button" id="set-upd">Check for updates</button></div>
  <div class="set-row"><div>Graphics<small id="set-gfx-note"></small></div><select id="set-gfx"><option value="auto">Auto</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+ <div class="set-row"><div>Show FPS<small>A small frame-rate counter in the corner, handy if the game feels choppy</small></div><input type="checkbox" id="set-fps"></div>
  <div class="set-row"><div>Best-run ghost<small>Race a see-through copy of your best run on each level</small></div><input type="checkbox" id="set-ghost"></div>
  <div class="set-row" id="set-hap-row"><div>Vibration<small>Short buzzes on landings, flips and crashes (Android phones)</small></div><input type="checkbox" id="set-hap"></div>
  <div class="set-row"><div>Reset all scores<small>Clears best scores, grades and records. Unlocked gear is kept.</small></div><button type="button" class="danger" id="set-reset">Reset</button></div></div>`;
@@ -2815,7 +2811,7 @@ document.body.appendChild(m);
 function open(){
   $('set-ver').textContent='v'+GAME_VERSION+(window.__SKI_FROM_UPDATE?' (installed update)':'');
   const ok=typeof HAPTIC_OK!=='undefined'&&HAPTIC_OK;$('set-hap-row').style.display=ok?'':'none';if(ok)$('set-hap').checked=hapOn;
-  $('set-gfx').value=qMode;gfxNote();$('set-ghost').checked=ghostOn();
+  $('set-gfx').value=qMode;gfxNote();$('set-fps').checked=fpsOn;$('set-ghost').checked=ghostOn();
   $('set-reset').textContent='Reset';m.style.display='flex'}
 function gfxNote(){$('set-gfx-note').textContent=qMode==='auto'?'Adjusts itself if your device struggles (now: '+qCur().name+')':'Fixed at '+qCur().name}
 const close=()=>{m.style.display='none'};
@@ -2824,10 +2820,20 @@ m.addEventListener('pointerdown',e=>{if(e.target===m)close()});m.addEventListene
 $('set-upd').addEventListener('click',()=>{close();if(window.updCheck)updCheck()});
 $('set-gfx').addEventListener('change',e=>{setQualityMode(e.target.value);gfxNote()});
 $('set-ghost').addEventListener('change',e=>setGhost(e.target.checked));
+$('set-fps').addEventListener('change',e=>setFps(e.target.checked));
 $('set-hap').addEventListener('change',e=>{setHaptics(e.target.checked);const b=$('v-hap');if(b)b.checked=e.target.checked});
 $('set-reset').addEventListener('click',e=>{const b=e.target;if(b.textContent==='Reset'){b.textContent='Tap again to confirm';return}   // two taps, so it can't happen by accident
   best.fill(0);bestG.fill(-1);save();ghostClearAll();['skiJumpRecord','skiEndlessM'].forEach(k=>{try{localStorage.removeItem(k)}catch(_){}});
   LV.forEach(l=>{delete l._preview});showSel(0);b.textContent='Scores cleared ✓'});
 })();
+
+// ---- frame-rate counter (Settings > Show FPS): average fps and the slowest frame, refreshed twice a second
+let fpsOn=false;try{fpsOn=localStorage.getItem('skiFps')==='1'}catch(e){}
+const fpsE=document.createElement('div');fpsE.id='fps';fpsE.style.cssText='position:fixed;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);z-index:9;font:700 11px ui-monospace,monospace;color:#fff;background:#0009;padding:3px 7px;border-radius:6px;pointer-events:none;display:none';document.body.appendChild(fpsE);
+const FPSM={n:0,t0:0,worst:0,last:0};
+function setFps(on){fpsOn=!!on;try{localStorage.setItem('skiFps',on?'1':'0')}catch(e){}fpsE.style.display=on?'block':'none'}
+setFps(fpsOn);
+(function fpsLoop(t){requestAnimationFrame(fpsLoop);if(!fpsOn)return;if(FPSM.last)FPSM.worst=Math.max(FPSM.worst,t-FPSM.last);FPSM.last=t;FPSM.n++;
+  if(!FPSM.t0)FPSM.t0=t;if(t-FPSM.t0>=500){fpsE.textContent=Math.round(FPSM.n*1000/(t-FPSM.t0))+' fps · worst '+Math.round(FPSM.worst)+' ms · '+qCur().name;FPSM.n=0;FPSM.t0=t;FPSM.worst=0}})(0);
 </script>
 </body></html>

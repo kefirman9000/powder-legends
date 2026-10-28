@@ -3,8 +3,6 @@ function draw(){
   crashWasActive=!!(st&&st.crash);
   const Q=P.map((p,i)=>snap?{x:snap[i][0]+(p.x-snap[i][0])*al,y:snap[i][1]+(p.y-snap[i][1])*al}:p); // draw between the last two physics steps so motion stays smooth
   cx.setTransform(1,0,0,1,0,0);
-  const skyKey=H+'|'+LVc.sky[0]+LVc.sky[1];if(skyCache.key!==skyKey){const g0=cx.createLinearGradient(0,0,0,H);g0.addColorStop(0,LVc.sky[0]);g0.addColorStop(1,LVc.sky[1]);skyCache={key:skyKey,g:g0}}const sk=skyCache.g;   // sky gradient built once per level/size
-  cx.fillStyle=sk;cx.fillRect(0,0,W,H);
   drawMountains();   // parallax mountain layers (scenery.js)
   const camHold=paused&&!replayMode;   // behind a menu: no easing, the camera is placed exactly where it belongs
   zoom+=(zoomT-zoom)*(camHold?1:1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale

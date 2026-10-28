@@ -11,36 +11,32 @@ const MTN=[{px:.04,py:.012,base:.44,amp:210,sharp:.55,seed:1.7,haze:.6,cap:1},
 let mtnY0=null;
 function mtnHeight(L,wx){const s=L.seed;let h=Math.sin(wx/310+s)*.5+Math.sin(wx/131+s*2.3)*.3+Math.sin(wx/57+s*.7)*.2;   // -1..1 rolling
   const pk=1-Math.abs(Math.sin(wx/(190+s*20)+s));return (h*.5+.5)*(1-L.sharp)+pk*pk*L.sharp}                          // add pointy peaks
-// Each layer is rendered once into its own image (wider and taller than the screen, at reduced resolution since the
-// shapes are soft) and simply shifted as the camera moves. A layer is re-rendered only when it has slid past its margin,
-// or the zoom, screen size, quality or level changes: three cheap image copies per frame instead of three big
-// gradient-filled paths.
-const MTC=MTN.map(()=>({cv:null,g:null,key:'',ox:0,dr:0,mw:0,pad:0}));
-let skyCache={key:'',g:null};
-function mtnRender(L,c,sc,off,drift){
-  const mw=Math.round(W*.35),pad=Math.round(H*.16),cw=W+mw*2,ch=H+pad*2;
-  const r=Math.min(qLevel>=2||COARSE?.5:.75,720/ch);
-  if(!c.cv)c.cv=document.createElement('canvas');
-  const pw=Math.max(2,Math.round(cw*r)),ph=Math.max(2,Math.round(ch*r));if(c.cv.width!==pw||c.cv.height!==ph){c.cv.width=pw;c.cv.height=ph}
-  const g=c.cv.getContext('2d');g.setTransform(r,0,0,r,0,0);g.clearRect(0,0,cw,ch);
-  const baseY=H*L.base-drift+pad,col=mixHex(LVc.far,LVc.sky[1],L.haze),top=mixHex(LVc.far,'#ffffff',.1+L.cap*.25);
-  const gr=g.createLinearGradient(0,baseY-L.amp*sc,0,baseY+40*sc);gr.addColorStop(0,top);gr.addColorStop(.45,col);gr.addColorStop(1,col);
-  g.fillStyle=gr;g.beginPath();g.moveTo(0,ch);const step=Math.max(12,Math.round(cw/90));
-  for(let X=0;X<=cw+step;X+=step){const wx=(X-mw)/sc+off;g.lineTo(X,baseY-L.amp*sc*mtnHeight(L,wx))}
-  g.lineTo(cw,ch);g.closePath();g.fill();
-  c.ox=off;c.dr=drift;c.mw=mw;c.pad=pad;c.cw=cw;c.ch=ch;
-}
+// Backdrop: each frame the sky and the three mountain layers are drawn into ONE small offscreen canvas (~40% of the
+// screen's resolution; the shapes are soft so it doesn't show) and then stretched onto the screen in a single copy.
+// That costs about the same as a plain sky fill. (Painting three full-screen mountain images per frame was the single
+// biggest cost in the game, and made it feel choppy on PCs.)
+const BGC={cv:document.createElement('canvas'),g:null,s:.4,key:'',sky:null};
+let skyCache={key:'',g:null};   // (kept for the customizer preview)
 function drawMountains(){
+  const s=COARSE||qLevel>=2?.33:.4,bw=Math.max(2,Math.round(W*s)),bh=Math.max(2,Math.round(H*s));
+  if(BGC.cv.width!==bw||BGC.cv.height!==bh){BGC.cv.width=bw;BGC.cv.height=bh;BGC.g=BGC.cv.getContext('2d',{alpha:false});BGC.key=''}
+  const g=BGC.g,key=bh+'|'+LVc.sky[0]+LVc.sky[1]+LVc.far;
+  if(BGC.key!==key){BGC.key=key;const sg=g.createLinearGradient(0,0,0,bh);sg.addColorStop(0,LVc.sky[0]);sg.addColorStop(1,LVc.sky[1]);BGC.sky=sg;
+    BGC.cols=MTN.map(L=>{const col=mixHex(LVc.far,LVc.sky[1],L.haze),top=mixHex(LVc.far,'#ffffff',.1+L.cap*.25);return{col,top}})}
+  g.setTransform(1,0,0,1,0,0);g.fillStyle=BGC.sky;g.fillRect(0,0,bw,bh);
   const sc=ZB*zoom;if(mtnY0===null)mtnY0=cam.y;
+  g.setTransform(s,0,0,s,0,0);   // draw in full-screen coordinates, scaled down
+  const step=Math.max(16,Math.round(W/60));
   MTN.forEach((L,li)=>{
-    const c=MTC[li],off=cam.x*L.px,drift=Math.max(-.12*H,Math.min(.12*H,(cam.y-mtnY0)*L.py*sc));
-    const key=W+'x'+H+'@'+sc.toFixed(4)+'|'+qLevel+'|'+(LVc&&LVc.n);
-    let dx=(off-c.ox)*sc,dy=drift-c.dr;
-    if(c.key!==key||Math.abs(dx)>c.mw*.92||Math.abs(dy)>c.pad*.92){mtnRender(L,c,sc,off,drift);c.key=key;dx=0;dy=0}
-    cx.drawImage(c.cv,-c.mw-dx,-c.pad-dy,c.cw,c.ch);
+    const drift=Math.max(-.12*H,Math.min(.12*H,(cam.y-mtnY0)*L.py*sc)),baseY=H*L.base-drift,off=cam.x*L.px,c=BGC.cols[li];
+    const gr=g.createLinearGradient(0,baseY-L.amp*sc,0,baseY+40*sc);gr.addColorStop(0,c.top);gr.addColorStop(.45,c.col);gr.addColorStop(1,c.col);
+    g.fillStyle=gr;g.beginPath();g.moveTo(0,H);
+    for(let X=0;X<=W+step;X+=step)g.lineTo(X,baseY-L.amp*sc*mtnHeight(L,X/sc+off));
+    g.lineTo(W,H);g.closePath();g.fill();
   });
+  cx.imageSmoothingEnabled=true;cx.drawImage(BGC.cv,0,0,W,H);
 }
-function mtnReset(){MTC.forEach(c=>{c.key=''})}
+function mtnReset(){BGC.key=''}
 // ---- weather: particles live in screen pixels and are pushed by the camera, nearer flakes moving more
 const WX={n:COARSE?55:140,p:[],lastX:null,lastY:null,kind:null};
 function weatherKind(){return(LVc&&LVc.weather)||'snow'}
