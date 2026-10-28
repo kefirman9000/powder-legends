@@ -83,7 +83,7 @@ function drawCheckpoints(){
   }
 }
 function reset(){
-  camSnap();sceneryReset();gearReset();if(LVc&&LVc.onReset)LVc.onReset();
+  camSnap();sceneryReset();gearReset();windReset();if(LVc&&LVc.onReset)LVc.onReset();
   headHitFx=0; // clear concussion flash/dizziness whenever a level or full run is reset
   rpClear();replayMode=false;document.getElementById("replay-controls").style.removeProperty('display');document.getElementById("replay-controls").style.display="none";document.getElementById("replay-open").style.display="none";document.getElementById("replay-menu").style.display="none";
   clearTrickHUD();
