@@ -60,6 +60,9 @@ function awards(){const out=[];for(const a of AWD){const v=a.v(st);let ti=-1;a.t
   if(st.skisOff&&st.noSkiFinish)out.push({ic:'\u{1F9B6}',k:'STYLE',name:'Barefoot Legend',det:'Finished with no skis',ti:3});if(!st.skisOff&&dmg<10&&st.score>0)out.push({ic:'\u{1F3BF}',k:'STYLE',name:'Pristine Skis',det:'Barely a scratch',ti:2});if(resetsUsed>0)out.push({ic:'\u{1F9A8}',k:'STINKY',name:'Stinky Reset',det:'Reset Skis used '+resetsUsed+' time'+(resetsUsed===1?'':'s')+' · −'+resetPenaltyTotal.toLocaleString()+' points',ti:0});return out}
 // ---- the end-of-level tally: air and flip points add up one row at a time, then the rating slams in, then the awards drop one by one
 let tId=0,fast=false;
+// results tally pacing (ms): each score row counts up for `row`, rows with 0 points for `zero`, then a short `gap`;
+// the grade stamp holds for `stamp` before the awards appear one every `award`
+const TALLY={row:420,zero:90,gap:120,stamp:650,award:260};
 const wait=ms=>new Promise(r=>setTimeout(r,fast?0:ms));
 function setScore(v){snE.textContent=v.toLocaleString();snE.style.setProperty('--g',glowOf(v).toFixed(3))}
 function count(a,b,D,ok){return new Promise(res=>{const t0=performance.now(),f=t=>{if(!ok())return res();const u=fast?1:Math.min(1,(t-t0)/D),e=1-Math.pow(1-u,3);setScore(Math.round(a+(b-a)*e));if(!fast&&window.sndTick)sndTick(u);if(u<1)requestAnimationFrame(f);else res()};requestAnimationFrame(f)})}
@@ -75,11 +78,11 @@ async function tally(){const id=++tId,ok=()=>id===tId;fast=false;fxStop();scE.st
     d.innerHTML='<div class="ic">'+g.ic+'</div><b>'+g.name+'</b><i>NEW GEAR · equip it in Customize</i><u>UNLOCKED</u>';awE.append(d);cards.push(d);A.push({ti:3})}
   if(!A.length){awE.innerHTML='<div class="none" style="visibility:hidden">No awards this run. Go land a flip!</div>'}
   fitResults();
-  await wait(350);for(let i=0;i<rows.length;i++){const [l,d,p]=rows[i];if(!ok())return;const r=rowsE.children[i];await count(cum,cum+p,p?900:200,ok);cum+=p;if(p&&!fast&&window.sndRow)sndRow();await wait(300)}
-  if(!ok())return;setScore(st.score);await wait(300);if(!ok())return;
-  rtE.querySelector('.stamp').classList.remove('pend');rtE.querySelectorAll('.note').forEach(n=>n.style.visibility='');fxStart(R.r[0],noSkiEffort,!!st.fireDeath,!!st.sharkDeath);await wait(1100);
+  await wait(200);for(let i=0;i<rows.length;i++){const [l,d,p]=rows[i];if(!ok())return;const r=rowsE.children[i];await count(cum,cum+p,p?TALLY.row:TALLY.zero,ok);cum+=p;if(p&&!fast&&window.sndRow)sndRow();await wait(TALLY.gap)}
+  if(!ok())return;setScore(st.score);await wait(200);if(!ok())return;
+  rtE.querySelector('.stamp').classList.remove('pend');rtE.querySelectorAll('.note').forEach(n=>n.style.visibility='');fxStart(R.r[0],noSkiEffort,!!st.fireDeath,!!st.sharkDeath);await wait(TALLY.stamp);
   if(!A.length){const n=awE.querySelector('.none');if(n)n.style.visibility='';growFrame()}
-  for(let i=0;i<cards.length;i++){if(!ok())return;const d=cards[i],a=A[i];d.classList.remove('pend');growFrame();if(window.sndAward)sndAward(a.ti);if(a.ti>=1)fxAt(d,a.ti);await wait(450)}
+  for(let i=0;i<cards.length;i++){if(!ok())return;const d=cards[i],a=A[i];d.classList.remove('pend');growFrame();if(window.sndAward)sndAward(a.ti);if(a.ti>=1)fxAt(d,a.ti);await wait(TALLY.award)}
   if(!ok())return;
   /* Start every award's shine on the same frame after the sequential reveal. */
   awE.querySelectorAll('.aw.t1,.aw.t2,.aw.t3').forEach(d=>{d.classList.remove('shine-sync');void d.offsetWidth;d.classList.add('shine-sync')});
