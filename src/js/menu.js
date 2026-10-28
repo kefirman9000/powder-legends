@@ -83,6 +83,7 @@ async function tally(){const id=++tId,ok=()=>id===tId;fast=false;fxStop();scE.st
   if(!ok())return;
   /* Start every award's shine on the same frame after the sequential reveal. */
   awE.querySelectorAll('.aw.t1,.aw.t2,.aw.t3').forEach(d=>{d.classList.remove('shine-sync');void d.offsetWidth;d.classList.add('shine-sync')});
+  setTimeout(()=>{if(ok()&&window.gearPromptPending)gearPromptPending()},900);   // ask about any gear just unlocked
   if(!ok())return;const nb=!st.noSkiFinish&&!st.fireDeath&&!st.sharkDeath&&st.score>st.pb;sbE.textContent=nb?'\u2605 NEW BEST \u2605':'Best '+best[cur].toLocaleString();sbE.className=nb?'nb':''}
 scE.onclick=()=>{fast=true};
 // Skip the end-of-level animation: tap or click anywhere on the results screen, or press Space / Enter / Esc.
@@ -102,7 +103,7 @@ function growFrame(){const els=[...awE.querySelectorAll('.aw:not(.pend)'),...[..
   const pad=6,first=awE.style.getPropertyValue('--fo')!=='1',set=()=>{awE.style.setProperty('--fl',(l-pad)+'px');awE.style.setProperty('--ft',(t-pad)+'px');awE.style.setProperty('--fw',(r-l+2*pad)+'px');awE.style.setProperty('--fh',(b-t+2*pad)+'px')};
   if(first){awE.classList.add('snap');set();void awE.offsetWidth;awE.classList.remove('snap');awE.style.setProperty('--fo','1')}else set()}
 addEventListener('resize',()=>fitResults());addEventListener('orientationchange',()=>setTimeout(fitResults,250));
-function openMenu(fin){commitRun();paused=true;customizer.style.display='none';document.getElementById('sc').style.display='';selPanel.style.display='';document.exitPointerLock&&document.exitPointerLock();updateResetButton();let runTally=false;
+function openMenu(fin){commitRun();paused=true;if(!fin&&window.gearPromptPending)setTimeout(gearPromptPending,300);customizer.style.display='none';document.getElementById('sc').style.display='';selPanel.style.display='';document.exitPointerLock&&document.exitPointerLock();updateResetButton();let runTally=false;
   closeFaq();scE.style.display=fin?'block':'none';selE.style.display=fin?'none':'';if(!fin){sel=cur;showSel(0)}
   if(fin){mh.textContent=LVc.endless?'⛷️ Run over · '+(st.endM||0).toLocaleString()+' m':st.sharkDeath?'🦈 Shark snack!':st.fireDeath?'🔥 Burned to a crisp!':'\u{1F3C1} '+LVc.n+' complete!';ms.textContent=st.sharkDeath?'The shark got you. Jump higher next time!':st.fireDeath?(st.lavaDeath?'You fell in the lava. F FOR FIRE!!!':'You touched the flames. F FOR FIRE!!!'):'';fb.style.display='flex';document.getElementById('replay-menu').style.display=RP.n>1?'':'none';runTally=true}
   else{tId++;fxStop();mh.textContent='Powder Legends';ms.textContent='Choose a level';fb.style.display='none'}

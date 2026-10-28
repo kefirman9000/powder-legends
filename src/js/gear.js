@@ -18,13 +18,16 @@ let gear={unlocked:[],on:{}};
 try{const g=JSON.parse(localStorage.getItem('skiGear')||'null');if(g&&Array.isArray(g.unlocked))gear={unlocked:g.unlocked,on:g.on||{}}}catch(e){}
 const gearSave=()=>{try{localStorage.setItem('skiGear',JSON.stringify(gear))}catch(e){}};
 const gearHas=id=>gear.unlocked.includes(id),gearOn=slot=>gear.on[slot]||null;
-function gearUnlock(id){if(gearHas(id))return false;gear.unlocked.push(id);const g=GEAR.find(x=>x.id===id);if(g&&!gear.on[g.slot])gear.on[g.slot]=id;gearSave();return true}   // a new item is worn right away if that slot is empty
+function gearUnlock(id,ask){if(gearHas(id))return false;gear.unlocked.push(id);gearSave();if(ask&&!gearPending.includes(id))gearPending.push(id);return true}   // nothing is worn automatically; earned-in-play unlocks ask first
+const gearPending=[];   // unlocks waiting for the "wear it now?" prompt
+// one-time cleanup (v1.5.1): earlier versions put unlocked gear on automatically; take it all off once so nobody is stuck glowing
+try{if(!localStorage.getItem('skiGearFix151')){gear.on={};gearSave();localStorage.setItem('skiGearFix151','1')}}catch(e){}
 function gearSync(){GEAR.forEach(g=>{if(g.level){const i=LV.findIndex(l=>l.n===g.level);if(i>=0&&best[i]>0)gearUnlock(g.id)}})}   // players who already beat a level get its gear
 function gearNewUnlocks(){   // called by the results screen
   if(!st||!st.finishedLevel||st.noSkiFinish||!LVc)return[];
-  return GEAR.filter(g=>g.level===LVc.n&&gearUnlock(g.id));
+  return GEAR.filter(g=>g.level===LVc.n&&gearUnlock(g.id,true));
 }
-function gearJump(m){if(m>=100&&gearUnlock('wings'))spray('UNLOCKED: JUMP WINGS','equip them in Customize',true)}
+function gearJump(m){if(m>=100&&gearUnlock('wings',true))spray('UNLOCKED: JUMP WINGS','',true)}
 // ---- customizer panel
 function gearPanel(){
   gearSync();let box=document.getElementById('gear-panel');
@@ -76,4 +79,26 @@ function drawGearFront(Q){   // on top of the skier: skis, suit and helmet effec
       const sh=((t*.7)%1)*16-8;cx.globalCompositeOperation='lighter';cx.globalAlpha=.8;cx.fillStyle='#fffbe0';cx.beginPath();cx.arc(sh,-4,1.6,0,7);cx.fill()}
     if(he==='fin'){cx.fillStyle='#5f7f97';cx.strokeStyle='#2c4252';cx.lineWidth=1;cx.beginPath();cx.moveTo(-4,-7);cx.quadraticCurveTo(1,-19,7,-21);cx.quadraticCurveTo(4,-13,4,-7);cx.closePath();cx.fill();cx.stroke()}}
   cx.restore();
+}
+
+// ---- "New gear! Wear it now?" prompt, shown after the results screen (one item at a time)
+{const css=document.createElement('style');css.textContent=`
+#gear-ask{position:fixed;inset:0;z-index:26;display:none;align-items:center;justify-content:center;background:rgba(5,10,18,.72);padding:16px}
+#gear-ask .ga{width:min(360px,92vw);background:#18222f;border:1px solid #c58bff88;border-radius:16px;padding:18px;color:#fff;text-align:center;box-shadow:0 0 30px #8a5bff55,0 10px 40px #000a;animation:gaIn .45s cubic-bezier(.2,1.4,.4,1)}
+#gear-ask .gai{font-size:46px;line-height:1}#gear-ask small{display:block;margin-top:8px;font:800 10px system-ui;letter-spacing:.2em;color:#d7b8ff}
+#gear-ask b{display:block;font:400 26px/1.1 var(--gf);margin:4px 0 2px;color:#ffe9a8}#gear-ask p{margin:0 0 14px;font:13px system-ui;opacity:.75}
+#gear-ask .gab{display:flex;gap:8px;justify-content:center}#gear-ask button{border:0;border-radius:10px;padding:9px 16px;font:700 14px system-ui;cursor:pointer;color:#fff;background:#ffffff22}
+#gear-ask button.yes{background:#7c4dff}
+@keyframes gaIn{from{opacity:0;transform:scale(.85) translateY(10px)}}`;document.head.appendChild(css)}
+const gearAsk=document.createElement('div');gearAsk.id='gear-ask';gearAsk.innerHTML='<div class="ga"><div class="gai"></div><small>NEW GEAR UNLOCKED</small><b></b><p></p><div class="gab"><button type="button" class="no">Not now</button><button type="button" class="yes">Wear it now</button></div></div>';
+document.body.appendChild(gearAsk);
+function gearPromptPending(){
+  if(gearAsk.style.display==='flex'||!gearPending.length)return;
+  const id=gearPending.shift(),g=GEAR.find(x=>x.id===id);if(!g)return gearPromptPending();
+  const cur=gear.on[g.slot]&&GEAR.find(x=>x.id===gear.on[g.slot]);
+  gearAsk.querySelector('.gai').textContent=g.ic;gearAsk.querySelector('b').textContent=g.name;
+  gearAsk.querySelector('p').textContent=g.how+(cur?' · replaces your '+cur.name:'')+'. You can change it any time in Customize.';
+  const done=wear=>{if(wear){gear.on[g.slot]=g.id;gearSave()}gearAsk.style.display='none';setTimeout(gearPromptPending,250)};
+  gearAsk.querySelector('.yes').onclick=()=>done(true);gearAsk.querySelector('.no').onclick=()=>done(false);
+  gearAsk.style.display='flex';
 }

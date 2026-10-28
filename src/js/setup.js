@@ -20,7 +20,8 @@ function stepColor(dir){const part=currentPart();let i=COLOR_PALETTE.findIndex(c
 document.getElementById('part-prev').addEventListener('click',()=>stepPart(-1));document.getElementById('part-next').addEventListener('click',()=>stepPart(1));document.getElementById('color-prev').addEventListener('click',()=>stepColor(-1));document.getElementById('color-next').addEventListener('click',()=>stepColor(1));document.querySelectorAll('#custom-color-picker input[data-filter]').forEach(input=>input.addEventListener('input',()=>{colorAdjustments[currentPart()][input.dataset.filter]=Number(input.value);applySkierColors()}));
 document.getElementById('custom-reset').addEventListener('click',()=>{baseSkierColors={...DEFAULT_SKIER_COLORS};colorAdjustments=Object.fromEntries(Object.keys(DEFAULT_SKIER_COLORS).map(k=>[k,{brightness:100,saturation:100}]));applySkierColors()});
 const customizer=document.getElementById('customizer'),selPanel=document.getElementById('sel'),customOpen=document.getElementById('customize-open');
-function showCustomize(){customizer.style.display='block';if(window.gearPanel)gearPanel();customizer.setAttribute('aria-hidden','false');drawCustomizationPreview()}
+function showCustomize(){if(st&&(st.done||st.crash||st.skisOff||st.fireDeath||st.sharkDeath)&&!LVc.tutorial)reset();   // after a wipeout, burn or shark there's no skier to show: start the level fresh behind the menu
+  customizer.style.display='block';if(window.gearPanel)gearPanel();customizer.setAttribute('aria-hidden','false');drawCustomizationPreview()}
 function hideCustomize(){customizer.style.display='none';customizer.setAttribute('aria-hidden','true')}
 customOpen.addEventListener('click',showCustomize);document.getElementById('custom-back').addEventListener('click',hideCustomize);
 applySkierColors();
@@ -34,14 +35,21 @@ if(qMode==='high')qLevel=0;else if(qMode==='medium')qLevel=1;else if(qMode==='lo
 const qCur=()=>Q_LEVELS[qLevel];
 function partRoom(){return Math.max(0,qCur().parts-(typeof FW!=='undefined'?FW.sp.length:0)-(typeof snow!=='undefined'?snow.length:0)-(typeof gfx!=='undefined'?gfx.sp.length:0))}
 function setQuality(level){if(level===qLevel)return;qLevel=level;fit();if(typeof WX!=='undefined')WX.p.length=0}
-const QA={sum:0,n:0,skip:0};   // auto-quality: if play runs below ~45 fps for 2 seconds, step down one level (never back up mid-session)
+// Auto-quality, deliberately cautious: measured over 3-second windows of actual play. Two slow windows in a row
+// (under ~40 fps) step down one level, but Auto never goes below Medium (Low is only by choice in Settings).
+// Four smooth windows in a row (55+ fps) step back up, so a one-off slowdown doesn't stick for the session.
+const QA={sum:0,n:0,skip:0,slow:0,fast:0};
 function qualityTick(rawDt){
-  if(qMode!=='auto'||paused||replayMode||qLevel>=2)return;
+  if(qMode!=='auto'||paused||replayMode)return;
   if(rawDt>.25){QA.sum=QA.n=0;QA.skip=60;return}   // a hitch (tab switch, level load): ignore and wait a moment
   if(QA.skip>0){QA.skip--;return}
   QA.sum+=rawDt;QA.n++;
-  if(QA.sum>=2){if(QA.sum/QA.n>1/45)setQuality(qLevel+1);QA.sum=QA.n=0;QA.skip=90}}
-function setQualityMode(m){qMode=m;try{localStorage.setItem('skiGfx',m)}catch(e){}setQuality(m==='high'?0:m==='medium'?1:m==='low'?2:0);QA.sum=QA.n=0}
+  if(QA.sum<3)return;
+  const avg=QA.sum/QA.n;QA.sum=QA.n=0;
+  if(avg>1/40){QA.fast=0;if(++QA.slow>=2&&qLevel<1){setQuality(qLevel+1);QA.slow=0;QA.skip=120}}
+  else if(avg<1/55){QA.slow=0;if(++QA.fast>=4&&qLevel>0){setQuality(qLevel-1);QA.fast=0;QA.skip=120}}
+  else{QA.slow=0;QA.fast=0}}
+function setQualityMode(m){qMode=m;try{localStorage.setItem('skiGfx',m)}catch(e){}setQuality(m==='high'?0:m==='medium'?1:m==='low'?2:0);QA.sum=QA.n=QA.slow=QA.fast=0}
 window.DPR=1;
 function fit(){const r=box.getBoundingClientRect(),d=window.DPR=Math.min(devicePixelRatio||1,qCur().dpr);W=cv.width=Math.max(r.width*d,2);H=cv.height=Math.max(r.height*d,2);ZB=Math.min(W/520,H/300);Z=ZB*zoom}
 addEventListener('resize',fit);fit();

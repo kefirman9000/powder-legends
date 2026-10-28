@@ -174,9 +174,9 @@ const LV=[
  {n:'Volcano Run',d:'Ash-grey snow on the flank of a live volcano. Jump two walls of fire and two pools of lava; touch either and you go up in smoke. Every hazard you clear pays a x2 bonus on that jump (x3 if you skim just over it).',
   T:vol.t,fin:vol.fin,lava:vol.lava,weather:'ash',sky:['#2a0d10','#c4471f'],far:'#4a2420',snow:'#d6d0cc',edge:'#6b4c44',
   build(){for(const wx of vol.walls){const hh=90;addBox(wx,ter(wx).y+8-hh,12,hh,{k:'fire-wall',lim:[420,200],say:'Touched the fire!',mu:.08})}}},
- {n:'Lantern Forest',d:'A night run through a lantern-lit pine forest. The trail is littered with rocks: small, quick hops get you over them cleanly, and every one you clip chips your skis. Three little kickers and one proper jump at the end.',
+ {n:'Lantern Forest',d:'A quiet night run through a lantern-lit pine forest. Three little kickers to warm up your timing, then one proper jump at the end. Keep it smooth and stomp every landing.',
   T:lan.t,fin:lan.fin,sky:['#060b20','#1f2d58'],far:'#121a38',snow:'#dbe4f5',edge:'#7c8fc2',drawBack:lanternBack,drawFront:lanternFront,
-  build(){const soft=()=>{rocks[rocks.length-1].soft=1};lan.secs.forEach((s,i)=>{addRock(s+140,9+rnd()*3,false);soft();addRock(s+400,8+rnd()*3,false);soft();addRock(s+640,10+rnd()*3,false);soft()})}},
+  },
  {n:'Ski Jump Hill',d:'One giant Olympic-style ski jump. Crouch on the inrun, pop off the edge of the table, and lean forward in the air so you do not rotate onto your back. Fly as far as you can and land it clean: every metre is worth 1,000 points, and your longest jump is saved as the hill record. K marks 120 m. Land past it and the hill flattens out under you, so the landings get harder.',
   T:sjh.t,fin:sjh.fin,jump:true,post:jumpPost,onReset:jumpReset,drawFront:jumpDrawFront,sky:['#3f86d6','#d9ecfb'],far:'#93add0',snow:'#f8fbff',edge:'#7ea6d0'},
  {n:'Fireworks Hill',d:'A night run down a long hill with three kickers while fireworks go off in the sky ahead of you the whole way down. Flip in time with the show.',
@@ -190,7 +190,7 @@ const LV=[
  {n:'The Long Haul',d:'The endurance run. A huge, clear mountain descent with rolling warm-ups, repeated jump sections, mogul-like rhythm changes and a final glacier-sized send. Settle in — this one is built to show off extended level length, with no stray trees or rocks blocking the route.',
   T:longHaul.t,fin:longHaul.fin,sky:['#18294f','#f2a16c'],far:'#596b91',snow:'#f4f6ff',edge:'#a5b7e8',par:2.5}
 ,
- {n:'Endless Run',d:'A mountain that never ends. The course builds itself ahead of you and keeps getting harder: kickers, rollers, sudden drops, crumbling bridges and rock fields. The run ends at your first crash, and your score at that moment is your record. Every metre is worth 20 points, and landing zones grow with your speed.',
+ {n:'Endless Run',d:'A mountain that never ends. The course builds itself ahead of you and keeps getting harder: kickers, rollers, sudden drops and crumbling bridges. The run ends at your first crash, and your score at that moment is your record. Every metre is worth 20 points, and landing zones grow with your speed.',
   T:[[-500,0],[0,0],[1100,418]],fin:1e9,endless:true,par:2,post:endlessPost,onReset:endlessReset,build:endlessBuild,sky:['#1e3c72','#f2a65a'],far:'#5d6f96',snow:'#f6f8ff',edge:'#8fa6d6'}
 ];
 // Finish lines sit a bit farther down every course so there's room to land and settle before crossing. The shark pool gets extra.
