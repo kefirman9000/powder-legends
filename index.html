@@ -4,7 +4,7 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.5.4';
+window.GAME_VERSION='1.5.5';
 window.GAME_NOTES='Steadier camera during flips: it now follows the skier\'s centre of mass, so spins no longer make the view bob up and down.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
@@ -511,7 +511,7 @@ function drawCheckpoints(){
   }
 }
 function reset(){
-  camSnap();sceneryReset();gearReset();windReset();ghostLoad();if(LVc&&LVc.onReset)LVc.onReset();
+  camSnap();sceneryReset();gearReset();windReset();spinReset();ghostLoad();if(LVc&&LVc.onReset)LVc.onReset();
   headHitFx=0; // clear concussion flash/dizziness whenever a level or full run is reset
   rpClear();replayMode=false;document.getElementById("replay-controls").style.removeProperty('display');document.getElementById("replay-controls").style.display="none";document.getElementById("replay-open").style.display="none";document.getElementById("replay-menu").style.display="none";
   clearTrickHUD();
@@ -702,7 +702,7 @@ function skiSlopeAngle(){   // degrees between the skis and the slope under them
   return Math.acos(Math.min(1,Math.abs((ux*g.tx+uy*g.ty)/(ul*tl))))*57.2958}
 function bankLanding(L){
   st.pendLand=null;const G=landingGrade(L.ang),raw=L.aP+L.fP+L.hB;
-  if(G.mult===0){queueTrickResult(raw,'failed');spray('NOT FLAT!',Math.round(L.ang)+'° off the slope · land with your skis flat to score',false,0,'failed');st.notFlat=(st.notFlat||0)+1;return}
+  if(G.mult===0){queueTrickResult(raw,'failed');if(window.sndFail)sndFail();spray('NOT FLAT!',Math.round(L.ang)+'° off the slope · land with your skis flat to score',false,0,'failed');st.notFlat=(st.notFlat||0)+1;return}
   const aP=Math.round(L.aP*G.mult),fP=Math.round(L.fP*G.mult),hB=Math.round(L.hB*G.mult),pts=aP+fP+hB,f=L.f;
   st.failedPendingShown=false;
   st.score+=pts;st.aPts+=aP;st.fPts+=fP;st.hPts+=hB;st.lastLandingHPts=hB;st.land++;st.tAir+=L.la;st.lastLandingPts=pts;st.lastLandingAPts=aP;st.lastLandingFPts=fP;st.lastLandingAt=performance.now();st.lastLandingRolledBack=false;st.adrenaline=Math.min(100,(st.adrenaline||0)+Math.min(44,10+Math.sqrt(Math.max(0,pts))*.28)*(G.mult>1?1.3:1));updateAdrenalineUI();
@@ -713,7 +713,7 @@ function bankLanding(L){
   queueTrickResult(pts,'landed');
   trickScoreE.classList.remove('failed','power-1','power-2','power-3','power-4','landed');
   trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';
-  trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');fwLand(pts,f);
+  trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');if(window.sndLand)sndLand(pts,G.name==='PERFECT');
 }
 function step(){
   // Fire does not change the skier's physics: after contact, normal gravity,
@@ -794,7 +794,7 @@ function step(){
   const ang=Math.atan2(P[5].y-P[2].y,P[5].x-P[2].x);
   if(st.ang!==null&&st.onAir){let d=ang-st.ang;if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;st.rot+=d}
   st.ang=ang;
-  if(st.onAir&&!st.crash){const n=Math.floor(Math.abs(st.rot)/6.2832+.08);if(n>st.fl){st.fl=n;spray((st.rot>0?'FRONT':'BACK')+'FLIP'+(n>1?' \u00d7'+n:'')+'!', '', n>=3, 0, n>=4?'mega-flip':n>=3?'big-flip':'');if(n>=2&&n>st.fwFlips){fwTrick(P[4].x,P[4].y-35,n);st.fwFlips=n}else if(n===1&&!st.fwFlips){fwBurst(P[4].x,P[4].y-35,RM()*360,90,3.6,true);st.fwFlips=1}}
+  if(st.onAir&&!st.crash){const n=Math.floor(Math.abs(st.rot)/6.2832+.08);if(n>st.fl){st.fl=n;spray((st.rot>0?'FRONT':'BACK')+'FLIP'+(n>1?' \u00d7'+n:'')+'!', '', n>=3, 0, n>=4?'mega-flip':n>=3?'big-flip':'');if(n>(st.fwFlips||0)){flipPulse(n);st.fwFlips=n}}
   // Trigger the heavenly big-air effect during the jump, not after touchdown.
   }
   if(!air)gT=0;else gT+=1/120;
@@ -802,7 +802,7 @@ function step(){
   if(!air&&st.onAir&&st.air>.15)lndT=LANDT;                      // only a real landing (not a little skip over a bump) arms the absorber
   if(air&&!st.onAir){st.air=0;st.rot=0;st.fl=0;st.fwFlips=0;st.fwDoves=0;st.lr=0;st.jumpScored=false;st.jumpFw=false;st.failedPendingShown=false;st.pendingPts=0;trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';trickScoreE.classList.remove('failed','landed','power-1','power-2','power-3','power-4');trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');st.t0=performance.now()}
   if(air)st.air+=1/120;
-  if(air&&!st.crash&&!st.done&&!st.jumpFw&&st.air>.3){st.jumpFw=true;fwJump()}
+  
   // Trick points are provisional while airborne. They only enter the real score
   // once BOTH skis touch down and the landing has not caused a crash.
   if(air&&!st.crash&&!st.fireDeath){
@@ -819,7 +819,7 @@ function step(){
     st.pendingPts=0;if(!st.crash)st.failedPendingShown=false;st.jumpScored=true;st.hzMult=1;st.hzFlat=0;
   }
   if(st.pendLand){const L=st.pendLand,total=L.aP+L.fP+L.hB;
-    if(st.crash||st.fireDeath||st.sharkDeath){st.pendLand=null;if(total>0&&!st.fireDeath&&!st.sharkDeath)queueTrickResult(total,'failed')}   // fell right after touching down: nothing banked
+    if(st.crash||st.fireDeath||st.sharkDeath){st.pendLand=null;if(total>0&&!st.fireDeath&&!st.sharkDeath){queueTrickResult(total,'failed');if(window.sndFail)sndFail()}}   // fell right after touching down: nothing banked
     else if(++L.steps>=LAND_CONFIRM)bankLanding(L);
   }
   // Keep the same provisional score visible after a crash, and let the HUD turn it red.
@@ -1076,6 +1076,7 @@ function draw(){
   const mid={x:(Q[0].x+Q[1].x)/2,y:(Q[0].y+Q[1].y)/2};
   const ad=Math.max(0,Math.min(100,st.adrenaline||0));
   windTrails(Q,ad>=99);   // faint white air trails (windtrails.js)
+  spinFx(Q);   // spin swoosh + flip ring pulses (windtrails.js)
   if(ad>1){
     const glow=ad/100, radius=8+glow*11;
     cx.save();cx.globalCompositeOperation='lighter';
@@ -1647,6 +1648,28 @@ function windTrails(Q,rainbowOn){
   cx.restore();
 }
 function windReset(){WIND.hist.length=0;WIND.len=0}
+
+// ======================= SPIN EFFECTS (replace the old in-air fireworks) =======================
+// While you spin, a faint swoosh arc traces the last moment of rotation around your body; each completed flip sends out
+// a quick ring pulse (white for the first flip, gold from the second). Cheap: a few short arcs, no particles.
+const SPIN={hist:[],pulses:[]};
+function flipPulse(n){SPIN.pulses.push({t:0,n})}
+function spinFx(Q){
+  if(!st)return;const live=!paused||replayMode,f=camFocus(Q),dt=Math.min(fdt,.05);
+  const ang=Math.atan2(Q[5].y-Q[4].y,Q[5].x-Q[4].x);   // body orientation: hip -> shoulder
+  if(live){if(st.onAir&&!st.crash){SPIN.hist.push(ang);if(SPIN.hist.length>12)SPIN.hist.shift()}else SPIN.hist.length=0}
+  const H=SPIN.hist;cx.save();cx.lineCap='round';
+  if(H.length>3){   // unwrap the recent angles and draw the swept arc if the body is really spinning
+    const un=[H[0]];for(let i=1;i<H.length;i++){let d=H[i]-H[i-1];if(d>Math.PI)d-=2*Math.PI;else if(d<-Math.PI)d+=2*Math.PI;un.push(un[i-1]+d)}
+    const sweep=un[un.length-1]-un[0];
+    if(Math.abs(sweep)>1.1){const r=46,segs=un.length-1;
+      for(let i=0;i<segs;i++){const u=(i+1)/segs;cx.globalAlpha=.28*u*u*Math.min(1,(Math.abs(sweep)-1.1)/.8);cx.strokeStyle='#fff';cx.lineWidth=1+2.4*u;
+        const a0=un[i]+Math.PI,a1=un[i+1]+Math.PI;cx.beginPath();cx.arc(f.x,f.y,r,Math.min(a0,a1),Math.max(a0,a1));cx.stroke()}}}
+  for(const p of SPIN.pulses){if(live)p.t+=dt;const u=Math.min(1,p.t/.45),e=1-Math.pow(1-u,2);
+    cx.globalAlpha=.55*(1-u);cx.strokeStyle=p.n>=2?'#ffd36b':'#ffffff';cx.lineWidth=3*(1-u)+.6;cx.beginPath();cx.arc(f.x,f.y,20+62*e,0,7);cx.stroke()}
+  SPIN.pulses=SPIN.pulses.filter(p=>p.t<.45);cx.restore();
+}
+function spinReset(){SPIN.hist.length=0;SPIN.pulses.length=0}
 // ======================= BEST-RUN GHOST =======================
 // When you set a new best on a level, a compact copy of that run is saved: 20 frames a second, the hip position as
 // two floats and the other seven body points as small offsets from it (22 bytes a frame, ~26 KB for a minute).
@@ -2380,7 +2403,12 @@ function at(x,y,R){const q=P[4],dx=x-q.x,dy=y-q.y,d=Math.hypot(dx,dy),k=Math.max
 function thump(v){noise(.3,.5*v,'lowpass',900,150,0,'fx');tone(130,35,.35,.6*v,'sine',0,'fx')}
 const H0=window.hurt;window.hurt=function(a){const hp=dmg;H0.apply(this,arguments);if(ac&&dmg>hp)thump(cl(.3+a/60,.3,1))};
 const S0=window.skisFly;window.skisFly=function(){S0.apply(this,arguments);if(ac){noise(.15,.5,'highpass',2500,800,0,'fx');tone(900,300,.2,.2,'square',0,'fx')}};
-const C0=window.celebrateLanding;window.celebrateLanding=function(pts){C0.apply(this,arguments);if(!ac)return;const n=pts>9000?4:pts>2500?3:2,v=.15+.05*n;for(let i=0;i<n;i++)tone(520*Math.pow(1.26,i),520*Math.pow(1.26,i),.22,v,'triangle',0,'fx',i*.08)};
+// landing sounds: the chime plays only once a landing has actually counted (physics.js bankLanding), never on a crash
+window.sndLand=function(pts,perfect){if(!ac)return;const n=pts>9000?4:pts>2500?3:2,v=.15+.05*n;for(let i=0;i<n;i++)tone(520*Math.pow(1.26,i),520*Math.pow(1.26,i),.22,v,'triangle',0,'fx',i*.08);
+  if(perfect)tone(1568,1568,.35,.12,'sine',0,'fx',n*.08+.02)};   // a bright sparkle on top for PERFECT
+// failure: a short descending "bwomp" when a trick's points are lost (crash on or after touchdown, mid-air crash, not flat)
+let failAt=0;window.sndFail=function(){if(!ac)return;const n=performance.now();if(n-failAt<600)return;failAt=n;
+  tone(330,220,.18,.2,'triangle',0,'fx');tone(247,140,.32,.2,'triangle',0,'fx',.15);noise(.12,.08,'lowpass',600,200,0,'fx',.15)};
 // end-of-level tally sounds: a fast ticking blip while points count up (rising in pitch as the row fills), a 'ka-ching' when a row finishes, and a chime for every award (bigger tiers get longer, brighter fanfares)
 let tickAt=0;
 window.sndTick=function(u){if(!ac)return;const n=performance.now();if(n-tickAt<42)return;tickAt=n;const f=520+900*u+(Math.random()-.5)*40;tone(f,f*1.04,.05,.13,'square',0,'fx');noise(.025,.08,'highpass',4000,0,0,'fx')};
@@ -2405,7 +2433,7 @@ window.audioTick=function(){try{
  const s=st.sk;let sg=0,sp2=0;if(s&&s.go&&!s.done){const a=at(s.x,s.y,1500);sg=.6*a.g;sp2=a.p}
  T(L.shark.g.gain,sg);if(L.shark.p)T(L.shark.p.pan,sp2);
  // one-shots on state changes
- if(st.crash&&!pv.crash)thump(1);
+ if(st.crash&&!pv.crash){thump(1);if(st.onAir||st.pendingPts>0||st.failedPendingShown)window.sndFail()}   // crashed mid-trick: the points are gone
  if(st.fireDeath&&!pv.fd){noise(.9,.8,'lowpass',3000,200,0,'fx');tone(400,90,.7,.3,'sawtooth',0,'fx')}
  if(st.sharkDeath&&!pv.sd&&s){const a=at(s.x,s.y,1800);noise(.3,.9,'bandpass',900,300,a.p,'haz');tone(90,40,.4,.8*Math.max(.3,a.g),'sine',a.p,'haz')}
  if(st.finishedLevel&&!pv.fin)[0,4,7,12].forEach((n,i)=>tone(440*Math.pow(2,n/12),440*Math.pow(2,n/12),.35,.2,'triangle',0,'fx',i*.1));
