@@ -24,8 +24,25 @@ function showCustomize(){customizer.style.display='block';if(window.gearPanel)ge
 function hideCustomize(){customizer.style.display='none';customizer.setAttribute('aria-hidden','true')}
 customOpen.addEventListener('click',showCustomize);document.getElementById('custom-back').addEventListener('click',hideCustomize);
 applySkierColors();
-const COARSE=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches),DPR_CAP=COARSE?2:4;   // phones: cap at 2x pixel density (a 3x screen draws ~55% fewer pixels, hard to tell apart)
+const COARSE=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
+// ---- graphics quality: High / Medium / Low, picked automatically (Auto) or fixed in Settings.
+// dpr: max pixel density (phones cap at 2x; a 3x screen draws ~55% fewer pixels, hard to tell apart)
+// parts: one shared budget for every in-world particle (fireworks, snow puffs, gear sparks); weather: snowfall density
+const Q_LEVELS=[{name:'High',dpr:COARSE?2:4,parts:COARSE?700:2600,weather:1},{name:'Medium',dpr:COARSE?1.5:2,parts:COARSE?420:1400,weather:.6},{name:'Low',dpr:1,parts:COARSE?240:700,weather:.35}];
+let qMode='auto',qLevel=0;try{qMode=localStorage.getItem('skiGfx')||'auto'}catch(e){}
+if(qMode==='high')qLevel=0;else if(qMode==='medium')qLevel=1;else if(qMode==='low')qLevel=2;
+const qCur=()=>Q_LEVELS[qLevel];
+function partRoom(){return Math.max(0,qCur().parts-(typeof FW!=='undefined'?FW.sp.length:0)-(typeof snow!=='undefined'?snow.length:0)-(typeof gfx!=='undefined'?gfx.sp.length:0))}
+function setQuality(level){if(level===qLevel)return;qLevel=level;fit();if(typeof WX!=='undefined')WX.p.length=0}
+const QA={sum:0,n:0,skip:0};   // auto-quality: if play runs below ~45 fps for 2 seconds, step down one level (never back up mid-session)
+function qualityTick(rawDt){
+  if(qMode!=='auto'||paused||replayMode||qLevel>=2)return;
+  if(rawDt>.25){QA.sum=QA.n=0;QA.skip=60;return}   // a hitch (tab switch, level load): ignore and wait a moment
+  if(QA.skip>0){QA.skip--;return}
+  QA.sum+=rawDt;QA.n++;
+  if(QA.sum>=2){if(QA.sum/QA.n>1/45)setQuality(qLevel+1);QA.sum=QA.n=0;QA.skip=90}}
+function setQualityMode(m){qMode=m;try{localStorage.setItem('skiGfx',m)}catch(e){}setQuality(m==='high'?0:m==='medium'?1:m==='low'?2:0);QA.sum=QA.n=0}
 window.DPR=1;
-function fit(){const r=box.getBoundingClientRect(),d=window.DPR=Math.min(devicePixelRatio||1,DPR_CAP);W=cv.width=Math.max(r.width*d,2);H=cv.height=Math.max(r.height*d,2);ZB=Math.min(W/520,H/300);Z=ZB*zoom}
+function fit(){const r=box.getBoundingClientRect(),d=window.DPR=Math.min(devicePixelRatio||1,qCur().dpr);W=cv.width=Math.max(r.width*d,2);H=cv.height=Math.max(r.height*d,2);ZB=Math.min(W/520,H/300);Z=ZB*zoom}
 addEventListener('resize',fit);fit();
 if(COARSE)try{Object.defineProperty(cx,'shadowBlur',{get(){return 0},set(){}})}catch(e){}   // canvas shadow blur is one of the slowest mobile GPU operations: ignore it on touch devices

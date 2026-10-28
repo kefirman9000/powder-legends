@@ -4,7 +4,7 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.4.1';
+window.GAME_VERSION='1.5.0';
 window.GAME_NOTES='Steadier camera during flips: it now follows the skier\'s centre of mass, so spins no longer make the view bob up and down.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
@@ -268,6 +268,36 @@ canvas{width:100%;height:100%;display:block;touch-action:none;cursor:default;-we
 /* LEGEND (the top grade) is six letters: scale its stamp and menu badge to fit */
 .stamp.g-S .L{font-size:clamp(34px,7.5vh,76px);letter-spacing:.04em;white-space:nowrap}
 #hsg.g-S{font-size:clamp(26px,5vw,42px);letter-spacing:.04em}
+
+/* FAQ sections */
+#how h4{margin:12px 0 4px;font:800 12px system-ui;letter-spacing:.14em;text-transform:uppercase;color:#ffd36b}
+/* progress strip under the level card */
+#prog{font:700 11px system-ui;letter-spacing:.06em;color:#c9d6e6;opacity:.85;margin-top:2px;white-space:nowrap}
+#prog b{color:#ffd36b}#prog span+span::before{content:'  ·  ';white-space:pre;opacity:.6}
+@media (max-height:640px){#prog{display:none}}
+/* "up next" card on the results screen */
+#nextcard{flex:0 0 100%;order:-1;display:flex;justify-content:center;padding:0;border:0;background:none;color:#fff;cursor:pointer}
+#nextcard .nc-in{display:flex;align-items:center;gap:10px;max-width:360px;padding:6px 14px 6px 6px;border-radius:12px;border:1px solid #ffffff2e;background:#ffffff10;text-align:left}
+#nextcard:hover .nc-in{background:#ffffff1e}#nextcard canvas{width:110px;height:42px;border-radius:7px;flex:none}
+#nextcard span{display:flex;flex-direction:column;gap:1px;min-width:0}#nextcard small{font:800 9.5px system-ui;letter-spacing:.18em;color:#8fd4ff}
+#nextcard b{font:400 18px/1.05 var(--gf);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#nextcard i{font:600 11px system-ui;font-style:normal;opacity:.7}
+@media (max-height:500px){#nextcard{display:none!important}}
+/* Menu overflow: content that is taller than the screen scrolls from the top instead of being cut off on both ends */
+#m{justify-content:flex-start}
+#m>:first-child{margin-top:auto}#m>:last-child{margin-bottom:auto}
+/* Short screens (phones held sideways, small laptop windows): a compact level card so Play stays on screen */
+@media (max-height:620px){
+ #m{gap:6px;padding:8px 16px}
+ #sel{gap:6px}
+ #card{padding:6px;gap:3px;width:min(560px,calc(100vw - 130px))}
+ #card canvas,#th{height:clamp(70px,18vh,120px);width:100%;object-fit:cover}
+ #ln{font-size:clamp(22px,4.2vw,34px);margin-top:0}
+ #ld{font-size:12px;line-height:1.3;min-height:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ #hs{flex-direction:row;gap:14px}
+ #hsn{font-size:clamp(18px,3.6vw,26px)}#hsl{font-size:clamp(16px,3vw,22px)}#hsg{font-size:clamp(26px,5vw,38px)}
+ #dots{gap:5px}#dots i{width:7px;height:7px}
+ .pr .b{padding:7px 14px;font-size:14px}
+}
 </style><style>
 /* Touch devices: swap animations that repaint every frame (filter, text-shadow, letter-spacing) for transform/opacity ones the GPU composites cheaply. */
 @media (pointer:coarse){
@@ -289,10 +319,10 @@ canvas{width:100%;height:100%;display:block;touch-action:none;cursor:default;-we
 <button id="lb">&#9776; Levels (M)</button><button id="replay-open" title="Replay this run">⏪ Replay</button><button id="reset-skis" title="Reset the skier here; costs 25,000 points and blocks A and LEGEND grades">↻ Reset Skis · −25,000</button>
 <div id="m"><button id="dbg-open" title="Debug mode: a simple downhill with live physics values and tools">🐞 Debug</button><h2 id="mh">Powder Legends</h2><p id="ms">Choose a level</p>
 <div id="sc"><div id="sn">0</div><div id="sl">POINTS</div><div id="rows"></div><div id="rt"></div><div id="aw"></div><div id="sb"></div></div>
-<div id="fb"><button class="b" id="again">&#8635; Try again</button><button class="b" id="replay-menu" style="display:none;background:#176b78">⏪ View Replay</button><button class="b" id="all">All levels</button><button class="b" id="next">Next level &rarr;</button></div>
+<div id="fb"><button type="button" id="nextcard" title="Play the next level"><div class="nc-in"><canvas id="nextth" width="132" height="50"></canvas><span><small>UP NEXT</small><b id="nextname"></b><i id="nextbest"></i></span></div></button><button class="b" id="again">&#8635; Try again</button><button class="b" id="replay-menu" style="display:none;background:#176b78">⏪ View Replay</button><button class="b" id="all">All levels</button><button class="b" id="next">Next level &rarr;</button></div>
 <div id="sel"><div id="g"><button class="ar" id="pv" aria-label="Previous level">&#9664;</button><div id="card"><canvas id="th" width="480" height="200"></canvas><div id="ln"></div><div id="ld"></div><div id="level-length" aria-live="polite"></div></div><button class="ar" id="nx" aria-label="Next level">&#9654;</button></div>
 <div id="dots"></div>
-<div id="hs"><div id="hsn"></div><div id="hsl"><span>GRADE</span><b id="hsg"></b></div></div>
+<div id="hs"><div id="hsn"></div><div id="hsl"><span>GRADE</span><b id="hsg"></b></div></div><div id="prog"></div>
 <div class="pr"><button class="b" id="play">&#9654; Play</button><button class="b" id="customize-open" style="background:#147c83">🎨 Customize</button><button class="b" id="faqb">? FAQ</button><button class="b" id="set-btn" style="background:#4b5a72">&#9881; Settings</button></div><div id="upd-banner" role="status" hidden><span id="upd-banner-txt"></span><button type="button" id="upd-banner-more">What's new</button><button type="button" id="upd-banner-go">Install</button></div></div>
 <section id="customizer" aria-label="Character customization">
 <h3>🎨 Customize your skier</h3>
@@ -312,19 +342,25 @@ canvas{width:100%;height:100%;display:block;touch-action:none;cursor:default;-we
 <div id="custom-note">Preview shows the actual skier from the game. Use the arrows to choose a piece and its color; changes save automatically.</div>
 </section>
 <div id="replay-controls" aria-label="Replay controls"><button id="rp-rewind" title="Rewind">⏪</button><button id="rp-forward" title="Play forward">▶</button><button id="rp-slow" title="Slow motion">½×</button><button id="rp-pause" title="Pause replay">Ⅱ</button><span id="replay-status">REPLAY</span><button id="rp-exit" title="Exit replay">✕</button></div>
-<div id="faqp"><div id="how"><div class="fh"><b>FAQ &middot; How to play</b><button class="b" id="faqx">Close</button></div><ul>
-<li>Click the game to capture the mouse (touch screens need no capture). Only mouse <u>movement</u> counts, and your pose holds where you leave it.</li>
-<li>Flick up = jump / stand &middot; move down = crouch &middot; right / left = tuck forward / lean back.</li>
-<li>Backflip: lean back (move left) and crouch on the ramp, then stand up hard to pop off the lip. In the air, tuck to spin faster, stretch to slow down, and stand before landing.</li>
-<li>A very hard fall onto your body knocks your skis clean off.</li>
-<li>Hold the left mouse button to brake: it grips harder the longer you hold and throws up snow. Only works while your skis are on the ground. Right-click restarts.</li>
-<li>On a phone or tablet: drag with ONE finger to move, and hold a SECOND finger down to brake. The finger you are moving with never brakes. Tap after a wipeout to restart.</li>
-<li>Cross the finish line with your skis still on your feet and the level counts as finished, no matter how battered you are.</li>
-<li>Hard landings and hits damage your skis. They darken as they take damage, and too much damage makes them snap off.</li>
-<li>Even after a wipeout you can still wiggle a little with the mouse.</li>
-<li>Finish a level for a rating from F up to S, plus awards for flips, combos, air time, landings and speed. Tucking tight (crouching) in the air makes you spin faster.</li>
-<li>Scroll wheel or + / &minus; / 0 = zoom &middot; R retry &middot; F fullscreen &middot; M / Esc menu &middot; 1&ndash;9 pick a level &middot; N next level</li>
-<li>On the level screen, use the arrow buttons or the &larr; / &rarr; keys to browse levels and Enter to play. Your best score and best grade for each level are saved.</li></ul></div></div></div>
+<div id="faqp"><div id="how"><div class="fh"><b>FAQ &middot; How to play</b><button class="b" id="faqx">Close</button></div>
+<h4>Controls</h4><ul>
+<li>New here? Play <b>Ski School</b> (level 1): six quick steps teach everything below.</li>
+<li><b>Mouse:</b> only <u>movement</u> counts and your pose holds where you leave it. Move <b>down</b> = crouch, flick <b>up</b> = jump / stand, <b>left</b> = lean back, <b>right</b> = tuck forward. Hold the left button to <b>brake</b>; right-click restarts.</li>
+<li><b>Phone / tablet:</b> drag with one finger to move; hold a second finger down to brake. Tap after a wipeout to restart.</li>
+<li><b>Keys:</b> R retry &middot; M / Esc menu &middot; N next level &middot; 1&ndash;9 pick a level &middot; F fullscreen &middot; scroll or + / &minus; / 0 zoom. In the menu: &larr; / &rarr; browse, Enter play.</li></ul>
+<h4>Tricks &amp; landings</h4><ul>
+<li><b>Backflip:</b> crouch on the ramp, stand up hard at the lip, then lean back and tuck in the air. Tuck tight to spin faster, stretch out to slow down.</li>
+<li><b>Land with your skis flat</b> on the slope: PERFECT pays &times;1.25, GOOD &times;1, SKETCHY half, and NOT FLAT pays nothing. Points only count once you've stayed up for a moment.</li>
+<li>Big landings fill the <b>adrenaline</b> bar; keep it full for a rainbow trail. Hazards (fire walls, the shark pool, lava) pay a bonus when you clear them, more for a close shave.</li>
+<li>Hard hits damage your skis (they darken) and too much snaps them off. Cross the finish with skis on and the level counts.</li>
+<li><b>Reset Skis</b> puts you back at the last checkpoint for 25,000 points, but A and LEGEND grades are off for that run.</li></ul>
+<h4>Grades, records &amp; extras</h4><ul>
+<li>Every finish gets a grade from F up to <b>LEGEND</b>, plus awards for flips, air, landings, speed and style. Your best score and grade show on each level's card.</li>
+<li>Your <b>best run</b> plays back as a see-through <b>ghost</b> to race (turn it off in Settings).</li>
+<li><b>Ski Jump Hill</b> measures your distance and keeps a hill record. The <b>Endless Run</b> never ends: your score at the first crash is your record.</li>
+<li>Finishing certain levels unlocks <b>special gear</b> (glowing skis, suits, helmets, trails). Wear it from <b>Customize</b>.</li>
+<li><b>Replay</b> any run from the results screen. Tap anywhere on the results to skip the tally.</li>
+<li><b>Settings</b>: graphics quality, ghost, vibration, updates and resetting scores. Updates show up as a banner on the menu.</li></ul></div></div></div>
 <script>
 const cv=document.getElementById('c'),cx=cv.getContext('2d'),box=document.getElementById('w'),hud=document.getElementById('h'),scoreE=document.getElementById('sco'),scoreT=document.getElementById('sct'),trickScoreE=document.getElementById('trick-score'),trickStackE=document.getElementById('trick-stack');
 const ZSTART=(window.matchMedia('(min-width: 800px) and (pointer: fine)').matches ? .48 : .64); // Desktop starts more zoomed out; preserve the existing mobile framing. 0 returns to this
@@ -352,9 +388,26 @@ function showCustomize(){customizer.style.display='block';if(window.gearPanel)ge
 function hideCustomize(){customizer.style.display='none';customizer.setAttribute('aria-hidden','true')}
 customOpen.addEventListener('click',showCustomize);document.getElementById('custom-back').addEventListener('click',hideCustomize);
 applySkierColors();
-const COARSE=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches),DPR_CAP=COARSE?2:4;   // phones: cap at 2x pixel density (a 3x screen draws ~55% fewer pixels, hard to tell apart)
+const COARSE=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
+// ---- graphics quality: High / Medium / Low, picked automatically (Auto) or fixed in Settings.
+// dpr: max pixel density (phones cap at 2x; a 3x screen draws ~55% fewer pixels, hard to tell apart)
+// parts: one shared budget for every in-world particle (fireworks, snow puffs, gear sparks); weather: snowfall density
+const Q_LEVELS=[{name:'High',dpr:COARSE?2:4,parts:COARSE?700:2600,weather:1},{name:'Medium',dpr:COARSE?1.5:2,parts:COARSE?420:1400,weather:.6},{name:'Low',dpr:1,parts:COARSE?240:700,weather:.35}];
+let qMode='auto',qLevel=0;try{qMode=localStorage.getItem('skiGfx')||'auto'}catch(e){}
+if(qMode==='high')qLevel=0;else if(qMode==='medium')qLevel=1;else if(qMode==='low')qLevel=2;
+const qCur=()=>Q_LEVELS[qLevel];
+function partRoom(){return Math.max(0,qCur().parts-(typeof FW!=='undefined'?FW.sp.length:0)-(typeof snow!=='undefined'?snow.length:0)-(typeof gfx!=='undefined'?gfx.sp.length:0))}
+function setQuality(level){if(level===qLevel)return;qLevel=level;fit();if(typeof WX!=='undefined')WX.p.length=0}
+const QA={sum:0,n:0,skip:0};   // auto-quality: if play runs below ~45 fps for 2 seconds, step down one level (never back up mid-session)
+function qualityTick(rawDt){
+  if(qMode!=='auto'||paused||replayMode||qLevel>=2)return;
+  if(rawDt>.25){QA.sum=QA.n=0;QA.skip=60;return}   // a hitch (tab switch, level load): ignore and wait a moment
+  if(QA.skip>0){QA.skip--;return}
+  QA.sum+=rawDt;QA.n++;
+  if(QA.sum>=2){if(QA.sum/QA.n>1/45)setQuality(qLevel+1);QA.sum=QA.n=0;QA.skip=90}}
+function setQualityMode(m){qMode=m;try{localStorage.setItem('skiGfx',m)}catch(e){}setQuality(m==='high'?0:m==='medium'?1:m==='low'?2:0);QA.sum=QA.n=0}
 window.DPR=1;
-function fit(){const r=box.getBoundingClientRect(),d=window.DPR=Math.min(devicePixelRatio||1,DPR_CAP);W=cv.width=Math.max(r.width*d,2);H=cv.height=Math.max(r.height*d,2);ZB=Math.min(W/520,H/300);Z=ZB*zoom}
+function fit(){const r=box.getBoundingClientRect(),d=window.DPR=Math.min(devicePixelRatio||1,qCur().dpr);W=cv.width=Math.max(r.width*d,2);H=cv.height=Math.max(r.height*d,2);ZB=Math.min(W/520,H/300);Z=ZB*zoom}
 addEventListener('resize',fit);fit();
 if(COARSE)try{Object.defineProperty(cx,'shadowBlur',{get(){return 0},set(){}})}catch(e){}   // canvas shadow blur is one of the slowest mobile GPU operations: ignore it on touch devices
 // terrain control points (y is down)
@@ -442,7 +495,7 @@ function drawCheckpoints(){
   }
 }
 function reset(){
-  camSnap();sceneryReset();gearReset();windReset();if(LVc&&LVc.onReset)LVc.onReset();
+  camSnap();sceneryReset();gearReset();windReset();ghostLoad();if(LVc&&LVc.onReset)LVc.onReset();
   headHitFx=0; // clear concussion flash/dizziness whenever a level or full run is reset
   rpClear();replayMode=false;document.getElementById("replay-controls").style.removeProperty('display');document.getElementById("replay-controls").style.display="none";document.getElementById("replay-open").style.display="none";document.getElementById("replay-menu").style.display="none";
   clearTrickHUD();
@@ -468,7 +521,7 @@ function commitRun(){
   if(!st||st.committed||!st.done||st.fireDeath||st.sharkDeath||LVc!==LV[cur]||LVc.tutorial)return;
   if(!st.finishedLevel&&!st.timeoutF)return;
   st.committed=true;
-  if(st.finishedLevel&&!st.noSkiFinish){best[cur]=Math.max(best[cur],st.score);const gi=RATES.indexOf(rate().r);if(gi>=0&&(bestG[cur]<0||gi<bestG[cur]))bestG[cur]=gi;save()}
+  if(st.finishedLevel&&!st.noSkiFinish){const was=best[cur];if(st.score>was)ghostSave();best[cur]=Math.max(best[cur],st.score);const gi=RATES.indexOf(rate().r);if(gi>=0&&(bestG[cur]<0||gi<bestG[cur]))bestG[cur]=gi;save()}
 }
 function resetSkisHere(){
   if(paused||!st||st.finishedLevel)return;
@@ -714,7 +767,7 @@ function step(){
   }
   {const on=braking&&!st.crash&&!st.done&&(ct[0]||ct[1]||(st.skisOff&&ct[2]));   // click-and-hold brake: grips harder the longer you hold, and throws up snow
     if(on){const headAge=(performance.now()-headHitFx)/1000,brakeDull=headHitFx>0&&headAge>=0&&headAge<2?.55:1;brakeT=Math.min(1,brakeT+1/120/BRAMP);const b=(BRAKE0+(BRAKE1-BRAKE0)*brakeT)*brakeDull;P.forEach(p=>{p.px+=(p.x-p.px)*b});
-      const q=P[0],vx=q.x-q.px,vy=q.y-q.py;if(Math.hypot(vx,vy)>.8&&(snowC++%2===0))for(let k=0;k<2;k++)snow.push({x:q.x,y:q.y-2,vx:-vx*.25+(Math.random()-.5)*.9,vy:-Math.random()*1.3-.2,l:1})}
+      const q=P[0],vx=q.x-q.px,vy=q.y-q.py;if(Math.hypot(vx,vy)>.8&&(snowC++%2===0)&&partRoom()>2)for(let k=0;k<2;k++)snow.push({x:q.x,y:q.y-2,vx:-vx*.25+(Math.random()-.5)*.9,vy:-Math.random()*1.3-.2,l:1})}
     else brakeT=Math.max(0,brakeT-.03)}
   for(let i=snow.length-1;i>=0;i--){const q=snow[i];q.x+=q.vx;q.y+=q.vy;q.vy+=q.g||.025;q.l-=q.d||.022;if(q.g){const gy=ter(q.x).y-1;if(q.y>gy){q.y=gy;q.vx*=.6;q.vy=0}}if(q.l<=0)snow.splice(i,1)}
   P.forEach((p,i)=>{const c=ct[i];if(!c)return;ct[i]=0;const vx=p.x-p.px,vy=p.y-p.py,vn=vx*c[0]+vy*c[1],m=i<2?.0025:.08;p.px=p.x-(vx-c[0]*vn)*(1-m)-c[0]*vn;p.py=p.y-(vy-c[1]*vn)*(1-m)-c[1]*vn});
@@ -981,7 +1034,7 @@ function draw(){
   crashWasActive=!!(st&&st.crash);
   const Q=P.map((p,i)=>snap?{x:snap[i][0]+(p.x-snap[i][0])*al,y:snap[i][1]+(p.y-snap[i][1])*al}:p); // draw between the last two physics steps so motion stays smooth
   cx.setTransform(1,0,0,1,0,0);
-  const sk=cx.createLinearGradient(0,0,0,H);sk.addColorStop(0,LVc.sky[0]);sk.addColorStop(1,LVc.sky[1]);
+  const skyKey=H+'|'+LVc.sky[0]+LVc.sky[1];if(skyCache.key!==skyKey){const g0=cx.createLinearGradient(0,0,0,H);g0.addColorStop(0,LVc.sky[0]);g0.addColorStop(1,LVc.sky[1]);skyCache={key:skyKey,g:g0}}const sk=skyCache.g;   // sky gradient built once per level/size
   cx.fillStyle=sk;cx.fillRect(0,0,W,H);
   drawMountains();   // parallax mountain layers (scenery.js)
   const camHold=paused&&!replayMode;   // behind a menu: no easing, the camera is placed exactly where it belongs
@@ -1004,6 +1057,7 @@ function draw(){
     cx.beginPath();cx.moveTo(-b.hw,-b.hh);cx.lineTo(b.hw,b.hh);cx.moveTo(b.hw,-b.hh);cx.lineTo(-b.hw,b.hh);cx.stroke();cx.restore()}
   fwStep();fwDrawFountains();fwDraw();if(LVc.drawFront){cx.save();LVc.drawFront();cx.restore()}drawProps();{const g=ter(FINISH);cx.fillStyle='#222';cx.fillRect(FINISH-2,g.y-90,4,90);cx.fillStyle='#fff';cx.fillRect(FINISH+2,g.y-90,36,22);cx.fillStyle='#111';cx.fillRect(FINISH+2,g.y-90,12,11);cx.fillRect(FINISH+26,g.y-90,12,11);cx.fillRect(FINISH+14,g.y-79,12,11)}
   cx.fillStyle='#fff';cx.strokeStyle='#a9c4e0';cx.lineWidth=1;for(const q of snow){cx.globalAlpha=Math.max(0,q.l);cx.beginPath();cx.arc(q.x,q.y,(q.s||1)*(1.5+(1-q.l)*2.5),0,7);cx.fill();cx.stroke()}cx.globalAlpha=1;
+  drawGhost();   // your best run, see-through (ghost.js)
   const ln=(a,b,w,c)=>{cx.strokeStyle=c;cx.lineWidth=w;cx.lineCap='round';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke()};
   const mid={x:(Q[0].x+Q[1].x)/2,y:(Q[0].y+Q[1].y)/2};
   const ad=Math.max(0,Math.min(100,st.adrenaline||0));
@@ -1195,7 +1249,7 @@ function celebrateLanding(pts){
     const src=P[i%2],u=Math.random(),back=Math.random()<.22,
       along=back?-(.4+Math.random()*1.2):vt*(.25+.75*u)+(Math.random()-.5)*1.5,
       up=(.5+Math.random()*1.5)*power*(back?.7:1);
-    snow.push({x:src.x+(Math.random()-.5)*14,y:src.y-2,vx:tx*along+nx*up,vy:ty*along+ny*up,l:1,
+    if(partRoom()>0)snow.push({x:src.x+(Math.random()-.5)*14,y:src.y-2,vx:tx*along+nx*up,vy:ty*along+ny*up,l:1,
       d:.009+Math.random()*.01,g:.045,s:.8+Math.random()*1.1*power});
   }
 }
@@ -1292,7 +1346,7 @@ function findLips(){const out=[],w=LVc&&LVc.water;let minS=0;
 function fwFountains(){if(!FW.lips)return;const x0=cam.x-120,x1=cam.x+W/Z+120;
   for(const L of FW.lips){if(L.x<x0||L.x>x1)continue;
     for(const off of [-34,-12]){const g=ter(L.x+off),bx=L.x+off,by=g.y;
-      for(let k=0;k<(LOWFX?1:2);k++){const gold=RM()<.7;FW.sp.push({x:bx+(RM()-.5)*3,y:by-9,vx:(RM()-.5)*1.1,vy:-(2.6+RM()*2.4),l:1,d:.018+RM()*.014,h:gold?35+RM()*20:L.h+RM()*60,z:1.8+RM()*1.2})}}}}
+      if(partRoom()<4)continue;for(let k=0;k<(LOWFX?1:2);k++){const gold=RM()<.7;FW.sp.push({x:bx+(RM()-.5)*3,y:by-9,vx:(RM()-.5)*1.1,vy:-(2.6+RM()*2.4),l:1,d:.018+RM()*.014,h:gold?35+RM()*20:L.h+RM()*60,z:1.8+RM()*1.2})}}}}
 function fwDrawFountains(){if(!FW.lips)return;const x0=cam.x-120,x1=cam.x+W/Z+120;
   for(const L of FW.lips){if(L.x<x0||L.x>x1)continue;
     for(const off of [-34,-12]){const bx=L.x+off,by=ter(bx).y;cx.fillStyle='#3a2a52';cx.strokeStyle='#ffd36b';cx.lineWidth=1.5;
@@ -1303,7 +1357,7 @@ function fwJump(){const q=P[4];fwBurst(q.x,q.y+12,42,22,2.0,false)}
 // Sticking a landing: rockets go up around you, more for bigger tricks.
 function fwLand(pts,flips){if(flips<1&&pts<60000)return;const q=P[4],n=Math.min(3,1+Math.floor(flips/2)+(pts>=150000?1:0));
   for(let i=0;i<n;i++)fwRocket(q.x-80+RM()*420,q.y-110-RM()*150,i*9)}
-function fwBurst(x,y,h,n,sp,rain){n=Math.ceil(n*FX_SCALE);for(let i=0;i<n;i++){const a=RM()*6.283,v=sp*(.25+RM()*.75);FW.sp.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:1,d:.008+RM()*.01,h:rain?RM()*360:h+RM()*40-20,z:1.2+RM()*1.4,s:100})}}
+function fwBurst(x,y,h,n,sp,rain){n=Math.min(Math.ceil(n*FX_SCALE),partRoom());for(let i=0;i<n;i++){const a=RM()*6.283,v=sp*(.25+RM()*.75);FW.sp.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:1,d:.008+RM()*.01,h:rain?RM()*360:h+RM()*40-20,z:1.2+RM()*1.4,s:100})}}
 function fwTrick(x,y,flips){
   if(flips<2)return; // the first rotation stays clean; a small pop from rotation two, a little bigger each time
   const level=Math.min(flips-2,4),start=FW.sp.length;
@@ -1314,7 +1368,7 @@ function fwRocket(x,ty,wait,y0){const g=ter(x);FW.rk.push({x,y:y0===undefined?g.
 function fwFinale(){const g=ter(FINISH);for(let i=0;i<8;i++)fwRocket(FINISH-260+i*90+RM()*40,g.y-230-RM()*160,i*14)}
 function fwStep(){if(paused)return;const dt=Math.min(fdt,.05)*60;fwFountains();
   if(FW.on&&!st.crash&&P[4].x>FW.next){const q=P[4];for(let n=0;n<2;n++)fwRocket(q.x+380+n*240+RM()*200,q.y-70-RM()*110);FW.next=q.x+LVc.fw.gap*(.7+RM()*.7)}
-  for(const r of FW.rk){if(r.w>0){r.w-=dt;continue}r.y+=r.vy*dt;r.vy*=Math.pow(.99,dt);FW.sp.push({x:r.x,y:r.y,vx:0,vy:.3,l:.5,d:.05,h:r.h,z:1.2});
+  for(const r of FW.rk){if(r.w>0){r.w-=dt;continue}r.y+=r.vy*dt;r.vy*=Math.pow(.99,dt);if(partRoom()>0)FW.sp.push({x:r.x,y:r.y,vx:0,vy:.3,l:.5,d:.05,h:r.h,z:1.2});
     if(r.y<=r.ty||r.vy>-2.2){r.dead=1;fwBurst(r.x,r.y,r.h,r.r?90:64,3.2,r.r);fwBurst(r.x,r.y,r.h+40,22,1.6,r.r)}}
   FW.rk=FW.rk.filter(r=>!r.dead);
   for(const p of FW.sp){p.l-=p.d*dt;p.vx*=Math.pow(.97,dt);p.vy=p.vy*Math.pow(.97,dt)+.06*dt;p.x+=p.vx*dt;p.y+=p.vy*dt}
@@ -1402,18 +1456,36 @@ const MTN=[{px:.04,py:.012,base:.44,amp:210,sharp:.55,seed:1.7,haze:.6,cap:1},
 let mtnY0=null;
 function mtnHeight(L,wx){const s=L.seed;let h=Math.sin(wx/310+s)*.5+Math.sin(wx/131+s*2.3)*.3+Math.sin(wx/57+s*.7)*.2;   // -1..1 rolling
   const pk=1-Math.abs(Math.sin(wx/(190+s*20)+s));return (h*.5+.5)*(1-L.sharp)+pk*pk*L.sharp}                          // add pointy peaks
+// Each layer is rendered once into its own image (wider and taller than the screen, at reduced resolution since the
+// shapes are soft) and simply shifted as the camera moves. A layer is re-rendered only when it has slid past its margin,
+// or the zoom, screen size, quality or level changes: three cheap image copies per frame instead of three big
+// gradient-filled paths.
+const MTC=MTN.map(()=>({cv:null,g:null,key:'',ox:0,dr:0,mw:0,pad:0}));
+let skyCache={key:'',g:null};
+function mtnRender(L,c,sc,off,drift){
+  const mw=Math.round(W*.35),pad=Math.round(H*.16),cw=W+mw*2,ch=H+pad*2;
+  const r=Math.min(qLevel>=2||COARSE?.5:.75,720/ch);
+  if(!c.cv)c.cv=document.createElement('canvas');
+  const pw=Math.max(2,Math.round(cw*r)),ph=Math.max(2,Math.round(ch*r));if(c.cv.width!==pw||c.cv.height!==ph){c.cv.width=pw;c.cv.height=ph}
+  const g=c.cv.getContext('2d');g.setTransform(r,0,0,r,0,0);g.clearRect(0,0,cw,ch);
+  const baseY=H*L.base-drift+pad,col=mixHex(LVc.far,LVc.sky[1],L.haze),top=mixHex(LVc.far,'#ffffff',.1+L.cap*.25);
+  const gr=g.createLinearGradient(0,baseY-L.amp*sc,0,baseY+40*sc);gr.addColorStop(0,top);gr.addColorStop(.45,col);gr.addColorStop(1,col);
+  g.fillStyle=gr;g.beginPath();g.moveTo(0,ch);const step=Math.max(12,Math.round(cw/90));
+  for(let X=0;X<=cw+step;X+=step){const wx=(X-mw)/sc+off;g.lineTo(X,baseY-L.amp*sc*mtnHeight(L,wx))}
+  g.lineTo(cw,ch);g.closePath();g.fill();
+  c.ox=off;c.dr=drift;c.mw=mw;c.pad=pad;c.cw=cw;c.ch=ch;
+}
 function drawMountains(){
   const sc=ZB*zoom;if(mtnY0===null)mtnY0=cam.y;
-  const step=Math.max(16,Math.round(W/70));
   MTN.forEach((L,li)=>{
-    const col=mixHex(LVc.far,LVc.sky[1],L.haze),top=mixHex(LVc.far,'#ffffff',.1+L.cap*.25);
-    const drift=Math.max(-.12*H,Math.min(.12*H,(cam.y-mtnY0)*L.py*sc)),baseY=H*L.base-drift;
-    const g=cx.createLinearGradient(0,baseY-L.amp*sc,0,baseY+40*sc);g.addColorStop(0,top);g.addColorStop(.45,col);g.addColorStop(1,col);
-    cx.fillStyle=g;cx.beginPath();cx.moveTo(0,H);
-    for(let X=0;X<=W+step;X+=step){const wx=X/sc+cam.x*L.px;cx.lineTo(X,baseY-L.amp*sc*mtnHeight(L,wx))}
-    cx.lineTo(W,H);cx.closePath();cx.fill();
+    const c=MTC[li],off=cam.x*L.px,drift=Math.max(-.12*H,Math.min(.12*H,(cam.y-mtnY0)*L.py*sc));
+    const key=W+'x'+H+'@'+sc.toFixed(4)+'|'+qLevel+'|'+(LVc&&LVc.n);
+    let dx=(off-c.ox)*sc,dy=drift-c.dr;
+    if(c.key!==key||Math.abs(dx)>c.mw*.92||Math.abs(dy)>c.pad*.92){mtnRender(L,c,sc,off,drift);c.key=key;dx=0;dy=0}
+    cx.drawImage(c.cv,-c.mw-dx,-c.pad-dy,c.cw,c.ch);
   });
 }
+function mtnReset(){MTC.forEach(c=>{c.key=''})}
 // ---- weather: particles live in screen pixels and are pushed by the camera, nearer flakes moving more
 const WX={n:COARSE?55:140,p:[],lastX:null,lastY:null,kind:null};
 function weatherKind(){return(LVc&&LVc.weather)||'snow'}
@@ -1422,7 +1494,7 @@ function wxSpawn(p,anywhere){const k=WX.kind,d=.35+Math.random()*.65;p.d=d;p.x=M
   else{p.ember=false;p.vy=(45+Math.random()*45)*d;p.vx=(Math.random()-.5)*15;p.r=(1+Math.random()*1.8)*d}}
 function drawWeather(){
   const k=weatherKind();if(k==='none'||!st)return;
-  if(WX.kind!==k||!WX.p.length){WX.kind=k;WX.p=Array.from({length:WX.n},()=>{const p={};wxSpawn(p,true);return p})}
+  if(WX.kind!==k||!WX.p.length){WX.kind=k;WX.p=Array.from({length:Math.round(WX.n*qCur().weather)},()=>{const p={};wxSpawn(p,true);return p})}
   const dpr=window.DPR||1,dt=Math.min(fdt,.05),dX=WX.lastX===null?0:(cam.x-WX.lastX)*Z,dY=WX.lastY===null?0:(cam.y-WX.lastY)*Z;WX.lastX=cam.x;WX.lastY=cam.y;
   const jump=Math.abs(dX)>W*.5||Math.abs(dY)>H*.5,t=performance.now()/1000;   // camera teleported (respawn / new level): don't smear
   cx.save();
@@ -1436,7 +1508,7 @@ function drawWeather(){
   }
   cx.restore();
 }
-function sceneryReset(){mtnY0=null;WX.lastX=null;WX.lastY=null;WX.p.length=0}
+function sceneryReset(){mtnY0=null;mtnReset();WX.lastX=null;WX.lastY=null;WX.p.length=0}
 // ======================= UNLOCKABLE GEAR =======================
 // Special-effect gear, earned by finishing certain levels (with your skis still on). One item per slot can be
 // worn at a time; equip it in the customizer. Effects are drawn on top of the normal skier, using additive
@@ -1491,7 +1563,7 @@ function drawGearBack(Q){   // behind the skier: trails and wings
   if(!tr||st.fireDeath)return;cx.save();cx.globalCompositeOperation='lighter';
   if(tr==='aurora'){const H=gfx.hist;for(let i=1;i<H.length;i++){const u=i/H.length,c='hsl('+(130+u*170+Math.sin(t+i*.3)*20)+' 95% 62%)';
       cx.globalAlpha=u*.55;cx.fillStyle=c;cx.beginPath();cx.moveTo(H[i-1].a.x,H[i-1].a.y);cx.lineTo(H[i].a.x,H[i].a.y);cx.lineTo(H[i].h.x,H[i].h.y);cx.lineTo(H[i-1].h.x,H[i-1].h.y);cx.closePath();cx.fill()}}
-  if(tr==='sparks'&&!paused){const v=Math.hypot(P[4].x-P[4].px,P[4].y-P[4].py);if(v>2&&gfx.sp.length<(COARSE?60:140))for(let k=0;k<2;k++){const s=Math.random()<.5?Q[0]:Q[1];gfx.sp.push({x:s.x,y:s.y,vx:(Math.random()-.5)*1.6,vy:-Math.random()*1.6,l:1,h:Math.random()*360})}}
+  if(tr==='sparks'&&!paused){const v=Math.hypot(P[4].x-P[4].px,P[4].y-P[4].py);if(v>2&&gfx.sp.length<(COARSE?60:140)&&partRoom()>2)for(let k=0;k<2;k++){const s=Math.random()<.5?Q[0]:Q[1];gfx.sp.push({x:s.x,y:s.y,vx:(Math.random()-.5)*1.6,vy:-Math.random()*1.6,l:1,h:Math.random()*360})}}
   if(tr==='wings'&&air){const s=Q[5],h=Q[4],ang=Math.atan2(s.y-h.y,s.x-h.x),flap=Math.sin(t*9)*.25,len=34;
     cx.globalCompositeOperation='source-over';   // solid, outlined wings: glow blending vanishes against bright skies
     for(const side of [-1,1]){cx.globalAlpha=.85;const g=cx.createLinearGradient(s.x,s.y,s.x-Math.cos(ang)*len,s.y-Math.sin(ang)*len);g.addColorStop(0,'rgba(255,255,255,.98)');g.addColorStop(1,'rgba(140,200,255,.35)');cx.fillStyle=g;cx.strokeStyle='#5d9be0';cx.lineWidth=1.2;cx.lineJoin='round';
@@ -1503,7 +1575,7 @@ function drawGearFront(Q){   // on top of the skier: skis, suit and helmet effec
   if(!st||st.fireDeath)return;const t=performance.now()/1000,sk=gearOn('skis'),su=gearOn('suit'),he=gearOn('helmet');cx.save();
   if(sk&&!st.skisOff){cx.globalCompositeOperation='lighter';
     if(sk==='lava'){glowLine(Q[0],Q[1],10,'#ff5a14',.28+.08*Math.sin(t*8));glowLine(Q[0],Q[1],3.5,'#ffc04a',.95);
-      if(!paused&&Math.random()<.5)gfx.sp.push({x:Q[0].x+(Q[1].x-Q[0].x)*Math.random(),y:Q[0].y+(Q[1].y-Q[0].y)*Math.random(),vx:(Math.random()-.5)*.6,vy:-.4-Math.random()*.8,l:.8,h:20+Math.random()*25})}
+      if(!paused&&Math.random()<.5&&partRoom()>0)gfx.sp.push({x:Q[0].x+(Q[1].x-Q[0].x)*Math.random(),y:Q[0].y+(Q[1].y-Q[0].y)*Math.random(),vx:(Math.random()-.5)*.6,vy:-.4-Math.random()*.8,l:.8,h:20+Math.random()*25})}
     if(sk==='ice'){glowLine(Q[0],Q[1],9,'#5fd8ff',.3);glowLine(Q[0],Q[1],3,'#e6fbff',.95);
       for(let k=0;k<3;k++){const u=(t*.6+k/3)%1,x=Q[0].x+(Q[1].x-Q[0].x)*u,y=Q[0].y+(Q[1].y-Q[0].y)*u-3,s=2.5*Math.sin(u*Math.PI);cx.globalAlpha=.9;cx.strokeStyle='#ffffff';cx.lineWidth=1;cx.beginPath();cx.moveTo(x-s,y);cx.lineTo(x+s,y);cx.moveTo(x,y-s);cx.lineTo(x,y+s);cx.stroke()}}}
   if(su){const limbs=[[2,3],[3,4],[4,5],[5,7]];cx.globalCompositeOperation='lighter';
@@ -1540,6 +1612,52 @@ function windTrails(Q,rainbowOn){
   cx.restore();
 }
 function windReset(){WIND.hist.length=0;WIND.len=0}
+// ======================= BEST-RUN GHOST =======================
+// When you set a new best on a level, a compact copy of that run is saved: 20 frames a second, the hip position as
+// two floats and the other seven body points as small offsets from it (22 bytes a frame, ~26 KB for a minute).
+// Next time you play that level, a see-through ghost skier replays it in step with your run so you can race it.
+// Not used on Ski School or the Endless Run (its course is different every time).
+const GH={fps:20,per:6,frames:null,n:0,best:0,fade:0};   // per: physics steps (120/s) per ghost frame
+const GH_KEY=n=>'skiGhost:'+n;
+function ghostOn(){try{return localStorage.getItem('skiGhostOn')!=='0'}catch(e){return true}}
+function setGhost(on){try{localStorage.setItem('skiGhostOn',on?'1':'0')}catch(e){}}
+const ghostAllowed=l=>l&&!l.endless&&!l.tutorial;
+function b64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s)}
+function unb64(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+// called by commitRun when this run beat the level's best
+function ghostSave(){
+  if(!ghostAllowed(LVc)||RP.head!==0||RP.n<GH.per)return;   // the recorder wrapped (very long run): nothing complete to save
+  const step=GH.per/2,frames=Math.floor((RP.n-1)/step)+1,buf=new ArrayBuffer(frames*22),dv=new DataView(buf);
+  for(let f=0;f<frames;f++){const o=rpSlot(f*step)*RP_W,hx=RP.buf[o+16],hy=RP.buf[o+17],at=f*22;
+    dv.setFloat32(at,hx,true);dv.setFloat32(at+4,hy,true);let j=at+8;
+    for(const k of [0,1,2,3,5,6,7]){dv.setInt8(j++,Math.max(-127,Math.min(127,Math.round(RP.buf[o+k*4]-hx))));dv.setInt8(j++,Math.max(-127,Math.min(127,Math.round(RP.buf[o+k*4+1]-hy))))}}
+  try{localStorage.setItem(GH_KEY(LVc.n),JSON.stringify({v:1,s:st.score,d:b64(new Uint8Array(buf))}))}catch(e){}   // storage full: keep the old ghost
+}
+function ghostLoad(){
+  GH.frames=null;GH.n=0;GH.fade=0;
+  if(!ghostOn()||!ghostAllowed(LVc))return;
+  try{const g=JSON.parse(localStorage.getItem(GH_KEY(LVc.n))||'null');if(!g||g.v!==1)return;
+    const u=unb64(g.d);GH.frames=new DataView(u.buffer);GH.n=Math.floor(u.length/22);GH.best=g.s||0}catch(e){GH.frames=null}
+}
+function ghostClearAll(){try{Object.keys(localStorage).filter(k=>k.startsWith('skiGhost:')).forEach(k=>localStorage.removeItem(k))}catch(e){}GH.frames=null}
+function ghostPose(f){   // body points for (fractional) ghost frame f
+  const a=Math.max(0,Math.min(GH.n-1,Math.floor(f))),b=Math.min(GH.n-1,a+1),u=Math.max(0,Math.min(1,f-a)),dv=GH.frames,pts=new Array(8);
+  const hx=dv.getFloat32(a*22,true)+(dv.getFloat32(b*22,true)-dv.getFloat32(a*22,true))*u,hy=dv.getFloat32(a*22+4,true)+(dv.getFloat32(b*22+4,true)-dv.getFloat32(a*22+4,true))*u;
+  pts[4]={x:hx,y:hy};let j=8;
+  for(const k of [0,1,2,3,5,6,7]){const ox=dv.getInt8(a*22+j)+(dv.getInt8(b*22+j)-dv.getInt8(a*22+j))*u,oy=dv.getInt8(a*22+j+1)+(dv.getInt8(b*22+j+1)-dv.getInt8(a*22+j+1))*u;pts[k]={x:hx+ox,y:hy+oy};j+=2}
+  return pts}
+function drawGhost(){
+  if(!GH.frames||replayMode||!st)return;
+  const f=(RP.tick+(paused?0:al))/GH.per;
+  let alpha=.32;if(f>GH.n-1){GH.fade=Math.min(1,GH.fade+fdt);alpha*=1-GH.fade;if(alpha<=0)return}   // the ghost finished: fade it out
+  const q=ghostPose(f);
+  cx.save();cx.globalAlpha=alpha;cx.strokeStyle='#e8f6ff';cx.fillStyle='#e8f6ff';cx.lineCap='round';
+  const seg=(a,b,w)=>{cx.lineWidth=w;cx.beginPath();cx.moveTo(q[a].x,q[a].y);cx.lineTo(q[b].x,q[b].y);cx.stroke()};
+  seg(0,1,3.5);seg(2,3,5);seg(3,4,6);seg(4,5,7);seg(5,7,3.5);seg(5,6,3);
+  cx.beginPath();cx.arc(q[6].x,q[6].y,6,0,7);cx.fill();
+  cx.globalAlpha=alpha*1.4;cx.font='bold 10px system-ui';cx.textAlign='center';cx.fillText('BEST',q[6].x,q[6].y-12);
+  cx.restore();
+}
 const trees=[],rocks=[],best=Array(40).fill(0),bestG=Array(40).fill(-1);let cur=0,paused=true,sel=0;
 // Replay: one preallocated Float32 ring buffer, recorded every 2nd physics step (60/s). No per-frame allocations, so no GC stutter.
 const RP_MAX=45000,RP_W=32,RP={buf:new Float32Array(RP_MAX*RP_W),sh:new Array(RP_MAX),head:0,n:0,tick:0};
@@ -1564,7 +1682,7 @@ function stepRocks(){for(const q of rocks){if(!q.dyn)continue;q.vy+=GP;q.x+=q.vx
   if(sdn<q.r){const pen=q.r-sdn;q.x+=nx*pen;q.y+=ny*pen;const vn=q.vx*nx+q.vy*ny;if(vn<0){q.vx-=nx*vn*1.2;q.vy-=ny*vn*1.2}q.w+=((q.vx*g.tx+q.vy*g.ty)/q.r-q.w)*.15}}}
 // Brushing through a soft obstacle (Lantern Forest): one-off speed loss, a little ski damage, a puff of snow
 function brush(x,y,keep,dmgAmt){if(st.crash||st.done)return;P.forEach(q=>{q.px=q.x-(q.x-q.px)*keep;q.py=q.y-(q.y-q.py)*keep});hurt(dmgAmt);
-  for(let k=0;k<12;k++)snow.push({x:x+(Math.random()-.5)*16,y:y+(Math.random()-.5)*10,vx:(Math.random()-.5)*2.2,vy:-Math.random()*1.8,l:1,d:.025,g:.04,s:.9})}
+  for(let k=0;k<12&&partRoom()>0;k++)snow.push({x:x+(Math.random()-.5)*16,y:y+(Math.random()-.5)*10,vx:(Math.random()-.5)*2.2,vy:-Math.random()*1.8,l:1,d:.025,g:.04,s:.9})}
 function collideProps(){
   P.forEach((p,i)=>{const m=M[i]*3;
     for(const t of trees){
@@ -1967,12 +2085,26 @@ function thumb(l,c){const LT=l.endless?(l._preview=l._preview||endlessPreview())
   g.beginPath();g.moveTo(0,h);R.forEach(([x,y])=>g.lineTo(ox+x*s,7+(y-y0)*s));g.lineTo(w,h);g.closePath()}g.fillStyle=l.snow;g.fill();g.strokeStyle=l.edge;g.lineWidth=2;g.stroke();if(l.lava)for(const L_ of l.lava){const yb=Math.max(...l.T.filter(p=>p[0]>=L_.x0&&p[0]<=L_.x1).map(p=>p[1]));g.fillStyle='#ff6a1a';g.fillRect(ox+L_.x0*s,7+(L_.y-y0)*s,(L_.x1-L_.x0)*s,Math.max(3,(yb-L_.y)*s))}if(l.water){const W_=l.water,yb=Math.max(...l.T.filter(p=>p[0]>=W_.x0&&p[0]<=W_.x1).map(p=>p[1]));g.fillStyle='#2a9bd6';g.fillRect(ox+W_.x0*s,7+(W_.y-y0)*s,(W_.x1-W_.x0)*s,Math.max(3,(yb-W_.y)*s))}}
 const selE=document.getElementById('sel'),thC=document.getElementById('th'),cardE=document.getElementById('card'),lnE=document.getElementById('ln'),ldE=document.getElementById('ld'),lenE=document.getElementById('level-length'),dotsE=document.getElementById('dots'),hsnE=document.getElementById('hsn'),hsgE=document.getElementById('hsg'),faqE=document.getElementById('faqp');
 LV.forEach((l,i)=>{const d=document.createElement('i');d.onclick=()=>{const dir=i>sel?1:-1;sel=i;showSel(dir)};dotsE.append(d)});
-function showSel(dir){const l=LV[sel];thumb(l,thC);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent=l.tutorial?'TUTORIAL · ABOUT 2 MINUTES':l.endless?'LEVEL LENGTH · ENDLESS':'LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
+const thumbCache=new Map();   // level -> pre-drawn thumbnail (redrawn only if the card's canvas size changes)
+function drawThumb(l){const k=l.n+'|'+thC.width+'x'+thC.height+(l.endless?'|'+(l._preview?1:0):'');let c=thumbCache.get(k);
+  if(!c){c=document.createElement('canvas');c.width=thC.width;c.height=thC.height;thumb(l,c);thumbCache.set(k,c)}
+  const g=thC.getContext('2d');g.clearRect(0,0,thC.width,thC.height);g.drawImage(c,0,0)}
+function showSel(dir){const l=LV[sel];drawThumb(l);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent=l.tutorial?'TUTORIAL · ABOUT 2 MINUTES':l.endless?'LEVEL LENGTH · ENDLESS':'LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
   [...dotsE.children].forEach((d,i)=>d.classList.toggle('on',i===sel));
   const s=best[sel],g=bestG[sel];let tutDone=false;try{tutDone=localStorage.getItem('skiTutDone')==='1'}catch(e){}
   hsnE.textContent=l.tutorial?(tutDone?'COMPLETED ✓':'START HERE'):s?'BEST '+s.toLocaleString():'NOT PLAYED YET';if(LV[sel].endless&&endlessFarthest())hsnE.textContent+=' · FARTHEST '+endlessFarthest().toLocaleString()+' m';if(LV[sel].jump&&jumpRecord())hsnE.textContent+=' · RECORD '+jumpRecord().toFixed(1)+' m';hsnE.className=s?'':'no';
-  hsgE.textContent=s&&g>=0?gradeLabel(RATES[g][0]):'\u2013';hsgE.className=s&&g>=0?'g-'+RATES[g][0].replace('+','p'):'';
+  hsgE.textContent=s&&g>=0?gradeLabel(RATES[g][0]):'\u2013';updateProgress();hsgE.className=s&&g>=0?'g-'+RATES[g][0].replace('+','p'):'';
   if(dir){cardE.style.setProperty('--dx',dir*60+'px');cardE.style.animation='none';void cardE.offsetWidth;cardE.style.animation=''}}
+// progress strip: how far through the game you are
+function updateProgress(){const el=document.getElementById('prog');if(!el)return;const real=LV.map((l,i)=>i).filter(i=>!LV[i].tutorial);
+  const legends=real.filter(i=>bestG[i]===0&&best[i]>0).length,played=real.filter(i=>best[i]>0).length;
+  el.innerHTML='<span>LEGEND <b>'+legends+'/'+real.length+'</b></span><span>FINISHED <b>'+played+'/'+real.length+'</b></span>'+(typeof GEAR!=='undefined'?'<span>GEAR <b>'+gear.unlocked.length+'/'+GEAR.length+'</b></span>':'')}
+// results screen: preview of the next level
+function updateNextCard(){const nc=document.getElementById('nextcard');if(!nc)return;const ni=(cur+1)%LV.length,l=LV[ni];
+  if(!l||l.tutorial||LVc!==LV[cur]){nc.style.display='none';return}nc.style.display='';
+  document.getElementById('nextname').textContent=(ni+1)+'. '+l.n;
+  document.getElementById('nextbest').textContent=best[ni]?'Best '+best[ni].toLocaleString()+(bestG[ni]>=0?' · '+gradeLabel(RATES[bestG[ni]][0]):''):'Not played yet';
+  const c=document.getElementById('nextth');thumb(l,c)}
 function selStep(d){sel=(sel+d+LV.length)%LV.length;showSel(d)}
 document.getElementById('pv').onclick=()=>selStep(-1);document.getElementById('nx').onclick=()=>selStep(1);
 cardE.onclick=()=>go(sel);document.getElementById('play').onclick=()=>go(sel);
@@ -2054,12 +2186,12 @@ function openMenu(fin){commitRun();paused=true;customizer.style.display='none';d
   if(fin){mh.textContent=LVc.endless?'⛷️ Run over · '+(st.endM||0).toLocaleString()+' m':st.sharkDeath?'🦈 Shark snack!':st.fireDeath?'🔥 Burned to a crisp!':'\u{1F3C1} '+LVc.n+' complete!';ms.textContent=st.sharkDeath?'The shark got you. Jump higher next time!':st.fireDeath?(st.lavaDeath?'You fell in the lava. F FOR FIRE!!!':'You touched the flames. F FOR FIRE!!!'):'';fb.style.display='flex';document.getElementById('replay-menu').style.display=RP.n>1?'':'none';runTally=true}
   else{tId++;fxStop();mh.textContent='Powder Legends';ms.textContent='Choose a level';fb.style.display='none'}
   document.getElementById('customizer').style.display='none';document.getElementById('sc').style.display='';customOpen.style.display=fin?'none':'';
-  mEl.style.display='flex';
+  mEl.style.display='flex';if(fin)updateNextCard();
   if(runTally){scE.style.setProperty('display','block','important');scE.style.visibility='visible';scE.style.opacity='1';tally()}
 }
 document.getElementById('again').onclick=()=>go(cur);
 document.getElementById('all').onclick=()=>openMenu();
-document.getElementById('next').onclick=()=>go((cur+1)%LV.length);
+document.getElementById('next').onclick=()=>go((cur+1)%LV.length);document.getElementById('nextcard').onclick=()=>go((cur+1)%LV.length);
 document.getElementById('replay-open').onclick=()=>startReplay();document.getElementById('replay-menu').onclick=()=>startReplay();
 function replaySetStatus(){const el=document.getElementById('replay-status');el.textContent=(replaySpeed===0?'PAUSED':replaySpeed<0?'REWIND':replaySpeed<1?'SLOW MO':'PLAY')+' · '+Math.max(0,Math.min(100,Math.round(replayIndex/Math.max(1,RP.n-1)*100)))+'%'}
 function startReplay(){if(RP.n<2)return;const controls=document.getElementById('replay-controls');if(controls.parentElement!==document.body)document.body.appendChild(controls);replayLiveP=P.map(p=>({...p}));replayLiveCam={...cam};replayLiveZoom=zoom;replayMode=true;paused=true;replayIndex=0;replaySpeed=1;P=rpPose(0,0,0);snap=null;controls.style.setProperty('display','flex','important');controls.style.setProperty('visibility','visible','important');controls.style.setProperty('opacity','1','important');controls.style.setProperty('pointer-events','auto','important');controls.style.zIndex='2147483647';document.getElementById('replay-open').style.display='none';mEl.style.display='none';document.exitPointerLock&&document.exitPointerLock();replaySetStatus()}
@@ -2089,7 +2221,8 @@ const GATHER_END=2.05,REVEAL_AT=1.95,BLOW_OFF=1.1;   // seconds: flakes settle b
 function reveal(){if(revealed)return;revealed=true;logo.classList.add('revealed');intro.classList.add('revealed')}
 function size(){const d=Math.min(devicePixelRatio||1,2);fc.width=Math.round(innerWidth*d);fc.height=Math.round(innerHeight*d);g.setTransform(d,0,0,d,0,0);w=innerWidth;h=innerHeight;
   flakes=Array.from({length:COARSE?40:90},()=>({x:Math.random()*w,y:Math.random()*h,r:.6+Math.random()*1.8,v:12+Math.random()*28,p:Math.random()*6}))}
-size();addEventListener('resize',()=>{size();gust.length=0;reveal()});   // a resize mid-gust: just show the title
+const onResize=()=>{if(intro.style.display==='none'){removeEventListener('resize',onResize);return}size();gust.length=0;reveal()};   // a resize mid-gust: just show the title
+size();addEventListener('resize',onResize);
 
 // ---- sample the real title's letter shapes into target points for the snow
 function buildGust(){
@@ -2116,7 +2249,7 @@ const ridge=(x,s,sharp)=>{const a=Math.sin(x/180+s)*.5+Math.sin(x/77+s*2.1)*.3+M
 const ground=x=>h*.76+(x/w)*h*.13;   // foreground slope, falling to the right
 const ease=u=>1-Math.pow(1-u,3);
 function frame(now){
-  if(intro.style.display==='none')return;
+  if(intro.style.display==='none'){removeEventListener('resize',onResize);gust.length=0;flakes.length=0;fc.width=fc.height=1;return}   // intro gone: free its canvas memory and listener
   const t=(now-t0)/1000;g.clearRect(0,0,w,h);
   // sky
   const sky=g.createLinearGradient(0,0,0,h);[[0,'#170a3a'],[.3,'#4b1a6e'],[.5,'#a3286f'],[.64,'#f0503f'],[.74,'#ff9a3c'],[.82,'#ffd27a']].forEach(([o,c])=>sky.addColorStop(o,c));
@@ -2160,7 +2293,7 @@ function frame(now){
 }
 requestAnimationFrame(frame);
 })();
-function loop(t){const dt=Math.min((t-last)/1000,.05);acc+=dt*(dbg.on?dbg.ts:1);last=t;fdt=dt;window.audioTick&&audioTick();
+function loop(t){qualityTick((t-last)/1000);const dt=Math.min((t-last)/1000,.05);acc+=dt*(dbg.on?dbg.ts:1);last=t;fdt=dt;window.audioTick&&audioTick();
   if(replayMode){acc=0;replayIndex+=replaySpeed*dt*60;if(replayIndex<0){replayIndex=0;replaySpeed=0}if(replayIndex>=RP.n-1){replayIndex=RP.n-1;replaySpeed=0}const i=Math.floor(replayIndex),j=Math.min(RP.n-1,i+1),u=replayIndex-i;P=rpPose(i,j,u);snap=null;replaySetStatus();}
   else {if(paused)acc=0;if(dbg.on&&dbg.frozen){acc=dbg.stepN>0?1/120:0;if(dbg.stepN>0)dbg.stepN--}while(acc>=1/120){snap=P.map(p=>[p.x,p.y]);step();if(dbg.on)dbgPost();if(window.tutPost)tutPost();if(LVc.post)LVc.post();if(!replayMode&&P&&P.length) {if((RP.tick++&1)===0)rpPush();if(RP.n===2){document.getElementById('replay-open').style.display=''}if(st&&st.finishedLevel&&RP.n>1&&!st.rpMenuShown){st.rpMenuShown=true;document.getElementById('replay-menu').style.display=''}}acc-=1/120}}al=acc*120;
   // Behind the level select / results screen nothing moves, so redraw only ~4x a second (saves battery). The customizer previews the live canvas, so it keeps full rate.
@@ -2623,25 +2756,32 @@ const css=document.createElement('style');css.textContent=`
 .set-row small{display:block;font:500 12px system-ui;opacity:.65;margin-top:2px}
 .set-row button{flex:none;font:700 13px system-ui;padding:8px 14px;border-radius:9px;border:0;background:#2f7ddd;color:#fff;cursor:pointer}
 .set-row button.danger{background:#7a2a33}
-.set-row input[type=checkbox]{width:22px;height:22px;accent-color:#7cffa0}`;
+.set-row input[type=checkbox]{width:22px;height:22px;accent-color:#7cffa0}
+.set-row select{flex:none;font:700 13px system-ui;padding:7px 10px;border-radius:9px;border:1px solid #ffffff40;background:#24324a;color:#fff}`;
 document.head.appendChild(css);
 const m=document.createElement('div');m.id='set-modal';m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');
 m.innerHTML=`<div id="set-card"><h3>⚙ Settings <button type="button" id="set-close">Done</button></h3>
  <div class="set-row"><div>Game version<small id="set-ver"></small></div><button type="button" id="set-upd">Check for updates</button></div>
+ <div class="set-row"><div>Graphics<small id="set-gfx-note"></small></div><select id="set-gfx"><option value="auto">Auto</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+ <div class="set-row"><div>Best-run ghost<small>Race a see-through copy of your best run on each level</small></div><input type="checkbox" id="set-ghost"></div>
  <div class="set-row" id="set-hap-row"><div>Vibration<small>Short buzzes on landings, flips and crashes (Android phones)</small></div><input type="checkbox" id="set-hap"></div>
  <div class="set-row"><div>Reset all scores<small>Clears best scores, grades and records. Unlocked gear is kept.</small></div><button type="button" class="danger" id="set-reset">Reset</button></div></div>`;
 document.body.appendChild(m);
 function open(){
   $('set-ver').textContent='v'+GAME_VERSION+(window.__SKI_FROM_UPDATE?' (installed update)':'');
   const ok=typeof HAPTIC_OK!=='undefined'&&HAPTIC_OK;$('set-hap-row').style.display=ok?'':'none';if(ok)$('set-hap').checked=hapOn;
+  $('set-gfx').value=qMode;gfxNote();$('set-ghost').checked=ghostOn();
   $('set-reset').textContent='Reset';m.style.display='flex'}
+function gfxNote(){$('set-gfx-note').textContent=qMode==='auto'?'Adjusts itself if your device struggles (now: '+qCur().name+')':'Fixed at '+qCur().name}
 const close=()=>{m.style.display='none'};
 $('set-btn').addEventListener('click',open);$('set-close').addEventListener('click',close);
 m.addEventListener('pointerdown',e=>{if(e.target===m)close()});m.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape')close()});
 $('set-upd').addEventListener('click',()=>{close();if(window.updCheck)updCheck()});
+$('set-gfx').addEventListener('change',e=>{setQualityMode(e.target.value);gfxNote()});
+$('set-ghost').addEventListener('change',e=>setGhost(e.target.checked));
 $('set-hap').addEventListener('change',e=>{setHaptics(e.target.checked);const b=$('v-hap');if(b)b.checked=e.target.checked});
 $('set-reset').addEventListener('click',e=>{const b=e.target;if(b.textContent==='Reset'){b.textContent='Tap again to confirm';return}   // two taps, so it can't happen by accident
-  best.fill(0);bestG.fill(-1);save();['skiJumpRecord','skiEndlessM'].forEach(k=>{try{localStorage.removeItem(k)}catch(_){}});
+  best.fill(0);bestG.fill(-1);save();ghostClearAll();['skiJumpRecord','skiEndlessM'].forEach(k=>{try{localStorage.removeItem(k)}catch(_){}});
   LV.forEach(l=>{delete l._preview});showSel(0);b.textContent='Scores cleared ✓'});
 })();
 </script>

@@ -12,24 +12,31 @@ const css=document.createElement('style');css.textContent=`
 .set-row small{display:block;font:500 12px system-ui;opacity:.65;margin-top:2px}
 .set-row button{flex:none;font:700 13px system-ui;padding:8px 14px;border-radius:9px;border:0;background:#2f7ddd;color:#fff;cursor:pointer}
 .set-row button.danger{background:#7a2a33}
-.set-row input[type=checkbox]{width:22px;height:22px;accent-color:#7cffa0}`;
+.set-row input[type=checkbox]{width:22px;height:22px;accent-color:#7cffa0}
+.set-row select{flex:none;font:700 13px system-ui;padding:7px 10px;border-radius:9px;border:1px solid #ffffff40;background:#24324a;color:#fff}`;
 document.head.appendChild(css);
 const m=document.createElement('div');m.id='set-modal';m.setAttribute('role','dialog');m.setAttribute('aria-modal','true');
 m.innerHTML=`<div id="set-card"><h3>⚙ Settings <button type="button" id="set-close">Done</button></h3>
  <div class="set-row"><div>Game version<small id="set-ver"></small></div><button type="button" id="set-upd">Check for updates</button></div>
+ <div class="set-row"><div>Graphics<small id="set-gfx-note"></small></div><select id="set-gfx"><option value="auto">Auto</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+ <div class="set-row"><div>Best-run ghost<small>Race a see-through copy of your best run on each level</small></div><input type="checkbox" id="set-ghost"></div>
  <div class="set-row" id="set-hap-row"><div>Vibration<small>Short buzzes on landings, flips and crashes (Android phones)</small></div><input type="checkbox" id="set-hap"></div>
  <div class="set-row"><div>Reset all scores<small>Clears best scores, grades and records. Unlocked gear is kept.</small></div><button type="button" class="danger" id="set-reset">Reset</button></div></div>`;
 document.body.appendChild(m);
 function open(){
   $('set-ver').textContent='v'+GAME_VERSION+(window.__SKI_FROM_UPDATE?' (installed update)':'');
   const ok=typeof HAPTIC_OK!=='undefined'&&HAPTIC_OK;$('set-hap-row').style.display=ok?'':'none';if(ok)$('set-hap').checked=hapOn;
+  $('set-gfx').value=qMode;gfxNote();$('set-ghost').checked=ghostOn();
   $('set-reset').textContent='Reset';m.style.display='flex'}
+function gfxNote(){$('set-gfx-note').textContent=qMode==='auto'?'Adjusts itself if your device struggles (now: '+qCur().name+')':'Fixed at '+qCur().name}
 const close=()=>{m.style.display='none'};
 $('set-btn').addEventListener('click',open);$('set-close').addEventListener('click',close);
 m.addEventListener('pointerdown',e=>{if(e.target===m)close()});m.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape')close()});
 $('set-upd').addEventListener('click',()=>{close();if(window.updCheck)updCheck()});
+$('set-gfx').addEventListener('change',e=>{setQualityMode(e.target.value);gfxNote()});
+$('set-ghost').addEventListener('change',e=>setGhost(e.target.checked));
 $('set-hap').addEventListener('change',e=>{setHaptics(e.target.checked);const b=$('v-hap');if(b)b.checked=e.target.checked});
 $('set-reset').addEventListener('click',e=>{const b=e.target;if(b.textContent==='Reset'){b.textContent='Tap again to confirm';return}   // two taps, so it can't happen by accident
-  best.fill(0);bestG.fill(-1);save();['skiJumpRecord','skiEndlessM'].forEach(k=>{try{localStorage.removeItem(k)}catch(_){}});
+  best.fill(0);bestG.fill(-1);save();ghostClearAll();['skiJumpRecord','skiEndlessM'].forEach(k=>{try{localStorage.removeItem(k)}catch(_){}});
   LV.forEach(l=>{delete l._preview});showSel(0);b.textContent='Scores cleared ✓'});
 })();
