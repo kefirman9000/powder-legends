@@ -5,7 +5,7 @@ Huck kickers, spin flips, clear lava pits and shark pools, and stomp the landing
 
 <p align="center">
   <a href="https://kefirman9000.github.io/powder-legends/"><b>▶ Play now</b></a> ·
-  <a href="https://github.com/kefirman9000/powder-legends/raw/main/index.html">Download (one file, works offline)</a>
+  <a href="https://github.com/kefirman9000/powder-legends/raw/main/index.html">Download</a> <sub>(right-click → Save link as… · one file, works offline)</sub>
 </p>
 
 <p align="center"><img src="docs/screenshots/title.jpg" alt="Powder Legends title screen: snow forms the title over a sunset" width="820"></p>
