@@ -11,15 +11,22 @@ const CAMS={
 };
 const camK={z:1,lx:0,ly:0};
 const clamp01=v=>v<0?0:v>1?1:v;
-function camVel(){   // hip velocity in px/s, also during replays (read from the recorder, which runs at 60/s)
-  if(replayMode&&RP.n>1){const i=Math.max(0,Math.min(RP.n-2,Math.floor(replayIndex))),a=rpSlot(i)*RP_W+16,b=rpSlot(i+1)*RP_W+16;return[(RP.buf[b]-RP.buf[a])*60,(RP.buf[b+1]-RP.buf[a+1])*60]}
-  const h=P[4];return[(h.x-h.px)*120,(h.y-h.py)*120];
+// The camera follows the skier's centre of mass, not the hips. During a flip the hips swing in a circle around
+// the centre of mass, which made the camera bob; the centre of mass flies one smooth arc however the body spins.
+// Once the skis come off they're left out, so the camera stays with the skier rather than a tumbling ski.
+const CAM_FIRST=()=>st&&st.skisOff?2:0;
+function camFocus(Q){let x=0,y=0,m=0;for(let k=CAM_FIRST();k<8;k++){x+=M[k]*Q[k].x;y+=M[k]*Q[k].y;m+=M[k]}return{x:x/m,y:y/m}}
+function camVel(){   // centre-of-mass velocity in px/s, also during replays (read from the recorder, which runs at 60/s)
+  const f=CAM_FIRST();let vx=0,vy=0,m=0;
+  if(replayMode&&RP.n>1){const i=Math.max(0,Math.min(RP.n-2,Math.floor(replayIndex))),a=rpSlot(i)*RP_W,b=rpSlot(i+1)*RP_W;
+    for(let k=f;k<8;k++){vx+=M[k]*(RP.buf[b+k*4]-RP.buf[a+k*4]);vy+=M[k]*(RP.buf[b+k*4+1]-RP.buf[a+k*4+1]);m+=M[k]}return[vx/m*60,vy/m*60]}
+  for(let k=f;k<8;k++){vx+=M[k]*(P[k].x-P[k].px);vy+=M[k]*(P[k].y-P[k].py);m+=M[k]}return[vx/m*120,vy/m*120];
 }
 function camTick(Q){
   if(!P||!P.length||!st)return;
   if(paused&&!replayMode){camK.z=1;camK.lx=0;camK.ly=0;return}   // behind a menu: plain framing, no pull-back or look-ahead easing in
   const dt=Math.min(fdt,.05),[vx,vy]=camVel(),sp=Math.hypot(vx,vy);
-  const mx=(Q[0].x+Q[1].x)/2,ht=Math.max(0,ter(mx).y-Math.max(Q[0].y,Q[1].y));
+  const fc=camFocus(Q),ht=Math.max(0,ter(fc.x).y-fc.y-41);   // height of the centre of mass above its normal standing height (spinning skis no longer wobble the zoom)
   const s=t=>t*t*(3-2*t);   // smoothstep
   let tz=1-CAMS.vOut*s(clamp01((sp-CAMS.v0)/(CAMS.v1-CAMS.v0)))-CAMS.hOut*s(clamp01((ht-CAMS.h0)/(CAMS.h1-CAMS.h0)));
   if(st.sharkDeath||st.fireDeath||paused&&!replayMode)tz=camK.z;   // hold still during death scenes and behind menus

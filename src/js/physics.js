@@ -99,7 +99,7 @@ function reset(){
   P=loc.map(([a,b])=>{const x=x0+ux*a+nx*(b+3),y=g.y+uy*a+ny*(b+3);return{x,y,px:x-ux*.8,py:y-uy*.8}});
   len=C.map(([a,b])=>dist(P[a],P[b]));
   st={ff:0,bf:0,combo:0,tAir:0,bAir:0,land:0,aPts:0,fPts:0,maxV:0,time:0,adrenaline:0,la:0,fireDeath:false,specialFire:false,burnX:0,burnY:0,fireStarted:0,skisOff:false,skisStill:0,timeoutF:false,finishedLevel:false,noSkiFinish:false,warn:0,fl:0,fwFlips:0,fwDoves:0,pb:0,air:0,rot:0,ang:null,onAir:false,lt:0,lr:0,crash:false,done:false,msg:'',score:0,pendingPts:0,failedPendingShown:false,lastLandingPts:0,lastLandingAPts:0,lastLandingFPts:0,lastLandingAt:0,lastLandingRolledBack:false,lastLandingHPts:0,hPts:0,hzMult:1,hzFlat:0,hzName:'',hNames:'',sk:null,sharkDeath:false,sharkStarted:0};
-  snap=null;cam.x=P[4].x-W/Z*CAMX;cam.y=P[4].y-H/Z*CAMY;
+  snap=null;{const fc=camFocus(P);cam.x=fc.x-W/Z*CAMX;cam.y=fc.y-H/Z*CAMY;}
   boxes.length=0;trees.length=0;rocks.length=0;sd=11;if(LVc&&LVc.build)LVc.build();hazardInit();buildCheckpoints();fwReset();
 }
 function updateResetButton(){const b=document.getElementById('reset-skis');if(!b)return;b.textContent='↻ Reset Skis · −25,000'+(resetsUsed?' ('+resetsUsed+')':'');b.disabled=paused||!!(st&&st.finishedLevel);b.title='Reset skier at the latest checkpoint behind you. Deducts up to 25,000 points; '+resetsUsed+' reset'+(resetsUsed===1?'':'s')+' used. A/S grades are disabled for this run.'}
@@ -125,7 +125,7 @@ function respawnAt(x0){
   const loc=[[-35,0],[35,0],ank,kn,hip,sh,add(sh,dir(pb-.15),SEG.neck),add(sh,dir(pa),SEG.arm)];
   P=loc.map(([a,b])=>{const x=x0+ux*a+nx*(b+3),y=g.y+uy*a+ny*(b+3);return{x,y,px:x-ux*.8,py:y-uy*.8}});len=C.map(([a,b])=>dist(P[a],P[b]));
   st.crash=false;st.done=false;st.msg='';st.adrenaline=0;st.skisOff=false;st.skisStill=0;st.timeoutF=false;st.finishedLevel=false;st.noSkiFinish=false;st.warn=0;st.onAir=false;st.air=0;st.rot=0;st.ang=null;st.lt=0;st.lr=0;st.la=0;st.pendingPts=0;st.failedPendingShown=false;st.jumpScored=false;st.fin=0;st.shown=false;hazardRearm();
-  snap=null;cam.x=P[4].x-W/Z*CAMX;cam.y=P[4].y-H/Z*CAMY;
+  snap=null;{const fc=camFocus(P);cam.x=fc.x-W/Z*CAMX;cam.y=fc.y-H/Z*CAMY;}
   trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';trickScoreE.classList.remove('failed','landed','power-1','power-2','power-3','power-4');trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');
 }
 document.getElementById('reset-skis').addEventListener('click',resetSkisHere);

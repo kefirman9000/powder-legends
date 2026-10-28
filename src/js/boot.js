@@ -1,8 +1,8 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.3.4';
-window.GAME_NOTES='Smoother menus: the camera is already in place when a menu opens, and the scene behind it holds perfectly still instead of stuttering.';
+window.GAME_VERSION='1.3.5';
+window.GAME_NOTES='Steadier camera during flips: it now follows the skier\'s centre of mass, so spins no longer make the view bob up and down.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
 window.verCmp=function(a,b){a=String(a).split('.').map(Number);b=String(b).split('.').map(Number);for(var i=0;i<Math.max(a.length,b.length);i++){var d=(a[i]||0)-(b[i]||0);if(d)return d>0?1:-1}return 0};
