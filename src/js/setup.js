@@ -20,7 +20,7 @@ function stepColor(dir){const part=currentPart();let i=COLOR_PALETTE.findIndex(c
 document.getElementById('part-prev').addEventListener('click',()=>stepPart(-1));document.getElementById('part-next').addEventListener('click',()=>stepPart(1));document.getElementById('color-prev').addEventListener('click',()=>stepColor(-1));document.getElementById('color-next').addEventListener('click',()=>stepColor(1));document.querySelectorAll('#custom-color-picker input[data-filter]').forEach(input=>input.addEventListener('input',()=>{colorAdjustments[currentPart()][input.dataset.filter]=Number(input.value);applySkierColors()}));
 document.getElementById('custom-reset').addEventListener('click',()=>{baseSkierColors={...DEFAULT_SKIER_COLORS};colorAdjustments=Object.fromEntries(Object.keys(DEFAULT_SKIER_COLORS).map(k=>[k,{brightness:100,saturation:100}]));applySkierColors()});
 const customizer=document.getElementById('customizer'),selPanel=document.getElementById('sel'),customOpen=document.getElementById('customize-open');
-function showCustomize(){customizer.style.display='block';customizer.setAttribute('aria-hidden','false');drawCustomizationPreview()}
+function showCustomize(){customizer.style.display='block';if(window.gearPanel)gearPanel();customizer.setAttribute('aria-hidden','false');drawCustomizationPreview()}
 function hideCustomize(){customizer.style.display='none';customizer.setAttribute('aria-hidden','true')}
 customOpen.addEventListener('click',showCustomize);document.getElementById('custom-back').addEventListener('click',hideCustomize);
 applySkierColors();

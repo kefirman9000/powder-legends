@@ -5,7 +5,7 @@ function draw(){
   cx.setTransform(1,0,0,1,0,0);
   const sk=cx.createLinearGradient(0,0,0,H);sk.addColorStop(0,LVc.sky[0]);sk.addColorStop(1,LVc.sky[1]);
   cx.fillStyle=sk;cx.fillRect(0,0,W,H);
-  cx.fillStyle=LVc.far;cx.beginPath();cx.moveTo(0,H);for(let X=0;X<=W+30;X+=30){const wx=X/Z+cam.x*.12;cx.lineTo(X,H*.78-cam.y*.1*Z-Z*(70*Math.sin(wx/260)+35*Math.sin(wx/97+1)))}cx.lineTo(W,H);cx.fill();   // distant ridge (parallax)
+  drawMountains();   // parallax mountain layers (scenery.js)
   zoom+=(zoomT-zoom)*(1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale
   const ck=1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
   cx.setTransform(Z,0,0,Z,-cam.x*Z,-cam.y*Z);
@@ -68,6 +68,7 @@ function draw(){
     if(!sk||!wt||sk.done)sharkAlpha=0;else if(sk.vy>0&&sk.y>wt.y)sharkAlpha=Math.max(0,1-(sk.y-wt.y)/230)}
   if((!st.fireDeath || burnAge<3.15)&&(!st.sharkDeath||sharkAlpha>0)){
   cx.save();if(st.fireDeath)cx.globalAlpha=Math.max(0,1-burnAge/3.15);if(st.sharkDeath)cx.globalAlpha=sharkAlpha;
+  {const ga=cx.globalAlpha;drawGearBack(Q);cx.globalAlpha=ga}   // unlockable gear: trails and wings (gear.js)
   ln(Q[0],Q[1],4,st.fireDeath?'#111111':dmg>70?'#8f2f26':dmg>35?'#b8362b':skierColors.skis);
   { // flat boot: sole lies along the ski, heel under the ankle, toe pointing forward
     const ux=(Q[1].x-Q[0].x),uy=(Q[1].y-Q[0].y),l=Math.hypot(ux,uy)||1,u={x:ux/l,y:uy/l},n={x:u.y,y:-u.x};
@@ -84,6 +85,7 @@ function draw(){
   cx.fillStyle=st.fireDeath?'#080808':'#fcd9b8';cx.beginPath();cx.arc(Q[6].x,Q[6].y,5.5,0,Math.PI*2);cx.fill();
   {const torsoAngle=Math.atan2(Q[5].y-Q[4].y,Q[5].x-Q[4].x);cx.save();cx.translate(Q[6].x,Q[6].y);cx.rotate(torsoAngle+Math.PI/4); // slight 45-degree right tilt of the head/helmet
    cx.fillStyle=st.fireDeath?'#080808':damageTint(skierColors.helmet);cx.beginPath();cx.arc(0,-2,6,Math.PI,Math.PI*2);cx.lineTo(6,0);cx.lineTo(-6,0);cx.closePath();cx.fill();cx.restore();}
+  {const ga=cx.globalAlpha;drawGearFront(Q);cx.globalAlpha=ga}   // unlockable gear: glowing skis, suit, helmet (gear.js)
   // Fire clings to the whole skier after contact: separate small, flickering tongues
   // follow the skis/boots, legs, torso, arms, and head without scaling the body.
   if(st.fireDeath&&burnAge<2.35){
@@ -129,6 +131,7 @@ function draw(){
     }
   }
   drawShark();drawWaterFront();drawLava();
+  cx.setTransform(1,0,0,1,0,0);drawWeather();   // falling snow / ash in front of everything (scenery.js)
   const t=st.msg||'';
   if(hud.textContent!==t){hud.textContent=t;hud.style.display=t?'block':'none'}
   // If a collision marks the just-processed touchdown as a crash later in the same frame,

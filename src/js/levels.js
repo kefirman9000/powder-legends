@@ -161,11 +161,13 @@ const LV=[
   T:brg.t,fin:brg.fin,cliff:true,sky:['#6f8fb5','#e6d9c5'],far:'#8d97a6',snow:'#f4f2ee',edge:'#a49a8a',
   build(){brg.g.forEach((g,i)=>bridge(g,i===2?26:30,i===2?9:10))}},
  {n:'Volcano Run',d:'Ash-grey snow on the flank of a live volcano. Jump two walls of fire and two pools of lava; touch either and you go up in smoke. Every hazard you clear pays a x2 bonus on that jump (x3 if you skim just over it).',
-  T:vol.t,fin:vol.fin,lava:vol.lava,sky:['#2a0d10','#c4471f'],far:'#4a2420',snow:'#d6d0cc',edge:'#6b4c44',
+  T:vol.t,fin:vol.fin,lava:vol.lava,weather:'ash',sky:['#2a0d10','#c4471f'],far:'#4a2420',snow:'#d6d0cc',edge:'#6b4c44',
   build(){for(const wx of vol.walls){const hh=90;addBox(wx,ter(wx).y+8-hh,12,hh,{k:'fire-wall',lim:[420,200],say:'Touched the fire!',mu:.08})}}},
  {n:'Lantern Forest',d:'A night run through a lantern-lit pine forest. The trail is littered with saplings and rocks: small, quick hops get you over them cleanly, big air just gets you lost in the trees. Three little kickers and one proper jump at the end.',
   T:lan.t,fin:lan.fin,sky:['#060b20','#1f2d58'],far:'#121a38',snow:'#dbe4f5',edge:'#7c8fc2',drawBack:lanternBack,drawFront:lanternFront,
   build(){const soft=()=>{rocks[rocks.length-1].soft=1};lan.secs.forEach((s,i)=>{addRock(s+140,9+rnd()*3,false);soft();for(let k=0;k<3;k++){addTree(s+380+k*58+(rnd()-.5)*10,26+rnd()*8);trees[trees.length-1].soft=1}addRock(s+640,10+rnd()*3,false);soft()})}},
+ {n:'Ski Jump Hill',d:'One giant Olympic-style ski jump. Crouch on the inrun, pop off the edge of the table, and lean forward in the air so you do not rotate onto your back. Fly as far as you can and land it clean: every metre is worth 1,000 points, and your longest jump is saved as the hill record. K marks 120 m. Land past it and the hill flattens out under you, so the landings get harder.',
+  T:sjh.t,fin:sjh.fin,jump:true,post:jumpPost,onReset:jumpReset,drawFront:jumpDrawFront,sky:['#3f86d6','#d9ecfb'],far:'#93add0',snow:'#f8fbff',edge:'#7ea6d0'},
  {n:'Fireworks Hill',d:'A night run down a long hill with three kickers while fireworks go off in the sky ahead of you the whole way down. Flip in time with the show.',
   T:fwk.t,fin:fwk.fin,sky:['#060924','#3a2866'],far:'#1b1842',snow:'#dfe6ff',edge:'#8d9ee0',fw:{from:500,gap:230}},
  {n:'Glacier Run',d:'The long one. Roll over gentle swells to build speed, clear two mellow jumps, then send the big glacier kicker at the end.',
@@ -180,9 +182,9 @@ const LV=[
 // Finish lines sit a bit farther down every course so there's room to land and settle before crossing. The shark pool gets extra.
 const FIN_EXTRA=500,FIN_EXTRA_SHARK=900;
 // Level order, easiest first (based on jump size, hazards, length and how often a hands-off test run crashes).
-const LEVEL_ORDER=['Sunset Double','Pine Hop','Icefall Slalom','Avalanche Escape','Lantern Forest','Crate Stack','Rickety Bridge','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Mega Ramp','Inferno Walls','Shark Pool','Volcano Run','Death Valley','The Long Haul'];
+const LEVEL_ORDER=['Sunset Double','Pine Hop','Icefall Slalom','Avalanche Escape','Lantern Forest','Crate Stack','Rickety Bridge','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Ski Jump Hill','Mega Ramp','Inferno Walls','Shark Pool','Volcano Run','Death Valley','The Long Haul'];
 LV.sort((a,b)=>LEVEL_ORDER.indexOf(a.n)-LEVEL_ORDER.indexOf(b.n));
 LV.forEach(l=>{const add=l.water?FIN_EXTRA_SHARK:FIN_EXTRA;l.fin+=add;const e=l.T[l.T.length-1];if(e[0]<l.fin+800)l.T.push([l.fin+800,e[1]])});   // flat ground already continues past a course's last point; the extra point just keeps it drawn past the new line
 let CRX=[480,5,680,4];
-const PAR={'Pine Hop':.8,'Death Valley':.8,'Inferno Walls':1,'Shark Pool':.9,'Mega Ramp':1.5,'Crate Stack':1.1,'Mogul Field':1.1,'Quarter Pipe':1.5,'Sunset Double':.9,'Rickety Bridge':1,'Volcano Run':1.1,'Lantern Forest':.8,'Glacier Run':1.6,'Fireworks Hill':1};
+const PAR={'Ski Jump Hill':.55,'Pine Hop':.8,'Death Valley':.8,'Inferno Walls':1,'Shark Pool':.9,'Mega Ramp':1.5,'Crate Stack':1.1,'Mogul Field':1.1,'Quarter Pipe':1.5,'Sunset Double':.9,'Rickety Bridge':1,'Volcano Run':1.1,'Lantern Forest':.8,'Glacier Run':1.6,'Fireworks Hill':1};
 LV.forEach(l=>l.par=l.par||PAR[l.n]||1);   // par: how big a score counts as an S on each level (times SPAR)

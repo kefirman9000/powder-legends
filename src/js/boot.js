@@ -1,8 +1,8 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.1.0';
-window.GAME_NOTES='3 new levels (Rickety Bridge, Volcano Run, Lantern Forest), a Ski School tutorial, a camera that pulls back at speed and in big air, and phone vibration.';
+window.GAME_VERSION='1.2.0';
+window.GAME_NOTES='New Ski Jump Hill with a longest-jump record, 9 pieces of unlockable glowing gear, parallax mountains, and falling snow (ash on Volcano Run).';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
 window.verCmp=function(a,b){a=String(a).split('.').map(Number);b=String(b).split('.').map(Number);for(var i=0;i<Math.max(a.length,b.length);i++){var d=(a[i]||0)-(b[i]||0);if(d)return d>0?1:-1}return 0};

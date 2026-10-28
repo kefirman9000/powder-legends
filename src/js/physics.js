@@ -83,7 +83,7 @@ function drawCheckpoints(){
   }
 }
 function reset(){
-  camSnap();
+  camSnap();sceneryReset();gearReset();if(LVc&&LVc.onReset)LVc.onReset();
   headHitFx=0; // clear concussion flash/dizziness whenever a level or full run is reset
   rpClear();replayMode=false;document.getElementById("replay-controls").style.removeProperty('display');document.getElementById("replay-controls").style.display="none";document.getElementById("replay-open").style.display="none";document.getElementById("replay-menu").style.display="none";
   clearTrickHUD();
@@ -112,6 +112,7 @@ function resetSkisHere(){
 }
 // Put a fresh skier back on the snow at x0 (no penalty). Used by Reset Skis and the tutorial.
 function respawnAt(x0){
+  if(LVc&&LVc.onReset)LVc.onReset();
   const g=ter(x0), ux=g.tx,uy=g.ty,nx=g.ty,ny=-g.tx;
   // Fully clear stale input/control state so the first movement after a checkpoint reset works normally.
   headHitFx=0;lastM=null;lastMove=performance.now();braking=false;brakeT=0;fingers.length=0;
