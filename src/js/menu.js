@@ -1,15 +1,16 @@
 // --- level select menu
 const mEl=document.getElementById('m');
-function thumb(l,c){const LT=l.endless?(l._preview=l._preview||endlessPreview()):l.T;const g=c.getContext('2d'),w=c.width,h=c.height,x1=l.endless?6500:l.fin+300,Q=LT.filter(p=>p[0]>=0&&p[0]<=x1),y0=Math.min(...Q.map(p=>p[1])),y1=Math.max(...Q.map(p=>p[1])),s=Math.min(w/x1,(h-14)/(y1-y0)),ox=(w-x1*s)/2;
+function thumb(l,c){const LT=l.endless?(l._preview=l._preview||endlessPreview()):l.T;const tutX=l.tutorial?l.T[l.T.length-1][0]-800:0;const g=c.getContext('2d'),w=c.width,h=c.height,x1=l.endless?6500:l.tutorial?tutX:l.fin+300,Q=LT.filter(p=>p[0]>=0&&p[0]<=x1),y0=Math.min(...Q.map(p=>p[1])),y1=Math.max(...Q.map(p=>p[1])),s=Math.min(w/x1,(h-14)/(y1-y0)),ox=(w-x1*s)/2;
   const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,l.sky[0]);gr.addColorStop(1,l.sky[1]);g.fillStyle=gr;g.fillRect(0,0,w,h);
   {const xa=-ox/s,xb=(w-ox)/s,R=[[xa,ter2(LT,xa)],...LT.filter(p=>p[0]>xa&&p[0]<xb),[xb,ter2(LT,xb)]];   // run the ground flat past both ends so it always fills the full width
   g.beginPath();g.moveTo(0,h);R.forEach(([x,y])=>g.lineTo(ox+x*s,7+(y-y0)*s));g.lineTo(w,h);g.closePath()}g.fillStyle=l.snow;g.fill();g.strokeStyle=l.edge;g.lineWidth=2;g.stroke();if(l.lava)for(const L_ of l.lava){const yb=Math.max(...l.T.filter(p=>p[0]>=L_.x0&&p[0]<=L_.x1).map(p=>p[1]));g.fillStyle='#ff6a1a';g.fillRect(ox+L_.x0*s,7+(L_.y-y0)*s,(L_.x1-L_.x0)*s,Math.max(3,(yb-L_.y)*s))}if(l.water){const W_=l.water,yb=Math.max(...l.T.filter(p=>p[0]>=W_.x0&&p[0]<=W_.x1).map(p=>p[1]));g.fillStyle='#2a9bd6';g.fillRect(ox+W_.x0*s,7+(W_.y-y0)*s,(W_.x1-W_.x0)*s,Math.max(3,(yb-W_.y)*s))}}
 const selE=document.getElementById('sel'),thC=document.getElementById('th'),cardE=document.getElementById('card'),lnE=document.getElementById('ln'),ldE=document.getElementById('ld'),lenE=document.getElementById('level-length'),dotsE=document.getElementById('dots'),hsnE=document.getElementById('hsn'),hsgE=document.getElementById('hsg'),faqE=document.getElementById('faqp');
 LV.forEach((l,i)=>{const d=document.createElement('i');d.onclick=()=>{const dir=i>sel?1:-1;sel=i;showSel(dir)};dotsE.append(d)});
-function showSel(dir){const l=LV[sel];thumb(l,thC);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent=l.endless?'LEVEL LENGTH · ENDLESS':'LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
+function showSel(dir){const l=LV[sel];thumb(l,thC);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent=l.tutorial?'TUTORIAL · ABOUT 2 MINUTES':l.endless?'LEVEL LENGTH · ENDLESS':'LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
   [...dotsE.children].forEach((d,i)=>d.classList.toggle('on',i===sel));
-  const s=best[sel],g=bestG[sel];hsnE.textContent=s?'BEST '+s.toLocaleString():'NOT PLAYED YET';if(LV[sel].endless&&endlessFarthest())hsnE.textContent+=' · FARTHEST '+endlessFarthest().toLocaleString()+' m';if(LV[sel].jump&&jumpRecord())hsnE.textContent+=' · RECORD '+jumpRecord().toFixed(1)+' m';hsnE.className=s?'':'no';
-  hsgE.textContent=s&&g>=0?RATES[g][0]:'\u2013';hsgE.className=s&&g>=0?'g-'+RATES[g][0].replace('+','p'):'';
+  const s=best[sel],g=bestG[sel];let tutDone=false;try{tutDone=localStorage.getItem('skiTutDone')==='1'}catch(e){}
+  hsnE.textContent=l.tutorial?(tutDone?'COMPLETED ✓':'START HERE'):s?'BEST '+s.toLocaleString():'NOT PLAYED YET';if(LV[sel].endless&&endlessFarthest())hsnE.textContent+=' · FARTHEST '+endlessFarthest().toLocaleString()+' m';if(LV[sel].jump&&jumpRecord())hsnE.textContent+=' · RECORD '+jumpRecord().toFixed(1)+' m';hsnE.className=s?'':'no';
+  hsgE.textContent=s&&g>=0?gradeLabel(RATES[g][0]):'\u2013';hsgE.className=s&&g>=0?'g-'+RATES[g][0].replace('+','p'):'';
   if(dir){cardE.style.setProperty('--dx',dir*60+'px');cardE.style.animation='none';void cardE.offsetWidth;cardE.style.animation=''}}
 function selStep(d){sel=(sel+d+LV.length)%LV.length;showSel(d)}
 document.getElementById('pv').onclick=()=>selStep(-1);document.getElementById('nx').onclick=()=>selStep(1);
@@ -18,8 +19,9 @@ const faqOpen=()=>faqE.style.display==='flex',openFaq=()=>{faqE.style.display='f
 document.getElementById('faqb').onclick=openFaq;document.getElementById('faqx').onclick=closeFaq;faqE.onclick=e=>{if(e.target===faqE)closeFaq()};
 const mh=document.getElementById('mh'),ms=document.getElementById('ms'),fb=document.getElementById('fb');
 const scE=document.getElementById('sc'),snE=document.getElementById('sn'),sbE=document.getElementById('sb'),rowsE=document.getElementById('rows'),rtE=document.getElementById('rt'),awE=document.getElementById('aw');
-// ---- ratings (S, A+, A, B, C, D, F) and awards. Tune SPAR (points for an S on a par-1 level) and each level's par
-const SPAR=500000,RATES=[['S',1,'LEGENDARY'],['A+',.7,'INSANE'],['A',.5,'AWESOME'],['B',.32,'SOLID'],['C',.18,'DECENT'],['D',.08,'ROUGH'],['F',0,'NEEDS WORK']];
+// ---- ratings (S = shown as LEGEND, A+, A, B, C, D, F) and awards. Tune SPAR (points for an S on a par-1 level) and each level's par
+const SPAR=500000,RATES=[['S',1,'HALL OF FAME'],['A+',.7,'INSANE'],['A',.5,'AWESOME'],['B',.32,'SOLID'],['C',.18,'DECENT'],['D',.08,'ROUGH'],['F',0,'NEEDS WORK']];
+const gradeLabel=k=>k==='S'?'LEGEND':k;   // the top grade is shown as LEGEND
 function rate(){if(st.sharkDeath)return{r:RATES[6],note:'Eaten by the shark!'};if(st.fireDeath)return{r:RATES[6],note:'FIRE!!! You touched the flames.'};const failed=!st.finishedLevel; if(st.timeoutF||failed)return{r:RATES[6],note:st.timeoutF?'No input for 3 seconds after losing your skis':'Failed to finish the level'};if(st.noSkiFinish)return resetsUsed?{r:RATES[3],note:'Reset Skis used '+resetsUsed+' time'+(resetsUsed===1?'':'s')+' — maximum grade B'}:{r:RATES[2],note:'(for effort)'};const m=LVc.endless?1:st.skisOff?.75:dmg<15?1.1:1,idx=st.score*m/(SPAR*(LVc.par||1));let ri=RATES.findIndex(r=>idx>=r[1]),note=st.skisOff?'Lost your skis: rating x0.75':dmg<15&&st.score>0?'Pristine skis: rating bonus':'';
   const n=st.ff+st.bf;if(st.done&&ri>5){ri=5;note='You finished the run: no F for that'}   // finishing a level always earns at least a D
   if(n>5&&ri>4){ri=4;note=n+' flips: at least a C'}                                     // more than 5 flips always earns at least a C
@@ -53,7 +55,7 @@ async function tally(){const id=++tId,ok=()=>id===tId;fast=false;fxStop();scE.st
   let cum=0;for(const [l,d,p] of rows){const r=document.createElement('div');r.className='row';r.innerHTML='<b>'+l+'</b><span>'+d+'</span><em>'+(p<0?'−':'+')+Math.abs(p).toLocaleString()+'</em>';rowsE.append(r)}
   // Lay out the grade and every award now (hidden), so the screen can be sized to fit once and never jumps while they appear.
   const R=rate(),noSkiEffort=st.noSkiFinish&&!resetsUsed,gradeWord=st.fireDeath?'FOR FIRE!!!':st.sharkDeath?'FOR FISH!!!':noSkiEffort?'(for effort)':R.r[2],gradeNote=noSkiEffort?'':R.note;
-  rtE.innerHTML='<div class="stamp pend g-'+R.r[0].replace('+','p')+(st.fireDeath?' fire-grade':'')+(st.sharkDeath?' shark-grade':'')+'"><div class="L">'+R.r[0]+'</div><div class="W">'+gradeWord+'</div></div>'+(gradeNote?'<div class="note" style="visibility:hidden">'+gradeNote+'</div>':'')+(resetsUsed?'<div class="note" style="visibility:hidden">↻ Reset count: '+resetsUsed+' · points deducted: '+resetPenaltyTotal.toLocaleString()+'</div>':'');
+  rtE.innerHTML='<div class="stamp pend g-'+R.r[0].replace('+','p')+(st.fireDeath?' fire-grade':'')+(st.sharkDeath?' shark-grade':'')+'"><div class="L">'+gradeLabel(R.r[0])+'</div><div class="W">'+gradeWord+'</div></div>'+(gradeNote?'<div class="note" style="visibility:hidden">'+gradeNote+'</div>':'')+(resetsUsed?'<div class="note" style="visibility:hidden">↻ Reset count: '+resetsUsed+' · points deducted: '+resetPenaltyTotal.toLocaleString()+'</div>':'');
   const A=awards(),cards=A.map(a=>{const d=document.createElement('div');d.className='aw pend t'+a.ti;d.style.setProperty('--tc',TIERC[a.ti]);d.title=a.name+' · '+a.k+' · '+a.det;d.innerHTML='<div class="ic">'+a.ic+'</div><b>'+a.name+'</b><i>'+a.k+' \u00b7 '+a.det+'</i><u>'+TIERN[a.ti]+'</u>';awE.append(d);return d});
   for(const g of gearNewUnlocks()){const d=document.createElement('div');d.className='aw pend t3';d.style.setProperty('--tc','#c58bff');d.title='Unlocked '+g.name;   // new gear joins the award reveal
     d.innerHTML='<div class="ic">'+g.ic+'</div><b>'+g.name+'</b><i>NEW GEAR · equip it in Customize</i><u>UNLOCKED</u>';awE.append(d);cards.push(d);A.push({ti:3})}
@@ -69,6 +71,9 @@ async function tally(){const id=++tId,ok=()=>id===tId;fast=false;fxStop();scE.st
   awE.querySelectorAll('.aw.t1,.aw.t2,.aw.t3').forEach(d=>{d.classList.remove('shine-sync');void d.offsetWidth;d.classList.add('shine-sync')});
   if(!ok())return;const nb=!st.noSkiFinish&&!st.fireDeath&&!st.sharkDeath&&st.score>st.pb;sbE.textContent=nb?'\u2605 NEW BEST \u2605':'Best '+best[cur].toLocaleString();sbE.className=nb?'nb':''}
 scE.onclick=()=>{fast=true};
+// Skip the end-of-level animation: tap or click anywhere on the results screen, or press Space / Enter / Esc.
+mEl.addEventListener('pointerdown',e=>{if(scE.style.display!=='none'&&mEl.style.display!=='none'&&!e.target.closest('button'))fast=true},true);
+addEventListener('keydown',e=>{if(mEl.style.display!=='none'&&scE.style.display!=='none'&&(e.key===' '||e.key==='Enter'||e.key==='Escape')&&!fast){fast=true;e.preventDefault()}});
 // Keep the whole results screen inside the window: if it is too tall, first shrink the awards frame, then (rarely, e.g. a phone held sideways) the whole panel.
 function fitResults(){if(mEl.style.display==='none'||scE.style.display==='none')return;scE.style.zoom='';awE.style.zoom='';
   const wide=innerWidth>innerHeight*1.3&&innerHeight<520;scE.classList.toggle('wide',wide);scE.style.setProperty('display',wide?'grid':'block','important');
@@ -83,7 +88,7 @@ function growFrame(){const els=[...awE.querySelectorAll('.aw:not(.pend)'),...[..
   const pad=6,first=awE.style.getPropertyValue('--fo')!=='1',set=()=>{awE.style.setProperty('--fl',(l-pad)+'px');awE.style.setProperty('--ft',(t-pad)+'px');awE.style.setProperty('--fw',(r-l+2*pad)+'px');awE.style.setProperty('--fh',(b-t+2*pad)+'px')};
   if(first){awE.classList.add('snap');set();void awE.offsetWidth;awE.classList.remove('snap');awE.style.setProperty('--fo','1')}else set()}
 addEventListener('resize',()=>fitResults());addEventListener('orientationchange',()=>setTimeout(fitResults,250));
-function openMenu(fin){paused=true;customizer.style.display='none';document.getElementById('sc').style.display='';selPanel.style.display='';document.exitPointerLock&&document.exitPointerLock();updateResetButton();let runTally=false;
+function openMenu(fin){commitRun();paused=true;customizer.style.display='none';document.getElementById('sc').style.display='';selPanel.style.display='';document.exitPointerLock&&document.exitPointerLock();updateResetButton();let runTally=false;
   closeFaq();scE.style.display=fin?'block':'none';selE.style.display=fin?'none':'';if(!fin){sel=cur;showSel(0)}
   if(fin){mh.textContent=LVc.endless?'⛷️ Run over · '+(st.endM||0).toLocaleString()+' m':st.sharkDeath?'🦈 Shark snack!':st.fireDeath?'🔥 Burned to a crisp!':'\u{1F3C1} '+LVc.n+' complete!';ms.textContent=st.sharkDeath?'The shark got you. Jump higher next time!':st.fireDeath?(st.lavaDeath?'You fell in the lava. F FOR FIRE!!!':'You touched the flames. F FOR FIRE!!!'):'';fb.style.display='flex';document.getElementById('replay-menu').style.display=RP.n>1?'':'none';runTally=true}
   else{tId++;fxStop();mh.textContent='Powder Legends';ms.textContent='Choose a level';fb.style.display='none'}
@@ -100,13 +105,14 @@ function startReplay(){if(RP.n<2)return;const controls=document.getElementById('
 function stopReplay(){if(!replayMode)return;replayMode=false;document.getElementById('replay-controls').style.removeProperty('display');document.getElementById('replay-controls').style.display='none';if(replayLiveP)P=replayLiveP; if(replayLiveCam)cam=replayLiveCam;zoom=replayLiveZoom;replayLiveP=null;replayLiveCam=null;document.getElementById('replay-open').style.display=RP.n>1?'':'none';if(st&&st.finishedLevel){paused=true;mEl.style.display='flex'}else{paused=false;lastM=null}updateResetButton()}
 document.getElementById('rp-rewind').onclick=()=>{replaySpeed=-1.5;replaySetStatus()};document.getElementById('rp-forward').onclick=()=>{replaySpeed=1;replaySetStatus()};document.getElementById('rp-slow').onclick=()=>{replaySpeed=.25;replaySetStatus()};document.getElementById('rp-pause').onclick=()=>{replaySpeed=replaySpeed===0?1:0;replaySetStatus()};document.getElementById('rp-exit').onclick=stopReplay;
 function closeMenu(){fxStop();paused=false;lastM=null;mEl.style.display='none';updateResetButton()}
-function go(i){tId++;fxStop();popsE.replaceChildren();cur=i;LVc=LV[i];T=LVc.T;FINISH=LVc.fin;closeMenu();reset();document.getElementById('reset-skis').style.display=LVc.endless?'none':''}   // no checkpoint resets in the endless run
+function go(i){if(LV[i]&&LV[i].tutorial&&window.startTutorial){cur=i;return startTutorial()}   // Ski School runs the guided tutorial
+  tId++;fxStop();popsE.replaceChildren();cur=i;LVc=LV[i];T=LVc.T;FINISH=LVc.fin;closeMenu();reset();document.getElementById('reset-skis').style.display=LVc.endless?'none':''}   // no checkpoint resets in the endless run
 document.getElementById('lb').onclick=()=>paused?closeMenu():openMenu();
-loadBest();go(0);
+loadBest();go(Math.max(0,LV.findIndex(l=>!l.tutorial)));   // the scene behind the first menu is a real level
 const intro=document.getElementById('intro');
 let introTimer;
 function skipIntro(){if(intro.style.display==='none')return;intro.style.display='none';clearTimeout(introTimer);if(window.tutAutoStart&&tutAutoStart())return;openMenu()}
 intro.addEventListener('pointerdown',skipIntro);
 addEventListener('keydown',e=>{if(intro.style.display!=='none'){e.preventDefault();skipIntro()}},true);
-introTimer=setTimeout(skipIntro,5000);
+introTimer=setTimeout(skipIntro,5600);
 let last=performance.now(),acc=0;

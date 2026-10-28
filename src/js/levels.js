@@ -135,7 +135,13 @@ const longHaul=(()=>{const k=track();
   for(let i=0;i<4;i++){k.ease(260,.12);k.ease(260,.5);k.line(330,.5)}
   k.ease(420,-.86);k.line(90,-.86);k.ease(280,.32);k.line(1800,.32);k.ease(300,.48);k.line(2400,.48);
   return{t:k.t,fin:k.x-350}})();
+// Ski School: the tutorial course (flat practice area, a long run to learn the brake, a small kicker, a big kicker)
+const school=(()=>{const k=track();k.line(700,0);k.ease(300,.3);k.line(1500,.3);
+  const L1=jmp(k,.35,260);k.line(400,.35);k.ease(300,.42);k.line(1100,.42);
+  const L2=jmp(k,.6,340);k.line(500,.35);k.ease(300,.45);k.line(2600,.45);return{t:k.t,L1,L2}})();
 const LV=[
+ {n:'Ski School',d:'New here? Start with this. Six quick steps teach the controls: crouch, stand, lean, brake, jump and flip. No score and no pressure; skip it any time.',
+  T:school.t,fin:1e9,tutorial:true,L1:school.L1,L2:school.L2,sky:['#5aa7e8','#e3f2fc'],far:'#a8c2dc',snow:'#f8fbff',edge:'#8bb2d8'},
  {n:'Pine Hop',d:'Launch off two kickers and clear both pine groves. Come up short and you land on the treetops: they bend under you and spring back.',
   T:pine.t,fin:pine.fin,
   sky:['#5c9be0','#cfe6fa'],far:'#9db7d4',snow:'#f6faff',edge:'#7ea6d0',
@@ -190,9 +196,9 @@ const LV=[
 // Finish lines sit a bit farther down every course so there's room to land and settle before crossing. The shark pool gets extra.
 const FIN_EXTRA=500,FIN_EXTRA_SHARK=900;
 // Level order, easiest first (based on jump size, hazards, length and how often a hands-off test run crashes).
-const LEVEL_ORDER=['Sunset Double','Pine Hop','Icefall Slalom','Avalanche Escape','Lantern Forest','Crate Stack','Rickety Bridge','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Ski Jump Hill','Mega Ramp','Inferno Walls','Shark Pool','Volcano Run','Death Valley','The Long Haul','Endless Run'];
+const LEVEL_ORDER=['Ski School','Sunset Double','Pine Hop','Icefall Slalom','Avalanche Escape','Lantern Forest','Crate Stack','Rickety Bridge','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Ski Jump Hill','Mega Ramp','Inferno Walls','Shark Pool','Volcano Run','Death Valley','The Long Haul','Endless Run'];
 LV.sort((a,b)=>LEVEL_ORDER.indexOf(a.n)-LEVEL_ORDER.indexOf(b.n));
-LV.forEach(l=>{if(l.endless)return;const add=l.water?FIN_EXTRA_SHARK:FIN_EXTRA;l.fin+=add;const e=l.T[l.T.length-1];if(e[0]<l.fin+800)l.T.push([l.fin+800,e[1]])});   // flat ground already continues past a course's last point; the extra point just keeps it drawn past the new line
+LV.forEach(l=>{if(l.endless||l.tutorial)return;const add=l.water?FIN_EXTRA_SHARK:FIN_EXTRA;l.fin+=add;const e=l.T[l.T.length-1];if(e[0]<l.fin+800)l.T.push([l.fin+800,e[1]])});   // flat ground already continues past a course's last point; the extra point just keeps it drawn past the new line
 let CRX=[480,5,680,4];
 const PAR={'Ski Jump Hill':.55,'Pine Hop':.8,'Death Valley':.8,'Inferno Walls':1,'Shark Pool':.9,'Mega Ramp':1.5,'Crate Stack':1.1,'Mogul Field':1.1,'Quarter Pipe':1.5,'Sunset Double':.9,'Rickety Bridge':1,'Volcano Run':1.1,'Lantern Forest':.8,'Glacier Run':1.6,'Fireworks Hill':1};
 LV.forEach(l=>l.par=l.par||PAR[l.n]||1);   // par: how big a score counts as an S on each level (times SPAR)

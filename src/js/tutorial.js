@@ -5,10 +5,7 @@
 (function(){
 const $=id=>document.getElementById(id);
 // ---- the slope: a flat start to practise the controls, a long run to learn the brake, a small kicker, a big kicker
-const K=(()=>{const k=track();k.line(700,0);k.ease(300,.3);k.line(1500,.3);
-  const L1=jmp(k,.35,260);k.line(400,.35);k.ease(300,.42);k.line(1100,.42);
-  const L2=jmp(k,.6,340);k.line(500,.35);k.ease(300,.45);k.line(2600,.45);return{t:k.t,L1,L2}})();
-const TUT_LV={n:'Ski School',d:'',T:K.t,fin:1e9,par:1,sky:['#5aa7e8','#e3f2fc'],far:'#a8c2dc',snow:'#f8fbff',edge:'#8bb2d8'};
+const TUT_LV=LV.find(l=>l.tutorial),K={t:TUT_LV.T,L1:TUT_LV.L1,L2:TUT_LV.L2};   // the Ski School level (levels.js)
 const touch=()=>touchMode;
 const done=s=>{try{localStorage.setItem('skiTutDone','1')}catch(e){}};
 // ---- steps
@@ -49,15 +46,15 @@ function enter(i){tut.i=i;tut.s={};tut.okAt=0;const s=STEPS[i];if(s&&s.enter)s.e
 function back(msg){const s=STEPS[tut.i];respawnAt(s.back||300);if(s.enter)s.enter(tut.s);spray(msg||'TRY AGAIN!')}
 // ---- start / stop
 window.startTutorial=function(){
-  if(dbg.on)go(cur);
-  tId++;fxStop();popsE.replaceChildren();LVc=TUT_LV;T=LVc.T;FINISH=LVc.fin;closeMenu();reset();
-  tut.on=true;tut.crashAt=0;tut.endAt=0;done();enter(0);$('reset-skis').style.display='none';
+  if(dbg.on)exitDebug();
+  tId++;fxStop();popsE.replaceChildren();cur=LV.indexOf(TUT_LV);LVc=TUT_LV;T=LVc.T;FINISH=LVc.fin;closeMenu();reset();
+  tut.on=true;tut.crashAt=0;tut.endAt=0;enter(0);$('reset-skis').style.display='none';
 };
 function stop(){if(!tut.on)return;tut.on=false;box.style.display='none';$('reset-skis').style.display=''}
 window.tutStop=stop;
 const _go=go;go=function(){stop();return _go.apply(this,arguments)};
-function finish(){stop();openMenu();mh.textContent='🎓 Ski School complete!';ms.textContent='You\'re ready. Pick a level and go send it.'}
-$('tut-skip').onclick=()=>{done();stop();openMenu()};
+function finish(){done();stop();openMenu();mh.textContent='🎓 Ski School complete!';ms.textContent='You\'re ready. Pick a level and go send it.';sel=(cur+1)%LV.length;showSel(1)}   // land on the first real level
+$('tut-skip').onclick=()=>{done();stop();openMenu();sel=(cur+1)%LV.length;showSel(1)};
 // first launch: run the tutorial instead of showing the menu (only for brand-new players)
 window.tutAutoStart=function(){let seen=false;try{seen=localStorage.getItem('skiTutDone')==='1'}catch(e){}
   if(seen||best.some(b=>b>0)){done();return false}startTutorial();return true};
@@ -84,3 +81,6 @@ let lastTouch=null;
 window.tutFrame=function(){const show=tut.on&&!paused&&!replayMode;if((box.style.display!=='none')!==show)box.style.display=show?'block':'none';
   if(show&&!tut.endAt&&touchMode!==lastTouch){lastTouch=touchMode;render()}};   // switch mouse/finger wording if the input type changes
 })();
+
+// players who've finished (or skipped) Ski School start the menu on the first real level
+try{if(localStorage.getItem('skiTutDone')==='1'&&LV[cur]&&LV[cur].tutorial)cur=LV.findIndex(l=>!l.tutorial)}catch(e){}

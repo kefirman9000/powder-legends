@@ -102,7 +102,15 @@ function reset(){
   snap=null;{const fc=camFocus(P);cam.x=fc.x-W/Z*CAMX;cam.y=fc.y-H/Z*CAMY;}
   boxes.length=0;trees.length=0;rocks.length=0;sd=11;if(LVc&&LVc.build)LVc.build();hazardInit();buildCheckpoints();fwReset();
 }
-function updateResetButton(){const b=document.getElementById('reset-skis');if(!b)return;b.textContent='↻ Reset Skis · −25,000'+(resetsUsed?' ('+resetsUsed+')':'');b.disabled=paused||!!(st&&st.finishedLevel);b.title='Reset skier at the latest checkpoint behind you. Deducts up to 25,000 points; '+resetsUsed+' reset'+(resetsUsed===1?'':'s')+' used. A/S grades are disabled for this run.'}
+function updateResetButton(){const b=document.getElementById('reset-skis');if(!b)return;b.textContent='↻ Reset Skis · −25,000'+(resetsUsed?' ('+resetsUsed+')':'');b.disabled=paused||!!(st&&st.finishedLevel);b.title='Reset skier at the latest checkpoint behind you. Deducts up to 25,000 points; '+resetsUsed+' reset'+(resetsUsed===1?'':'s')+' used. A and LEGEND grades are disabled for this run.'}
+// Save a finished run's score and grade exactly once. Called when the results screen opens, and also from
+// openMenu, so leaving early (pressing M or Levels during the finish) can't skip the save or show a stale best.
+function commitRun(){
+  if(!st||st.committed||!st.done||st.fireDeath||st.sharkDeath||LVc!==LV[cur]||LVc.tutorial)return;
+  if(!st.finishedLevel&&!st.timeoutF)return;
+  st.committed=true;
+  if(st.finishedLevel&&!st.noSkiFinish){best[cur]=Math.max(best[cur],st.score);const gi=RATES.indexOf(rate().r);if(gi>=0&&(bestG[cur]<0||gi<bestG[cur]))bestG[cur]=gi;save()}
+}
 function resetSkisHere(){
   if(paused||!st||st.finishedLevel)return;
   const currentX=P&&P[4]?P[4].x:300;
@@ -396,7 +404,7 @@ function step(){
     if(!dbg.on&&performance.now()-lastMove>=3000){st.done=true;st.timeoutF=true;st.msg='';st.pb=best[cur]}
   }
   if(!st.done&&P[4].x>FINISH&&(!st.crash||st.skisOff)){st.done=true;st.finishedLevel=true;st.noSkiFinish=!!st.skisOff;st.pb=best[cur];st.msg='';st.pendingPts=0;st.failedPendingShown=false;trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';trickScoreE.classList.remove('failed','landed','power-1','power-2','power-3','power-4');trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');trickStackE.replaceChildren();queueTrickResult.nextAt=0;fwFinale()}
-  if(st.done&&!st.shown&&!st.fireDeath&&!st.sharkDeath){st.fin=(st.fin||0)+1/120;if(st.fin>1){st.shown=true;if(!st.noSkiFinish){best[cur]=Math.max(best[cur],st.score);{const gi=RATES.indexOf(rate().r);if(bestG[cur]<0||gi<bestG[cur])bestG[cur]=gi}save()}openMenu(true)}}
+  if(st.done&&!st.shown&&!st.fireDeath&&!st.sharkDeath){st.fin=(st.fin||0)+1/120;if(st.fin>1){st.shown=true;commitRun();openMenu(true)}}
   if(st.fireDeath&&!st.shown&&(performance.now()-st.fireStarted)/1000>3.15){st.shown=true;openMenu(true)}
   if(st.sharkDeath&&!st.shown&&(performance.now()-st.sharkStarted)/1000>2.2){st.shown=true;openMenu(true)}
   if(st.crash){st.adrenaline=0;updateAdrenalineUI()}
