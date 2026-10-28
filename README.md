@@ -47,7 +47,7 @@ No install, no account, no ads. It runs on desktop and on phones, and it updates
 </tr>
 <tr>
 <td><b>Unlock glowing gear.</b> Lava skis, a neon suit, a gold helmet, aurora trails and more, earned by finishing levels. Mix them with your own colors.</td>
-<td><b>Race your ghost.</b> Your best run on each level plays back as a see-through ghost, so there's always someone to beat.</td>
+<td><b>Race your ghost.</b> Switch it on in Settings and your best run on each level plays back as a see-through ghost, so there's always someone to beat.</td>
 </tr>
 </table>
 
