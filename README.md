@@ -13,8 +13,8 @@ This works whether the game is opened as a local file, from GitHub Pages, or any
 
 ## Shipping an update
 
-1. Edit `index.html`.
-2. Near the top, bump the version and write a note:
+1. Edit the files in `src/` (see Project layout below).
+2. In `src/js/boot.js`, bump the version and write a note:
    ```js
    window.GAME_VERSION='1.0.1';
    window.GAME_NOTES='New level and smoother landings.';
@@ -28,3 +28,30 @@ The version must go **up** (e.g. `1.0.0` → `1.0.1` → `1.1.0`), or players wo
 
 Repo **Settings → Pages → Deploy from branch → `main` / root** puts the game at
 `https://kefirman9000.github.io/powder-legends/`.
+
+## Project layout
+
+The game is edited as separate files in `src/` and built into the single `index.html` that players download and GitHub Pages serves.
+
+| File | What's in it |
+|---|---|
+| `src/index.template.html` | Page markup; `<!-- @include … -->` lines pull in the files below |
+| `src/js/boot.js` | **Version number + release notes**, and the update bootloader |
+| `src/js/setup.js` | Canvas, zoom, skier colors and customizer |
+| `src/js/physics.js` | Terrain, skier body, joints, collisions, the physics step |
+| `src/js/hazards.js` | Fire walls, shark pool, hazard bonuses |
+| `src/js/camera.js` | Speed-aware camera |
+| `src/js/render.js` | Drawing the world and the skier |
+| `src/js/input.js` | Mouse and touch controls |
+| `src/js/hud.js` | Trick popups and score display |
+| `src/js/haptics.js` | Phone vibration |
+| `src/js/fx.js` | Fireworks and results-screen effects |
+| `src/js/props.js` | Trees, rocks, crates, replay recorder |
+| `src/js/levels.js` | **All levels** (terrain + obstacles) |
+| `src/js/menu.js` | Level select, grades, awards, results screen |
+| `src/js/tutorial.js` | First-run tutorial |
+| `src/js/main.js` | Game loop |
+| `src/js/audio.js`, `debug.js`, `updater.js` | Sound, debug mode, in-game updater |
+
+**Build:** `python3 tools/build.py` (no installs needed). A GitHub Action also rebuilds `index.html`
+automatically whenever `src/` changes on `main`, so editing on github.com works too.

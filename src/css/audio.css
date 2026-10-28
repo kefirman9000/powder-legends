@@ -1,0 +1,4 @@
+#vol-btn{position:fixed;right:120px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:7;font:600 15px system-ui;line-height:1;width:34px;height:31px;padding:0;border:1px solid #ffffff55;border-radius:8px;background:#000a;color:#fff;cursor:pointer}
+#vol-menu{position:fixed;right:10px;top:calc(env(safe-area-inset-top,0px) + 46px);z-index:7;display:none;width:min(240px,calc(100vw - 20px));padding:10px 12px;border-radius:10px;background:#07111df2;border:1px solid #ffffff44;color:#fff;font:600 12px system-ui}
+#vol-menu label{display:block;margin:8px 0 2px}#vol-menu input[type=range]{width:100%;margin:0}
+#vol-menu button{margin-top:10px;width:100%;padding:7px;border:0;border-radius:8px;background:#2f7ddd;color:#fff;font:600 13px system-ui;cursor:pointer}

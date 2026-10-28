@@ -4,8 +4,8 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.0.1';
-window.GAME_NOTES='Smoother and lighter on phones: sharper frame rate, less battery drain behind the menus, and lighter replay recording.';
+window.GAME_VERSION='1.1.0';
+window.GAME_NOTES='3 new levels (Rickety Bridge, Volcano Run, Lantern Forest), a Ski School tutorial, a camera that pulls back at speed and in big air, and phone vibration.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
 window.verCmp=function(a,b){a=String(a).split('.').map(Number);b=String(b).split('.').map(Number);for(var i=0;i<Math.max(a.length,b.length);i++){var d=(a[i]||0)-(b[i]||0);if(d)return d>0?1:-1}return 0};
@@ -283,7 +283,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;cursor:default;-we
 <div id="sel"><div id="g"><button class="ar" id="pv" aria-label="Previous level">&#9664;</button><div id="card"><canvas id="th" width="480" height="200"></canvas><div id="ln"></div><div id="ld"></div><div id="level-length" aria-live="polite"></div></div><button class="ar" id="nx" aria-label="Next level">&#9654;</button></div>
 <div id="dots"></div>
 <div id="hs"><div id="hsn"></div><div id="hsl"><span>GRADE</span><b id="hsg"></b></div></div>
-<div class="pr"><button class="b" id="play">&#9654; Play</button><button class="b" id="customize-open" style="background:#147c83">🎨 Customize</button><button class="b" id="faqb">? FAQ</button><button class="b" id="upd-btn" style="background:#5b49b8;position:relative">&#11014; Update</button></div><div id="ver-tag"></div></div>
+<div class="pr"><button class="b" id="play">&#9654; Play</button><button class="b" id="customize-open" style="background:#147c83">🎨 Customize</button><button class="b" id="tut-open" style="background:#2e8a52" onclick="startTutorial()">&#127891; Tutorial</button><button class="b" id="faqb">? FAQ</button><button class="b" id="upd-btn" style="background:#5b49b8;position:relative">&#11014; Update</button></div><div id="ver-tag"></div></div>
 <section id="customizer" aria-label="Character customization">
 <h3>🎨 Customize your skier</h3>
 <div id="custom-layout">
@@ -409,6 +409,7 @@ function buildCheckpoints(){
   const clearOfObstacles=x=>{
     if(trees.some(t=>Math.abs(t.x-x)<360))return false;
     if(rocks.some(r=>Math.abs(r.x-x)<220))return false;
+    if((LVc&&LVc.lava||[]).some(L=>x>L.x0-900&&x<L.x1+150))return false;   // never respawn someone on the brink of a lava pit
     if(boxes.some(b=>Math.abs(b.x-x)<(b.hw||0)+180))return false;
     return true;
   };
@@ -431,6 +432,7 @@ function drawCheckpoints(){
   }
 }
 function reset(){
+  camSnap();
   headHitFx=0; // clear concussion flash/dizziness whenever a level or full run is reset
   rpClear();replayMode=false;document.getElementById("replay-controls").style.removeProperty('display');document.getElementById("replay-controls").style.display="none";document.getElementById("replay-open").style.display="none";document.getElementById("replay-menu").style.display="none";
   clearTrickHUD();
@@ -452,11 +454,17 @@ function reset(){
 function updateResetButton(){const b=document.getElementById('reset-skis');if(!b)return;b.textContent='↻ Reset Skis · −25,000'+(resetsUsed?' ('+resetsUsed+')':'');b.disabled=paused||!!(st&&st.finishedLevel);b.title='Reset skier at the latest checkpoint behind you. Deducts up to 25,000 points; '+resetsUsed+' reset'+(resetsUsed===1?'':'s')+' used. A/S grades are disabled for this run.'}
 function resetSkisHere(){
   if(paused||!st||st.finishedLevel)return;
-  const currentX=P&&P[4]?P[4].x:300, x0=checkpointFor(currentX), g=ter(x0), ux=g.tx,uy=g.ty,nx=g.ty,ny=-g.tx;
+  const currentX=P&&P[4]?P[4].x:300;
+  resetsUsed++;const penalty=Math.min(st.score,RESET_PENALTY);st.score-=penalty;resetPenaltyTotal+=penalty;
+  respawnAt(checkpointFor(currentX));
+  spray('SKIS RESET! −'+penalty.toLocaleString()+' PTS');updateResetButton();
+}
+// Put a fresh skier back on the snow at x0 (no penalty). Used by Reset Skis and the tutorial.
+function respawnAt(x0){
+  const g=ter(x0), ux=g.tx,uy=g.ty,nx=g.ty,ny=-g.tx;
   // Fully clear stale input/control state so the first movement after a checkpoint reset works normally.
   headHitFx=0;lastM=null;lastMove=performance.now();braking=false;brakeT=0;fingers.length=0;
   if(document.pointerLockElement===cv&&document.exitPointerLock)document.exitPointerLock();
-  resetsUsed++;const penalty=Math.min(st.score,RESET_PENALTY);st.score-=penalty;resetPenaltyTotal+=penalty;
   dmg=0;snow.length=0;
   sm={x:.5,y:NY};ctl={x:.5,y:NY};pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
   const dir=a=>[Math.cos(a),Math.sin(a)],add=(p,d,l)=>[p[0]+d[0]*l,p[1]+d[1]*l];
@@ -467,7 +475,6 @@ function resetSkisHere(){
   st.crash=false;st.done=false;st.msg='';st.adrenaline=0;st.skisOff=false;st.skisStill=0;st.timeoutF=false;st.finishedLevel=false;st.noSkiFinish=false;st.warn=0;st.onAir=false;st.air=0;st.rot=0;st.ang=null;st.lt=0;st.lr=0;st.la=0;st.pendingPts=0;st.failedPendingShown=false;st.jumpScored=false;st.fin=0;st.shown=false;hazardRearm();
   snap=null;cam.x=P[4].x-W/Z*CAMX;cam.y=P[4].y-H/Z*CAMY;
   trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';trickScoreE.classList.remove('failed','landed','power-1','power-2','power-3','power-4');trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');
-  spray('SKIS RESET! −'+penalty.toLocaleString()+' PTS');updateResetButton();
 }
 document.getElementById('reset-skis').addEventListener('click',resetSkisHere);
 // Point masses (original: foot+ski 5, thigh 5, torso 10, arms 3). Every internal correction below is mass-weighted and
@@ -532,7 +539,7 @@ function inside(b,px,py,r){
   return{nx:nlx*c-nly*s,ny:nlx*s+nly*c,d:Math.min(ex,ey)};
 }
 function stepBoxes(){for(const b of boxes){
-  if(b.tm>0&&--b.tm===0){b.fixed=false;b.m=b.m0;b.I=b.I0;b.vy=.3;b.w=(Math.random()-.5)*.02;for(const n of [b.prev,b.next])if(n&&n.fixed&&!n.tm)n.tm=5}   // bridge plank lets go and drags its neighbours down
+  if(b.tm>0&&--b.tm===0){b.fixed=false;b.m=b.m0;b.I=b.I0;b.vy=.3;b.w=(Math.random()-.5)*.02;for(const n of [b.prev,b.next])if(n&&n.fixed&&!n.tm)n.tm=b.chain||5}   // bridge plank lets go and drags its neighbours down
   if(b.fixed)continue;b.vx*=.9995;b.vy=b.vy*.9995+GP;b.w*=.995;b.x+=b.vx;b.y+=b.vy;b.a+=b.w}
   stepTrees();stepRocks()}
 function collideBoxes(){
@@ -552,15 +559,14 @@ function collideBoxes(){
   P.forEach((p,i)=>{
     for(const b of boxes){
       if(b.k==='fire-wall'&&!st.fireDeath&&inside(b,p.x,p.y,14)){
-        st.fireDeath=true;st.specialFire=true;st.finishedLevel=false;st.done=true;st.crash=false;st.skisOff=true;st.skisStill=0;st.msg='';st.pendingPts=0;st.failedPendingShown=false;P[0].py+=2.5;P[0].px-=1.2;P[1].py+=3;P[1].px+=1.2;
-        st.burnX=p.x;st.burnY=p.y;st.fireStarted=performance.now();st.fin=-1.65;st.shown=false;cvx*=.65;cvy*=.65;
-        trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';trickStackE.replaceChildren();queueTrickResult.nextAt=0;
+        burnUp(p,'fire');
         // Fire is a hazard, not a solid barrier: trigger the burn, but let the skier pass through it.
       }
       if(b.k==='fire-wall')continue;
       const h=inside(b,p.x,p.y,2);if(!h)continue;
+      if(b.deck){const c=Math.cos(b.a),s=Math.sin(b.a),ly=-(p.x-b.x)*s+(p.y-b.y)*c;if(ly<0){h.nx=s;h.ny=-c;h.d=b.hh+2+ly}}   // bridge decks: always push up off the top, so plank seams never snag the skis
       const pt={x:p.x,y:p.y,vx:p.x-p.px,vy:p.y-p.py,w:0,m:M[i]*3,I:Infinity};          // x3: a rider is heavier than a point
-      const k=(1/b.m)/(1/b.m+1/pt.m);p.x+=h.nx*h.d*(1-k);p.y+=h.ny*h.d*(1-k);b.x-=h.nx*h.d*k;b.y-=h.ny*h.d*k;hit=true;if(b.deck&&b.fixed&&!b.tm)b.tm=18;
+      const k=(1/b.m)/(1/b.m+1/pt.m);p.x+=h.nx*h.d*(1-k);p.y+=h.ny*h.d*(1-k);b.x-=h.nx*h.d*k;b.y-=h.ny*h.d*k;hit=true;if(b.deck&&b.fixed&&!b.tm)b.tm=b.hold||18;
       const sp=contactBB(b,pt,p.x,p.y,h.nx,h.ny,b.mu||.5)*120;if(i<2)hurt((sp-250)*.03);
       p.px=p.x-pt.vx;p.py=p.y-pt.vy;
       const L=b.lim||[650,380];if(!st.crash&&!st.done&&sp>(i<2?L[0]:L[1])){st.crash=true;st.msg=(b.say||'Crashed into a crate!')+' Right-click, tap or press R to retry.'}
@@ -607,7 +613,7 @@ function step(){
   for(const p of P){const vx=(p.x-p.px)*AIRDRAG,vy=(p.y-p.py)*AIRDRAG;p.px=p.x;p.py=p.y;p.x+=vx;p.y+=vy+gp}
   if(q0){const q1=spinL(),dw=(q0.L-q1.L)/(q1.I||1);P.forEach(p=>{p.px+=dw*(p.y-q1.gy);p.py-=dw*(p.x-q1.gx)})}
   stepBoxes();
-  hazardStep();
+  hazardStep();lavaStep();
   if(st.fireDeath&&(performance.now()-st.fireStarted)/1000<3.15){st.burnX=P[4].x;st.burnY=P[4].y-12}
   ctl.x+=cvx;ctl.y+=cvy;                                         // the pose coasts on the velocity the mouse gave it...
   if(ctl.x<XMIN||ctl.x>XMAX){ctl.x=Math.min(XMAX,Math.max(XMIN,ctl.x));cvx=0}   // ...and stops dead at its limits (no bounce)
@@ -732,13 +738,15 @@ function step(){
 const HZ={fireMult:2,fireClose:3,fireFlat:15000,fireCloseFlat:30000,sharkMult:2,sharkClose:3,sharkFlat:15000,sharkCloseFlat:30000,closePx:45};
 const SHARK={reach:480,g:3600,len:118,rad:30,drag:6};   // reach: how high (px) above the water the nose gets; g: shark's own gravity
 function hazardInit(){
+  lavaInit();
   st.hPts=0;st.hzMult=1;st.hzFlat=0;st.hzName='';st.hNames='';
   for(const b of boxes)if(b.k==='fire-wall'){b.cleared=false;b.minM=undefined}
   st.sk=LVc&&LVc.water?{go:false,done:false,caught:false,carry:false,cleared:false,x:0,y:0,vx:0,vy:0,ang:-1.5,jaw:.3,minM:1e9,drops:[]}:null;
 }
 function hazardRearm(){   // after a ski reset: hazards come back, banked bonus points stay
+  lavaInit();
   st.hzMult=1;st.hzFlat=0;
-  for(const b of boxes)if(b.k==='fire-wall'){b.cleared=false;b.minM=undefined}
+  for(const b of boxes)if(b.k==='fire-wall'){b.cleared=b.x-b.hw<P[4].x;b.minM=undefined}   // walls already behind you don't count as cleared
   if(LVc&&LVc.water)st.sk={go:false,done:false,caught:false,carry:false,cleared:false,x:0,y:0,vx:0,vy:0,ang:-1.5,jaw:.3,minM:1e9,drops:[]};
 }
 function hazardCleared(name,close,mult,flat){
@@ -860,6 +868,69 @@ function drawWaterFront(){
 }
 const adrenalineTrail=[];
 function damageTint(color){const age=(performance.now()-damagePulseAt)/1000;if(!damagePulseAt||age<0||age>=1.25)return color;const fade=1-age/1.25,pulse=.5+.5*Math.sin(age*Math.PI*6);const amount=Math.round(78*pulse*fade);return amount>0?`color-mix(in srgb, #ff202e ${amount}%, ${color})`:color}
+
+// ======================= LAVA POOLS (Volcano Run) =======================
+// A level can list lava pools: LVc.lava=[{x0,x1,y}]. Touching the lava burns you up (same sequence as the fire
+// walls). Clearing a pool in the air pays a hazard bonus on that jump, more for a close shave.
+const LAVA={mult:2,close:3,flat:15000,closeFlat:30000};
+function lavaInit(){if(!st)return;st.lv=(LVc&&LVc.lava||[]).map(p=>({cleared:!!(P&&P[4]&&P[4].x>p.x0),minM:1e9}))}   // pools already behind you don't count
+function burnUp(p,why){   // shared by fire walls and lava: the skier catches fire and the run ends with F FOR FIRE
+  if(st.fireDeath)return;
+  st.fireDeath=true;st.specialFire=true;st.lavaDeath=why==='lava';st.finishedLevel=false;st.done=true;st.crash=false;st.skisOff=true;st.skisStill=0;st.msg='';st.pendingPts=0;st.failedPendingShown=false;P[0].py+=2.5;P[0].px-=1.2;P[1].py+=3;P[1].px+=1.2;
+  st.burnX=p.x;st.burnY=p.y;st.fireStarted=performance.now();st.fin=-1.65;st.shown=false;cvx*=.65;cvy*=.65;
+  trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';trickStackE.replaceChildren();queueTrickResult.nextAt=0;
+}
+function lavaStep(){
+  const L=LVc&&LVc.lava;if(!L||!st||!st.lv||st.done)return;
+  L.forEach((pool,k)=>{const s=st.lv[k];
+    for(const p of P){if(p.x>pool.x0&&p.x<pool.x1){if(p.y>pool.y-2){if(window.tut&&tut.on){st.crash=true;return}burnUp(p,'lava');for(let i=0;i<14;i++)snow.push({x:p.x,y:pool.y,vx:(Math.random()-.5)*3,vy:-1-Math.random()*2.5,l:1,d:.02,g:.05,s:1.4});return}s.minM=Math.min(s.minM,pool.y-p.y)}}
+    if(!s.cleared&&!st.crash&&P.every(p=>p.x>pool.x1)){s.cleared=true;const close=s.minM<HZ.closePx;hazardCleared('LAVA JUMP',close,close?LAVA.close:LAVA.mult,close?LAVA.closeFlat:LAVA.flat)}
+  });
+}
+function drawLava(){
+  const L=LVc&&LVc.lava;if(!L)return;const t=performance.now()/1000;
+  for(const pool of L){if(pool.x1<cam.x-50||pool.x0>cam.x+W/Z+50)continue;
+    const n=Math.max(10,Math.round((pool.x1-pool.x0)/10)),wave=x=>pool.y+Math.sin(x*.035+t*1.6)*2.6+Math.sin(x*.11-t*2.3)*1.2;
+    cx.save();cx.beginPath();for(let i=0;i<=n;i++){const x=pool.x0+(pool.x1-pool.x0)*i/n;i?cx.lineTo(x,wave(x)):cx.moveTo(x,wave(x))}
+    for(let i=n;i>=0;i--){const x=pool.x0+(pool.x1-pool.x0)*i/n;cx.lineTo(x,Math.max(ter(x).y,pool.y+4)+2)}cx.closePath();
+    const g=cx.createLinearGradient(0,pool.y-4,0,pool.y+260);g.addColorStop(0,'#ffe36a');g.addColorStop(.08,'#ff8a1c');g.addColorStop(.4,'#d4300c');g.addColorStop(1,'#5c0c04');cx.fillStyle=g;cx.fill();
+    cx.globalCompositeOperation='lighter';{const mx=(pool.x0+pool.x1)/2,hw=(pool.x1-pool.x0)/2+40;cx.save();cx.translate(mx,pool.y);cx.scale(hw/100,1);const hg=cx.createRadialGradient(0,0,0,0,0,100);hg.addColorStop(0,'rgba(255,110,30,.38)');hg.addColorStop(1,'rgba(255,90,20,0)');cx.fillStyle=hg;cx.beginPath();cx.arc(0,0,100,Math.PI,0);cx.fill();cx.restore()}   // soft heat glow
+    for(let i=0;i<7;i++){const ph=(t*.7+i*.37)%1,x=pool.x0+(pool.x1-pool.x0)*((i*.618+Math.floor(t*.7+i*.37)*.31)%1),r=2+ph*6;cx.globalAlpha=1-ph;cx.strokeStyle='#ffd27a';cx.lineWidth=1.5;cx.beginPath();cx.arc(x,pool.y-ph*4,r,Math.PI,0);cx.stroke()}   // bubbles
+    cx.restore()}
+}
+// ======================= SPEED-AWARE CAMERA =======================
+// Pulls the view back as you go faster and as you get higher off the snow, and slides the framing ahead of
+// where you're heading so the landing comes into view early. Eases out quickly, eases back in slowly.
+// Works on top of the player's own zoom (scroll wheel / + -): this only ever zooms OUT from it.
+const CAMS={
+  v0:450,v1:1600,vOut:.22,     // speed (px/s) where pull-back starts / is at full, and how much it zooms out at full speed
+  h0:40,h1:380,hOut:.24,      // height above the snow (px) where pull-back starts / is at full, and how much
+  zMin:.58,                   // never zoom out further than this fraction of the player's zoom
+  outRate:2.6,inRate:.9,      // how fast it pulls back / settles in (per second)
+  lookT:.22,lookX:.1,lookY:.14,lookRate:2.2   // look-ahead: seconds of travel to lead by, capped to this fraction of the screen
+};
+const camK={z:1,lx:0,ly:0};
+const clamp01=v=>v<0?0:v>1?1:v;
+function camVel(){   // hip velocity in px/s, also during replays (read from the recorder, which runs at 60/s)
+  if(replayMode&&RP.n>1){const i=Math.max(0,Math.min(RP.n-2,Math.floor(replayIndex))),a=rpSlot(i)*RP_W+16,b=rpSlot(i+1)*RP_W+16;return[(RP.buf[b]-RP.buf[a])*60,(RP.buf[b+1]-RP.buf[a+1])*60]}
+  const h=P[4];return[(h.x-h.px)*120,(h.y-h.py)*120];
+}
+function camTick(Q){
+  if(!P||!P.length||!st)return;
+  const dt=Math.min(fdt,.05),[vx,vy]=camVel(),sp=Math.hypot(vx,vy);
+  const mx=(Q[0].x+Q[1].x)/2,ht=Math.max(0,ter(mx).y-Math.max(Q[0].y,Q[1].y));
+  const s=t=>t*t*(3-2*t);   // smoothstep
+  let tz=1-CAMS.vOut*s(clamp01((sp-CAMS.v0)/(CAMS.v1-CAMS.v0)))-CAMS.hOut*s(clamp01((ht-CAMS.h0)/(CAMS.h1-CAMS.h0)));
+  if(st.sharkDeath||st.fireDeath||paused&&!replayMode)tz=camK.z;   // hold still during death scenes and behind menus
+  tz=Math.max(CAMS.zMin,tz);
+  const rate=tz<camK.z?CAMS.outRate:CAMS.inRate;camK.z+=(tz-camK.z)*(1-Math.exp(-rate*dt));
+  // look-ahead in world units, capped to part of the visible screen
+  const vw=W/(ZB*zoom*camK.z),vh=H/(ZB*zoom*camK.z);
+  let tx=Math.max(-vw*CAMS.lookX,Math.min(vw*CAMS.lookX,vx*CAMS.lookT)),ty=st.onAir?Math.max(-vh*CAMS.lookY*.5,Math.min(vh*CAMS.lookY,vy*CAMS.lookT)):0;
+  if(st.crash||st.done)tx=ty=0;
+  const lr=1-Math.exp(-CAMS.lookRate*dt);camK.lx+=(tx-camK.lx)*lr;camK.ly+=(ty-camK.ly)*lr;
+}
+function camSnap(){camK.z=1;camK.lx=0;camK.ly=0}   // new run: start framed normally
 function draw(){
   if(st&&st.crash&&!crashWasActive)damagePulseAt=performance.now();
   crashWasActive=!!(st&&st.crash);
@@ -868,16 +939,18 @@ function draw(){
   const sk=cx.createLinearGradient(0,0,0,H);sk.addColorStop(0,LVc.sky[0]);sk.addColorStop(1,LVc.sky[1]);
   cx.fillStyle=sk;cx.fillRect(0,0,W,H);
   cx.fillStyle=LVc.far;cx.beginPath();cx.moveTo(0,H);for(let X=0;X<=W+30;X+=30){const wx=X/Z+cam.x*.12;cx.lineTo(X,H*.78-cam.y*.1*Z-Z*(70*Math.sin(wx/260)+35*Math.sin(wx/97+1)))}cx.lineTo(W,H);cx.fill();   // distant ridge (parallax)
-  zoom+=(zoomT-zoom)*(1-Math.pow(.75,fdt*60));Z=ZB*zoom;   // eased zoom; the camera below re-centres on the skier at the new scale
-  const ck=1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
+  zoom+=(zoomT-zoom)*(1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale
+  const ck=1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
   cx.setTransform(Z,0,0,Z,-cam.x*Z,-cam.y*Z);
+  if(LVc.drawBack){cx.save();LVc.drawBack();cx.restore()}   // scenery behind the slope
   {const a=T[0],b=T[T.length-1],E=1e5,lo=Math.max(...T.map(p=>p[1]))+3000;cx.beginPath();cx.moveTo(a[0]-E,lo);cx.lineTo(a[0]-E,a[1]);T.forEach(([x,y])=>cx.lineTo(x,y));cx.lineTo(b[0]+E,b[1]);cx.lineTo(b[0]+E,lo);cx.closePath()}   // ground runs flat forever past the last point
+
   cx.fillStyle=LVc.snow;cx.fill();cx.strokeStyle=LVc.edge;cx.lineWidth=3;cx.lineJoin='round';cx.stroke();
   drawCheckpoints();
   for(const b of boxes){cx.save();cx.translate(b.x,b.y);cx.rotate(b.a);if(b.k){drawKind(b);cx.restore();continue}cx.fillStyle='#b8793c';cx.strokeStyle='#5a3414';cx.lineWidth=2;
     cx.fillRect(-b.hw,-b.hh,2*b.hw,2*b.hh);cx.strokeRect(-b.hw,-b.hh,2*b.hw,2*b.hh);
     cx.beginPath();cx.moveTo(-b.hw,-b.hh);cx.lineTo(b.hw,b.hh);cx.moveTo(b.hw,-b.hh);cx.lineTo(-b.hw,b.hh);cx.stroke();cx.restore()}
-  fwStep();fwDrawFountains();fwDraw();drawProps();{const g=ter(FINISH);cx.fillStyle='#222';cx.fillRect(FINISH-2,g.y-90,4,90);cx.fillStyle='#fff';cx.fillRect(FINISH+2,g.y-90,36,22);cx.fillStyle='#111';cx.fillRect(FINISH+2,g.y-90,12,11);cx.fillRect(FINISH+26,g.y-90,12,11);cx.fillRect(FINISH+14,g.y-79,12,11)}
+  fwStep();fwDrawFountains();fwDraw();if(LVc.drawFront){cx.save();LVc.drawFront();cx.restore()}drawProps();{const g=ter(FINISH);cx.fillStyle='#222';cx.fillRect(FINISH-2,g.y-90,4,90);cx.fillStyle='#fff';cx.fillRect(FINISH+2,g.y-90,36,22);cx.fillStyle='#111';cx.fillRect(FINISH+2,g.y-90,12,11);cx.fillRect(FINISH+26,g.y-90,12,11);cx.fillRect(FINISH+14,g.y-79,12,11)}
   cx.fillStyle='#fff';cx.strokeStyle='#a9c4e0';cx.lineWidth=1;for(const q of snow){cx.globalAlpha=Math.max(0,q.l);cx.beginPath();cx.arc(q.x,q.y,(q.s||1)*(1.5+(1-q.l)*2.5),0,7);cx.fill();cx.stroke()}cx.globalAlpha=1;
   const ln=(a,b,w,c)=>{cx.strokeStyle=c;cx.lineWidth=w;cx.lineCap='round';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke()};
   const mid={x:(Q[0].x+Q[1].x)/2,y:(Q[0].y+Q[1].y)/2};
@@ -988,7 +1061,7 @@ function draw(){
       cx.fillStyle=puff;cx.beginPath();cx.arc(x,y,r,0,Math.PI*2);cx.fill();
     }
   }
-  drawShark();drawWaterFront();
+  drawShark();drawWaterFront();drawLava();
   const t=st.msg||'';
   if(hud.textContent!==t){hud.textContent=t;hud.style.display=t?'block':'none'}
   // If a collision marks the just-processed touchdown as a crash later in the same frame,
@@ -1107,6 +1180,46 @@ function scoreTick(){
     trickScoreE.classList.remove('failed','power-1','power-2','power-3','power-4');
   }
 }   // The same trick total banks on a clean landing and melts away red on failure
+// ======================= HAPTICS =======================
+// Short phone vibrations for game events. Uses the Vibration API (Android browsers; iPhones don't support it
+// on the web, so there it silently does nothing). Only buzzes while the player is using touch controls.
+// hapTick() runs once per frame and fires on changes in game state, so the game code needs no extra hooks.
+const HAPTIC_OK=typeof navigator!=='undefined'&&typeof navigator.vibrate==='function';
+let hapOn=true;try{hapOn=localStorage.getItem('skiHaptics')!=='0'}catch(e){}
+function setHaptics(on){hapOn=!!on;try{localStorage.setItem('skiHaptics',on?'1':'0')}catch(e){}if(on)buzz(30,true)}
+let hapLast=0,hapPrev=null;
+function buzz(pattern,force){
+  if(!HAPTIC_OK||!hapOn||(!touchMode&&!force))return;
+  const now=performance.now();if(now-hapLast<70&&!force)return;hapLast=now;   // don't stack buzzes on top of each other
+  try{navigator.vibrate(pattern)}catch(e){}
+}
+const HAP={
+  flip:14,                                  // each full rotation in the air
+  land:28,landBig:[30,40,45],               // clean landing / big trick landing
+  hit:n=>Math.min(70,18+n*2),               // ski damage (scaled by how much)
+  skisOff:[60,30,60],crash:[90,40,140],
+  fire:[160,60,220],shark:[40,30,40,30,180],finish:[30,60,30,60,90]
+};
+function hapTick(){
+  if(!st||!P||replayMode)return;
+  const s={crash:st.crash,skisOff:st.skisOff,fire:st.fireDeath,shark:st.sharkDeath,fin:st.finishedLevel,land:st.land||0,fl:st.fl||0,dmg};
+  const p=hapPrev;hapPrev=s;
+  if(!p||paused)return;
+  if(s.land<p.land)return;   // a new run started: just resync
+  if(s.shark&&!p.shark)return buzz(HAP.shark);
+  if(s.fire&&!p.fire)return buzz(HAP.fire);
+  if(s.crash&&!p.crash)return buzz(HAP.crash);
+  if(s.skisOff&&!p.skisOff)return buzz(HAP.skisOff);
+  if(s.fin&&!p.fin)return buzz(HAP.finish);
+  if(s.land>p.land)return buzz((st.lastLandingPts||0)>=200000?HAP.landBig:HAP.land);
+  if(s.fl>p.fl)return buzz(HAP.flip);
+  if(s.dmg>p.dmg+2)return buzz(HAP.hit(s.dmg-p.dmg));
+}
+addEventListener('DOMContentLoaded',()=>{   // "Vibration" switch in the sound menu; hidden where the browser can't vibrate
+  const row=document.getElementById('hap-row'),box=document.getElementById('v-hap');if(!row||!box)return;
+  if(!HAPTIC_OK){row.style.display='none';return}
+  box.checked=hapOn;box.addEventListener('change',()=>setHaptics(box.checked));
+});
 // ======================= LEVELS =======================
 let sd=1;const rnd=()=>(sd=sd*16807%2147483647)/2147483647;     // seeded random: every level builds identically on retry
 // ---- fireworks: in-world (rockets launched ahead of you as you ski) and on the results screen
@@ -1251,10 +1364,14 @@ function addRock(x,r,dyn,y0){const g=ter(x);rocks.push({x,y:y0===undefined?g.y-r
 function stepRocks(){for(const q of rocks){if(!q.dyn)continue;q.vy+=GP;q.x+=q.vx;q.y+=q.vy;q.a+=q.w;
   const g=ter(q.x),nx=g.ty,ny=-g.tx,sdn=(q.y-g.y)*ny;
   if(sdn<q.r){const pen=q.r-sdn;q.x+=nx*pen;q.y+=ny*pen;const vn=q.vx*nx+q.vy*ny;if(vn<0){q.vx-=nx*vn*1.2;q.vy-=ny*vn*1.2}q.w+=((q.vx*g.tx+q.vy*g.ty)/q.r-q.w)*.15}}}
+// Brushing through a soft obstacle (Lantern Forest): one-off speed loss, a little ski damage, a puff of snow
+function brush(x,y,keep,dmgAmt){if(st.crash||st.done)return;P.forEach(q=>{q.px=q.x-(q.x-q.px)*keep;q.py=q.y-(q.y-q.py)*keep});hurt(dmgAmt);
+  for(let k=0;k<12;k++)snow.push({x:x+(Math.random()-.5)*16,y:y+(Math.random()-.5)*10,vx:(Math.random()-.5)*2.2,vy:-Math.random()*1.8,l:1,d:.025,g:.04,s:.9})}
 function collideProps(){
   P.forEach((p,i)=>{const m=M[i]*3;
     for(const t of trees){
       if(Math.abs(p.x-t.x)>t.h+t.W+10)continue;const I=t.h*t.h*.12;
+      if(t.soft&&i<4){if(!t.hitT&&Math.abs(p.x-t.x)<t.W*.7&&p.y>t.y-t.h*.8){t.hitT=1;brush(t.x,t.y-t.h*.5,.88,12);t.w+=Math.sign((p.x-p.px)||1)*.05}continue}   // sapling brush: legs pass through it, but it costs speed and ski health
       for(let k=0;k<5;k++){
         const A=t.S[k],B=t.S[k+1],ex=B[0]-A[0],ey=B[1]-A[1],s=Math.max(0,Math.min(1,((p.x-A[0])*ex+(p.y-A[1])*ey)/(ex*ex+ey*ey))),
           qx=A[0]+ex*s,qy=A[1]+ey*s,r0=rad(t,k),R=r0+(rad(t,k+1)-r0)*s+2,dx=p.x-qx,dy=p.y-qy,d=Math.hypot(dx,dy);
@@ -1263,20 +1380,21 @@ function collideProps(){
         p.x+=nx*pen;p.y+=ny*pen;p.px+=nx*pen;p.py+=ny*pen;hit=true;
         if(vn<0){const lev=rx*ny-ry*nx,j=-1.12*vn/(1/m+lev*lev/I);
           p.px-=nx*j/m;p.py-=ny*j/m;t.w+=j*(-lev-.45*ry)/I;          // the skier's weight (plus ski drag) bends the tree forward
-          const sp=-vn*120,th=k===0?(i<4?420:250):(i<4?1e9:520);   // treetops are soft; the trunk is not
-          if(i<2)hurt((sp-200)*.03);
+          const sp=-vn*120,th=k===0?(i<4?(t.soft?1e9:420):(t.soft?520:250)):(i<4?1e9:520);   // treetops are soft; the trunk is not
+          if(i<2)hurt((sp-200)*(t.soft?.008:.03));
           if(sp>th&&!st.crash&&!st.done){st.crash=true;st.msg=(k?'Crunched through the treetops!':'Hit a tree trunk!')+' Right-click, tap or press R to retry.'}}
       }
     }
     for(const q of rocks){if(q.deco)continue;
+      if(q.soft&&i<4){if(!q.hitT&&Math.hypot(p.x-q.x,p.y-q.y)<q.r+3){q.hitT=1;brush(q.x,q.y-q.r,.92,8)}continue}   // low rock: a jolt that chips the skis, never a wall
       const dx=p.x-q.x,dy=p.y-q.y,d=Math.hypot(dx,dy),R=q.r+2;if(d>=R||!d)continue;
       let nx=dx/d,ny=dy/d;if(i<2&&!q.dyn){ny-=.6;const l=Math.hypot(nx,ny);nx/=l;ny/=l}   // skis ride up and over low rocks instead of being shoved backwards
       const k=q.dyn?(1/q.m)/(1/q.m+1/m):0,pen=R-d,E=q.dyn?.1:0;   // fixed rocks: no bounce at all, like the ground
       p.x+=nx*pen*(1-k);p.y+=ny*pen*(1-k);p.px+=nx*pen*(1-k);p.py+=ny*pen*(1-k);q.x-=nx*pen*k;q.y-=ny*pen*k;hit=true;
       const vn=(p.x-p.px-q.vx)*nx+(p.y-p.py-q.vy)*ny;
       if(vn<0){p.px+=nx*vn*(1+E)*(1-k);p.py+=ny*vn*(1+E)*(1-k);q.vx+=nx*vn*(1+E)*k;q.vy+=ny*vn*(1+E)*k;
-        if(i<2)hurt((-vn*120-150)*.04);
-        if(-vn*120>(i<2?380:i<4?260:150)&&!st.crash&&!st.done){st.crash=true;st.msg=(q.dyn?'Flattened by a boulder!':'Smashed into a rock!')+' Right-click, tap or press R to retry.'}}
+        if(i<2)hurt((-vn*120-150)*(q.soft?.016:.04));
+        if(-vn*120>(i<2?(q.soft?1300:380):i<4?(q.soft?700:260):150)&&!st.crash&&!st.done){st.crash=true;st.msg=(q.dyn?'Flattened by a boulder!':'Smashed into a rock!')+' Right-click, tap or press R to retry.'}}
     }
   });
 }
@@ -1422,16 +1540,51 @@ const jmp=(k,up,L=320,L2=180)=>{k.ease(L,-up);k.line(60,-up);k.ease(L2,.35);retu
 const dbl=(()=>{const k=track();
   k.line(1400,.5);jmp(k,.5,300);k.line(450,.35);k.ease(300,.42);k.line(1100,.42);
   const l2=jmp(k,.58,330);k.line(450,.35);k.ease(300,.45);k.line(2500,.45);return{t:k.t,fin:l2+2250}})();
-const alp=(()=>{const k=track();
-  k.line(1300,.5);jmp(k,.45,280);k.line(450,.35);k.ease(300,.42);k.line(900,.42);
-  jmp(k,.55,320);k.line(500,.35);k.ease(300,.42);k.line(900,.42);
-  const l3=jmp(k,.68,380);k.line(500,.35);k.ease(300,.45);k.line(2600,.45);return{t:k.t,fin:l3+2550}})();
+// --- shared pieces for the newer levels
+// gorge(): sheer drop, flat floor, sheer climb back to the same height. Returns the two rim x's and the rim height.
+function gorge(k,span,depth){const x0=k.x,y0=k.y,w=depth/4;k.line(w,4);k.line(Math.max(40,span-2*w),0);k.line(w,-4);return{x0,x1:k.x,y:y0}}
+// bridge(): a deck of planks spanning a gorge. Touch a plank and it lets go a moment later; each falling plank
+// shakes its neighbour loose, so the collapse chases you across. hold = steps before a touched plank drops,
+// chain = steps for the collapse to spread one plank (lower = faster chase).
+function bridge(g,hold,chain){const PW=46,n=Math.ceil((g.x1-g.x0)/(PW-2)),step=(g.x1-g.x0)/n,hh=9;let prev=null;
+  for(let i=0;i<n;i++){const b=addBox(g.x0+step*(i+.5),g.y+hh,step/2+1,hh,{k:'plank',deck:true,hold,chain,mu:.02,lim:[1800,420],say:'Smashed into the bridge!'});if(prev){prev.next=b;b.prev=prev}prev=b}}
+// lavaPit(): like the shark pool, a sunken pit; returns the lava surface span for LVc.lava
+function lavaPit(k,floor){k.ease(150,.08);k.line(60,.08);const rimX=k.x,rimY=k.y,ly=rimY+60,SL=3.4;
+  k.ease(40,SL);k.line(150,SL);k.ease(40,0);k.line(floor,0);k.ease(40,-SL);k.line(139,-SL);const bankX=k.x;
+  const p={y:ly,x0:0,x1:0};for(let x=rimX;x<bankX;x++){if(ter2(k.t,x)>ly){p.x0=x;break}}for(let x=bankX;x>rimX;x--){if(ter2(k.t,x)>ly){p.x1=x;break}}
+  k.ease(100,.7);k.line(700,.7);k.ease(300,.42);return p}
+const brg=(()=>{const k=track();
+  k.line(1300,.42);k.ease(260,.08);k.line(200,.08);k.ease(100,0);
+  const g1=gorge(k,640,520);k.line(120,0);k.ease(260,.42);k.line(1100,.45);              // bridge 1: a short warm-up crossing
+  const lip=jmp(k,.4,300);k.ease(80,0);const g2=gorge(k,1050,560);k.line(140,0);           // bridge 2: launch off a kicker and land on the deck
+  k.ease(260,.4);k.line(1300,.45);k.ease(260,.08);k.line(250,.05);k.ease(100,0);
+  const g3=gorge(k,1350,620);k.line(160,0);k.ease(300,.42);k.line(2400,.42);              // bridge 3: the long one, so keep your speed
+  return{t:k.t,g:[g1,g2,g3],fin:g3.x1+1800}})();
+const vol=(()=>{const k=track(),walls=[];
+  k.line(1200,.46);k.ease(180,-.22);k.line(100,-.22);k.ease(170,.9);k.line(180,.9);walls.push(k.x+320);k.ease(150,.08);k.line(180,.08);k.ease(260,.48);k.line(1300,.44);   // kicker over a fire wall
+  jmp(k,.5,320);const p1=lavaPit(k,260);k.line(1100,.42);                                           // kicker over the first lava pit
+  k.ease(300,.55);k.line(700,.55);jmp(k,.72,400,240);const p2=lavaPit(k,520);k.line(500,.42);      // the big one: a much wider pit
+  k.ease(180,-.24);k.line(100,-.24);k.ease(170,.9);k.line(180,.9);walls.push(k.x+330);k.ease(150,.08);k.line(180,.08);k.ease(260,.48);k.line(2400,.42);   // last wall
+  return{t:k.t,walls,lava:[p1,p2],fin:walls[1]+2000}})();
+const lan=(()=>{const k=track(),secs=[];
+  k.line(900,.36);
+  for(let i=0;i<4;i++){k.ease(220,.12);secs.push(k.x);k.line(760,.12);if(i<3){jmp(k,.26+i*.04,220);k.line(320,.35);k.ease(250,.3)}}
+  k.line(300,.32);const lip=jmp(k,.5,330);k.line(500,.35);k.ease(300,.42);k.line(2400,.42);
+  return{t:k.t,secs,fin:lip+2250}})();
+// Lantern Forest scenery: dark pine silhouettes behind the slope and warm lanterns along the run
+const hash=n=>{n=Math.sin(n*127.1)*43758.5453;return n-Math.floor(n)};
+function lanternBack(){const x0=Math.floor((cam.x-200)/64),x1=Math.ceil((cam.x+W/Z+200)/64);cx.fillStyle='#0c1530';cx.globalAlpha=.85;
+  for(let i=x0;i<=x1;i++){const x=i*64+hash(i)*40,h=110+hash(i+.5)*130,w=h*.32,y=ter(x).y+24;cx.beginPath();cx.moveTo(x,y-h);cx.lineTo(x+w,y);cx.lineTo(x-w,y);cx.closePath();cx.fill()}cx.globalAlpha=1}
+function lanternFront(){const t=performance.now()/1000,x0=Math.floor((cam.x-100)/420),x1=Math.ceil((cam.x+W/Z+100)/420);
+  for(let i=Math.max(1,x0);i<=x1;i++){const x=i*420+90,y=ter(x).y,fl=.85+.15*Math.sin(t*7+i*2.3)*Math.sin(t*3.1+i);
+    cx.strokeStyle='#2a2238';cx.lineWidth=2.5;cx.beginPath();cx.moveTo(x,y);cx.lineTo(x,y-46);cx.lineTo(x+9,y-46);cx.stroke();
+    const g=cx.createRadialGradient(x+9,y-38,1,x+9,y-38,46*fl);g.addColorStop(0,'rgba(255,214,120,.75)');g.addColorStop(.35,'rgba(255,160,60,.25)');g.addColorStop(1,'rgba(255,140,40,0)');
+    cx.fillStyle=g;cx.beginPath();cx.arc(x+9,y-38,46*fl,0,7);cx.fill();cx.fillStyle='#ffd27a';cx.fillRect(x+5,y-43,8,10);cx.strokeStyle='#3a2a1a';cx.lineWidth=1.2;cx.strokeRect(x+5,y-43,8,10)}}
 const gla=(()=>{const k=track();
   k.line(900,.45);for(let i=0;i<3;i++){k.ease(260,.15);k.ease(260,.5)}k.line(500,.45);   // gentle rollers to build speed
   jmp(k,.5,300);k.line(500,.35);k.ease(300,.4);k.line(1200,.4);
   jmp(k,.6,340);k.line(500,.35);k.ease(300,.4);k.line(1400,.4);k.ease(300,.55);k.line(700,.55);
   const l3=jmp(k,.8,450,250);k.line(700,.35);k.ease(400,.5);k.line(3000,.5);return{t:k.t,fin:l3+2850}})();
-const aur=(()=>{const k=track();k.line(700,.38);for(let i=0;i<4;i++){k.ease(210,-.42-i*.035);k.line(55,-.42-i*.035);k.ease(170,.32);k.line(320,.32+i*.025)}k.ease(300,.48);k.line(2200,.48);return{t:k.t,fin:k.x-350}})();
 const ava=(()=>{const k=track();k.line(450,.52);for(let i=0;i<5;i++){k.ease(130,.95);k.line(100,.95);k.ease(180,.18);k.line(250,.18)}k.ease(260,-.48);k.line(65,-.48);k.ease(210,.4);k.line(2500,.4);return{t:k.t,fin:k.x-350}})();
 const slalom=(()=>{const k=track();k.line(500,.35);for(let i=0;i<7;i++){k.ease(150,i%2?-.28:.62);k.line(140,i%2?-.28:.62);k.ease(150,.35);k.line(180,.35)}k.ease(240,-.5);k.line(60,-.5);k.ease(190,.38);k.line(2100,.38);return{t:k.t,fin:k.x-350}})();
 const longHaul=(()=>{const k=track();
@@ -1470,14 +1623,19 @@ const LV=[
   T:pipe.t,fin:pipe.fin,sky:['#8a4fb0','#f2b8d9'],far:'#a07ab8',snow:'#f7f0fa',edge:'#a58ac0'},
  {n:'Sunset Double',d:'Two mellow kickers back to back, each with a long, forgiving landing slope. Get comfortable, then stack flips on the second one.',
   T:dbl.t,fin:dbl.fin,sky:['#e0704a','#fbd9a0'],far:'#b8808a',snow:'#fdf3ea',edge:'#d2a08a'},
- {n:'Alpine Glide',d:'A long, relaxed run with three jumps that get a little bigger each time. Smooth takeoffs, smooth landings, rack up the combo.',
-  T:alp.t,fin:alp.fin,sky:['#4f9ae0','#e6f3fc'],far:'#97b4d2',snow:'#f8fcff',edge:'#86aed6'},
+ {n:'Rickety Bridge',d:'Three old plank bridges over bottomless gorges. Every plank you touch gives way behind you, and the collapse chases you across, so carry your speed. The middle bridge you reach by launching off a kicker and landing on the deck.',
+  T:brg.t,fin:brg.fin,cliff:true,sky:['#6f8fb5','#e6d9c5'],far:'#8d97a6',snow:'#f4f2ee',edge:'#a49a8a',
+  build(){brg.g.forEach((g,i)=>bridge(g,i===2?26:30,i===2?9:10))}},
+ {n:'Volcano Run',d:'Ash-grey snow on the flank of a live volcano. Jump two walls of fire and two pools of lava; touch either and you go up in smoke. Every hazard you clear pays a x2 bonus on that jump (x3 if you skim just over it).',
+  T:vol.t,fin:vol.fin,lava:vol.lava,sky:['#2a0d10','#c4471f'],far:'#4a2420',snow:'#d6d0cc',edge:'#6b4c44',
+  build(){for(const wx of vol.walls){const hh=90;addBox(wx,ter(wx).y+8-hh,12,hh,{k:'fire-wall',lim:[420,200],say:'Touched the fire!',mu:.08})}}},
+ {n:'Lantern Forest',d:'A night run through a lantern-lit pine forest. The trail is littered with saplings and rocks: small, quick hops get you over them cleanly, big air just gets you lost in the trees. Three little kickers and one proper jump at the end.',
+  T:lan.t,fin:lan.fin,sky:['#060b20','#1f2d58'],far:'#121a38',snow:'#dbe4f5',edge:'#7c8fc2',drawBack:lanternBack,drawFront:lanternFront,
+  build(){const soft=()=>{rocks[rocks.length-1].soft=1};lan.secs.forEach((s,i)=>{addRock(s+140,9+rnd()*3,false);soft();for(let k=0;k<3;k++){addTree(s+380+k*58+(rnd()-.5)*10,26+rnd()*8);trees[trees.length-1].soft=1}addRock(s+640,10+rnd()*3,false);soft()})}},
  {n:'Fireworks Hill',d:'A night run down a long hill with three kickers while fireworks go off in the sky ahead of you the whole way down. Flip in time with the show.',
   T:fwk.t,fin:fwk.fin,sky:['#060924','#3a2866'],far:'#1b1842',snow:'#dfe6ff',edge:'#8d9ee0',fw:{from:500,gap:230}},
  {n:'Glacier Run',d:'The long one. Roll over gentle swells to build speed, clear two mellow jumps, then send the big glacier kicker at the end.',
   T:gla.t,fin:gla.fin,sky:['#3aa6c8','#d6f4fb'],far:'#8fc0d2',snow:'#f2fbff',edge:'#7fbad0'},
- {n:'Aurora Ridge',d:'A twilight ridge under glowing northern lights. Link four flowing jumps and keep your landings smooth on the narrow, rolling slope. The course is clear of stray trees and obstacles.',
-  T:aur.t,fin:aur.fin,sky:['#071b3a','#4b6b9a'],far:'#244c68',snow:'#e9f7ff',edge:'#7ce8df'},
  {n:'Avalanche Escape',d:'A steep, stepped chute. Keep your speed up, use the shelves to launch, and send the big kicker at the bottom.',
   T:ava.t,fin:ava.fin,sky:['#66788b','#e4edf4'],far:'#8b9eaf',snow:'#f4f8fb',edge:'#a9c5d8'},
  {n:'Icefall Slalom',d:'A technical icy course with alternating steep banks, flowing slalom lines and one final kicker. Pick your line carefully before sending the last jump. No loose rocks obstruct the run.',
@@ -1488,18 +1646,18 @@ const LV=[
 // Finish lines sit a bit farther down every course so there's room to land and settle before crossing. The shark pool gets extra.
 const FIN_EXTRA=500,FIN_EXTRA_SHARK=900;
 // Level order, easiest first (based on jump size, hazards, length and how often a hands-off test run crashes).
-const LEVEL_ORDER=['Sunset Double','Pine Hop','Aurora Ridge','Icefall Slalom','Alpine Glide','Avalanche Escape','Crate Stack','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Mega Ramp','Inferno Walls','Shark Pool','Death Valley','The Long Haul'];
+const LEVEL_ORDER=['Sunset Double','Pine Hop','Icefall Slalom','Avalanche Escape','Lantern Forest','Crate Stack','Rickety Bridge','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Mega Ramp','Inferno Walls','Shark Pool','Volcano Run','Death Valley','The Long Haul'];
 LV.sort((a,b)=>LEVEL_ORDER.indexOf(a.n)-LEVEL_ORDER.indexOf(b.n));
 LV.forEach(l=>{const add=l.water?FIN_EXTRA_SHARK:FIN_EXTRA;l.fin+=add;const e=l.T[l.T.length-1];if(e[0]<l.fin+800)l.T.push([l.fin+800,e[1]])});   // flat ground already continues past a course's last point; the extra point just keeps it drawn past the new line
 let CRX=[480,5,680,4];
-const PAR={'Pine Hop':.8,'Death Valley':.8,'Inferno Walls':1,'Shark Pool':.9,'Mega Ramp':1.5,'Crate Stack':1.1,'Mogul Field':1.1,'Quarter Pipe':1.5,'Sunset Double':.9,'Alpine Glide':1.3,'Glacier Run':1.6,'Fireworks Hill':1};
+const PAR={'Pine Hop':.8,'Death Valley':.8,'Inferno Walls':1,'Shark Pool':.9,'Mega Ramp':1.5,'Crate Stack':1.1,'Mogul Field':1.1,'Quarter Pipe':1.5,'Sunset Double':.9,'Rickety Bridge':1,'Volcano Run':1.1,'Lantern Forest':.8,'Glacier Run':1.6,'Fireworks Hill':1};
 LV.forEach(l=>l.par=l.par||PAR[l.n]||1);   // par: how big a score counts as an S on each level (times SPAR)
 // --- level select menu
 const mEl=document.getElementById('m');
 function thumb(l,c){const g=c.getContext('2d'),w=c.width,h=c.height,x1=l.fin+300,Q=l.T.filter(p=>p[0]>=0&&p[0]<=x1),y0=Math.min(...Q.map(p=>p[1])),y1=Math.max(...Q.map(p=>p[1])),s=Math.min(w/x1,(h-14)/(y1-y0)),ox=(w-x1*s)/2;
   const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,l.sky[0]);gr.addColorStop(1,l.sky[1]);g.fillStyle=gr;g.fillRect(0,0,w,h);
   {const xa=-ox/s,xb=(w-ox)/s,R=[[xa,ter2(l.T,xa)],...l.T.filter(p=>p[0]>xa&&p[0]<xb),[xb,ter2(l.T,xb)]];   // run the ground flat past both ends so it always fills the full width
-  g.beginPath();g.moveTo(0,h);R.forEach(([x,y])=>g.lineTo(ox+x*s,7+(y-y0)*s));g.lineTo(w,h);g.closePath()}g.fillStyle=l.snow;g.fill();g.strokeStyle=l.edge;g.lineWidth=2;g.stroke();if(l.water){const W_=l.water,yb=Math.max(...l.T.filter(p=>p[0]>=W_.x0&&p[0]<=W_.x1).map(p=>p[1]));g.fillStyle='#2a9bd6';g.fillRect(ox+W_.x0*s,7+(W_.y-y0)*s,(W_.x1-W_.x0)*s,Math.max(3,(yb-W_.y)*s))}}
+  g.beginPath();g.moveTo(0,h);R.forEach(([x,y])=>g.lineTo(ox+x*s,7+(y-y0)*s));g.lineTo(w,h);g.closePath()}g.fillStyle=l.snow;g.fill();g.strokeStyle=l.edge;g.lineWidth=2;g.stroke();if(l.lava)for(const L_ of l.lava){const yb=Math.max(...l.T.filter(p=>p[0]>=L_.x0&&p[0]<=L_.x1).map(p=>p[1]));g.fillStyle='#ff6a1a';g.fillRect(ox+L_.x0*s,7+(L_.y-y0)*s,(L_.x1-L_.x0)*s,Math.max(3,(yb-L_.y)*s))}if(l.water){const W_=l.water,yb=Math.max(...l.T.filter(p=>p[0]>=W_.x0&&p[0]<=W_.x1).map(p=>p[1]));g.fillStyle='#2a9bd6';g.fillRect(ox+W_.x0*s,7+(W_.y-y0)*s,(W_.x1-W_.x0)*s,Math.max(3,(yb-W_.y)*s))}}
 const selE=document.getElementById('sel'),thC=document.getElementById('th'),cardE=document.getElementById('card'),lnE=document.getElementById('ln'),ldE=document.getElementById('ld'),lenE=document.getElementById('level-length'),dotsE=document.getElementById('dots'),hsnE=document.getElementById('hsn'),hsgE=document.getElementById('hsg'),faqE=document.getElementById('faqp');
 LV.forEach((l,i)=>{const d=document.createElement('i');d.onclick=()=>{const dir=i>sel?1:-1;sel=i;showSel(dir)};dotsE.append(d)});
 function showSel(dir){const l=LV[sel];thumb(l,thC);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent='LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
@@ -1578,7 +1736,7 @@ function growFrame(){const els=[...awE.querySelectorAll('.aw:not(.pend)'),...[..
 addEventListener('resize',()=>fitResults());addEventListener('orientationchange',()=>setTimeout(fitResults,250));
 function openMenu(fin){paused=true;customizer.style.display='none';document.getElementById('sc').style.display='';selPanel.style.display='';document.exitPointerLock&&document.exitPointerLock();updateResetButton();let runTally=false;
   closeFaq();scE.style.display=fin?'block':'none';selE.style.display=fin?'none':'';if(!fin){sel=cur;showSel(0)}
-  if(fin){mh.textContent=st.sharkDeath?'🦈 Shark snack!':st.fireDeath?'🔥 Burned to a crisp!':'\u{1F3C1} '+LVc.n+' complete!';ms.textContent=st.sharkDeath?'The shark got you. Jump higher next time!':st.fireDeath?'You touched the flames. F FOR FIRE!!!':'';fb.style.display='flex';document.getElementById('replay-menu').style.display=RP.n>1?'':'none';runTally=true}
+  if(fin){mh.textContent=st.sharkDeath?'🦈 Shark snack!':st.fireDeath?'🔥 Burned to a crisp!':'\u{1F3C1} '+LVc.n+' complete!';ms.textContent=st.sharkDeath?'The shark got you. Jump higher next time!':st.fireDeath?(st.lavaDeath?'You fell in the lava. F FOR FIRE!!!':'You touched the flames. F FOR FIRE!!!'):'';fb.style.display='flex';document.getElementById('replay-menu').style.display=RP.n>1?'':'none';runTally=true}
   else{tId++;fxStop();mh.textContent='Ski Stunt Simulator';ms.textContent='Choose a level';fb.style.display='none'}
   document.getElementById('customizer').style.display='none';document.getElementById('sc').style.display='';customOpen.style.display=fin?'none':'';
   mEl.style.display='flex';
@@ -1598,7 +1756,7 @@ document.getElementById('lb').onclick=()=>paused?closeMenu():openMenu();
 loadBest();go(0);
 const intro=document.getElementById('intro');
 let introTimer;
-function skipIntro(){if(intro.style.display==='none')return;intro.style.display='none';clearTimeout(introTimer);openMenu()}
+function skipIntro(){if(intro.style.display==='none')return;intro.style.display='none';clearTimeout(introTimer);if(window.tutAutoStart&&tutAutoStart())return;openMenu()}
 intro.addEventListener('pointerdown',skipIntro);
 addEventListener('keydown',e=>{if(intro.style.display!=='none'){e.preventDefault();skipIntro()}},true);
 introTimer=setTimeout(skipIntro,3000);
@@ -1617,9 +1775,10 @@ introTimer=setTimeout(skipIntro,3000);
 let last=performance.now(),acc=0;
 function loop(t){const dt=Math.min((t-last)/1000,.05);acc+=dt*(dbg.on?dbg.ts:1);last=t;fdt=dt;window.audioTick&&audioTick();
   if(replayMode){acc=0;replayIndex+=replaySpeed*dt*60;if(replayIndex<0){replayIndex=0;replaySpeed=0}if(replayIndex>=RP.n-1){replayIndex=RP.n-1;replaySpeed=0}const i=Math.floor(replayIndex),j=Math.min(RP.n-1,i+1),u=replayIndex-i;P=rpPose(i,j,u);snap=null;replaySetStatus();}
-  else {if(paused)acc=0;if(dbg.on&&dbg.frozen){acc=dbg.stepN>0?1/120:0;if(dbg.stepN>0)dbg.stepN--}while(acc>=1/120){snap=P.map(p=>[p.x,p.y]);step();if(dbg.on)dbgPost();if(!replayMode&&P&&P.length) {if((RP.tick++&1)===0)rpPush();if(RP.n===2){document.getElementById('replay-open').style.display=''}if(st&&st.finishedLevel&&RP.n>1&&!st.rpMenuShown){st.rpMenuShown=true;document.getElementById('replay-menu').style.display=''}}acc-=1/120}}al=acc*120;
+  else {if(paused)acc=0;if(dbg.on&&dbg.frozen){acc=dbg.stepN>0?1/120:0;if(dbg.stepN>0)dbg.stepN--}while(acc>=1/120){snap=P.map(p=>[p.x,p.y]);step();if(dbg.on)dbgPost();if(window.tutPost)tutPost();if(!replayMode&&P&&P.length) {if((RP.tick++&1)===0)rpPush();if(RP.n===2){document.getElementById('replay-open').style.display=''}if(st&&st.finishedLevel&&RP.n>1&&!st.rpMenuShown){st.rpMenuShown=true;document.getElementById('replay-menu').style.display=''}}acc-=1/120}}al=acc*120;
   // Behind the level select / results screen nothing moves, so redraw only ~4x a second (saves battery). The customizer previews the live canvas, so it keeps full rate.
   const idle=paused&&!replayMode&&customizer.style.display==='none';if(!idle||t-lastIdleDraw>250||lastIdleDraw===0){draw();if(dbg.on)dbgDraw();lastIdleDraw=idle?t:0}
+  hapTick();if(window.tutFrame)tutFrame();
   requestAnimationFrame(loop)}
 let lastIdleDraw=0;
 requestAnimationFrame(loop);
@@ -1630,7 +1789,7 @@ requestAnimationFrame(loop);
 #vol-menu button{margin-top:10px;width:100%;padding:7px;border:0;border-radius:8px;background:#2f7ddd;color:#fff;font:600 13px system-ui;cursor:pointer}
 </style>
 <button id="vol-btn" aria-label="Volume" title="Volume">&#128266;</button>
-<div id="vol-menu"><label>Master <input type="range" id="v-master" min="0" max="1" step=".01"></label><label>Skiing (wind, snow, crashes) <input type="range" id="v-fx" min="0" max="1" step=".01"></label><label>Hazards (fire, water, shark) <input type="range" id="v-haz" min="0" max="1" step=".01"></label><button id="v-mute"></button></div>
+<div id="vol-menu"><label>Master <input type="range" id="v-master" min="0" max="1" step=".01"></label><label>Skiing (wind, snow, crashes) <input type="range" id="v-fx" min="0" max="1" step=".01"></label><label>Hazards (fire, water, shark) <input type="range" id="v-haz" min="0" max="1" step=".01"></label><label id="hap-row" style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" id="v-hap" style="width:auto;margin:0"> Vibration (phones)</label><button id="v-mute"></button></div>
 <script>
 (()=>{
 const KEY='skiVol';let V={master:.8,fx:.8,haz:.8,mute:false};
@@ -1896,6 +2055,94 @@ score ${st.score||0}  combo ${st.combo||0}  landings ${st.land||0}  maxV ${f(st.
   const W2=gc.width,H2=gc.height,h=dbg.hist;gx.clearRect(0,0,W2,H2);gx.strokeStyle='#ffffff30';gx.beginPath();gx.moveTo(0,H2/2);gx.lineTo(W2,H2/2);gx.stroke();
   [[0,1500,'#7cf',0],[1,1000,'#fc6',1],[2,20,'#f7a',1],[3,100,'#8f8',0]].forEach(([k,sc,c,sg])=>{gx.strokeStyle=c;gx.beginPath();h.forEach((r,i)=>{const x=i/720*W2,v=Math.max(-1,Math.min(1,r[k]/sc)),y=sg?H2/2-v*H2/2*.95:H2-3-v*(H2-6);i?gx.lineTo(x,y):gx.moveTo(x,y)});gx.stroke()})}
 setInterval(update,60);
+})();
+</script>
+<script>
+// ======================= FIRST-RUN TUTORIAL ("Ski School") =======================
+// A short guided slope. Each step shows a prompt and moves on only when the player actually does the move.
+// Wipe out (or miss a jump) and you're put back just before that part, with no penalty.
+// Starts automatically the very first time the game is opened; replay any time from the menu.
+(function(){
+const $=id=>document.getElementById(id);
+// ---- the slope: a flat start to practise the controls, a long run to learn the brake, a small kicker, a big kicker
+const K=(()=>{const k=track();k.line(700,0);k.ease(300,.3);k.line(1500,.3);
+  const L1=jmp(k,.35,260);k.line(400,.35);k.ease(300,.42);k.line(1100,.42);
+  const L2=jmp(k,.6,340);k.line(500,.35);k.ease(300,.45);k.line(2600,.45);return{t:k.t,L1,L2}})();
+const TUT_LV={n:'Ski School',d:'',T:K.t,fin:1e9,par:1,sky:['#5aa7e8','#e3f2fc'],far:'#a8c2dc',snow:'#f8fbff',edge:'#8bb2d8'};
+const touch=()=>touchMode;
+const done=s=>{try{localStorage.setItem('skiTutDone','1')}catch(e){}};
+// ---- steps
+//   hold: keep the skier parked while practising.  cond: true when the move is done.  fail: true when the chance was missed.
+const STEPS=[
+ {t:()=>touch()?'Drag your finger <b>DOWN</b> to crouch':'Move the mouse <b>DOWN</b> to crouch',sub:'Only movement counts: your pose stays where you leave it.',hold:1,
+  cond:()=>ctl.y<.12},
+ {t:()=>touch()?'Now drag <b>UP</b> to stand tall':'Now move the mouse <b>UP</b> to stand tall',sub:'Flick up fast from a crouch and you\'ll pop off the snow.',hold:1,
+  cond:()=>ctl.y>.88},
+ {t:()=>touch()?'Drag <b>LEFT</b> to lean back, then <b>RIGHT</b> to tuck forward':'Move <b>LEFT</b> to lean back, then <b>RIGHT</b> to tuck forward',sub:'Leaning is how you spin in the air.',hold:1,
+  cond:s=>{if(ctl.x<.1)s.back=1;if(ctl.x>.9)s.fwd=1;return s.back&&s.fwd}},
+ {t:()=>touch()?'Off you go! Hold a <b>SECOND FINGER</b> down to brake':'Off you go! <b>Hold the left mouse button</b> to brake',sub:'The brake grips harder the longer you hold it.',back:1100,
+  enter:()=>{if(P[4].x<800)P.forEach(p=>{p.px-=280/120})},
+  cond:()=>brakeT>=.55&&!st.onAir,fail:()=>P[4].x>K.L1-600},
+ {t:()=>'Ramp ahead! <b>Crouch</b> on the way up, then flick <b>UP</b> at the lip',sub:'Let go of the brake to keep your speed. Land with your skis flat.',back:K.L1-900,
+  enter:s=>{s.base=st.land||0},cond:s=>(st.land||0)>s.base,fail:()=>P[4].x>K.L1+1100&&!st.onAir},
+ {t:()=>touch()?'Big ramp: in the air, drag <b>LEFT + DOWN</b> to spin a backflip':'Big ramp: in the air, move <b>LEFT + DOWN</b> to spin a backflip',sub:'Tuck tight to spin faster. Stand up straight (UP, back to the middle) before you land.',back:K.L2-1000,
+  enter:s=>{s.base=(st.ff||0)+(st.bf||0)},cond:s=>(st.ff||0)+(st.bf||0)>s.base,fail:()=>P[4].x>K.L2+1500&&!st.onAir}
+];
+const tut={on:false,i:0,s:{},crashAt:0,okAt:0,endAt:0};
+window.tut=tut;
+// ---- UI
+const css=document.createElement('style');css.textContent=`
+#tut-box{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 104px);transform:translateX(-50%);z-index:3;width:min(560px,calc(100vw - 24px));box-sizing:border-box;padding:10px 14px 11px;border-radius:14px;background:#0b1a2be6;border:1px solid #8bdfff77;box-shadow:0 8px 24px #0006;color:#fff;text-align:center;display:none;pointer-events:none}
+#tut-step{font:800 10px system-ui;letter-spacing:.2em;color:#8fd4ff}
+#tut-txt{font:400 clamp(17px,3.4vw,24px)/1.2 var(--gf);margin-top:4px}#tut-txt b{color:#ffd36b;font-weight:400}
+#tut-sub{font:13px/1.35 system-ui;opacity:.8;margin-top:4px}
+#tut-dots{display:flex;gap:5px;justify-content:center;margin-top:7px}#tut-dots i{width:22px;height:4px;border-radius:3px;background:#ffffff30}#tut-dots i.on{background:#7cffa0}
+#tut-box.ok{border-color:#7cffa0;animation:tutOk .45s ease-out}@keyframes tutOk{30%{transform:translateX(-50%) scale(1.05)}}
+#tut-skip{pointer-events:auto;margin-top:8px;font:600 11px system-ui;padding:4px 10px;border-radius:7px;border:1px solid #ffffff40;background:#ffffff14;color:#fff;cursor:pointer}`;
+document.head.appendChild(css);
+const box=document.createElement('div');box.id='tut-box';
+box.innerHTML='<div id="tut-step"></div><div id="tut-txt"></div><div id="tut-sub"></div><div id="tut-dots">'+STEPS.map(()=>'<i></i>').join('')+'</div><button id="tut-skip" type="button">Skip tutorial</button>';
+document.body.appendChild(box);
+function render(){const s=STEPS[tut.i];if(!s)return;$('tut-step').textContent='SKI SCHOOL · STEP '+(tut.i+1)+' OF '+STEPS.length;$('tut-txt').innerHTML=s.t();$('tut-sub').textContent=s.sub||'';
+  [...$('tut-dots').children].forEach((d,k)=>d.classList.toggle('on',k<tut.i))}
+function enter(i){tut.i=i;tut.s={};tut.okAt=0;const s=STEPS[i];if(s&&s.enter)s.enter(tut.s);render()}
+function back(msg){const s=STEPS[tut.i];respawnAt(s.back||300);if(s.enter)s.enter(tut.s);spray(msg||'TRY AGAIN!')}
+// ---- start / stop
+window.startTutorial=function(){
+  if(dbg.on)go(cur);
+  tId++;fxStop();popsE.replaceChildren();LVc=TUT_LV;T=LVc.T;FINISH=LVc.fin;closeMenu();reset();
+  tut.on=true;tut.crashAt=0;tut.endAt=0;done();enter(0);$('reset-skis').style.display='none';
+};
+function stop(){if(!tut.on)return;tut.on=false;box.style.display='none';$('reset-skis').style.display=''}
+window.tutStop=stop;
+const _go=go;go=function(){stop();return _go.apply(this,arguments)};
+function finish(){stop();openMenu();mh.textContent='🎓 Ski School complete!';ms.textContent='You\'re ready. Pick a level and go send it.'}
+$('tut-skip').onclick=()=>{done();stop();openMenu()};
+// first launch: run the tutorial instead of showing the menu (only for brand-new players)
+window.tutAutoStart=function(){let seen=false;try{seen=localStorage.getItem('skiTutDone')==='1'}catch(e){}
+  if(seen||best.some(b=>b>0)){done();return false}startTutorial();return true};
+// ---- per physics step
+window.tutPost=function(){
+  if(!tut.on)return;const s=STEPS[tut.i],now=performance.now();
+  if(tut.endAt){if(now>tut.endAt)finish();return}
+  if(s.hold){let mt=0,vx=0;P.forEach((p,k)=>{mt+=M[k];vx+=M[k]*(p.x-p.px)});vx/=mt;P.forEach(p=>{p.px+=vx})}   // parked: cancel sliding, keep the body free to move
+  if(st.crash||st.skisOff||st.fireDeath){if(!tut.crashAt)tut.crashAt=now;else if(now-tut.crashAt>1300){tut.crashAt=0;back()}return}
+  tut.crashAt=0;
+  if(!s.hold&&!st.onAir){const sp=Math.hypot(P[4].x-P[4].px,P[4].y-P[4].py)*120;
+    if(P[4].x<720&&sp<150)P.forEach(p=>{p.px-=.4});                 // back on the flat start (R / restart): roll them onto the slope
+    else if(sp<25){if(!tut.stallAt)tut.stallAt=now;else if(now-tut.stallAt>3500){tut.stallAt=0;back('KEEP MOVING!')}}else tut.stallAt=0}
+  if(tut.okAt){if(now-tut.okAt>350){   // landed and still standing a moment later: step passed
+      box.classList.remove('ok');void box.offsetWidth;box.classList.add('ok');
+      if(tut.i+1<STEPS.length){spray('NICE!');enter(tut.i+1)}
+      else{spray('YOU\'RE A NATURAL!','',true);for(let k=0;k<6;k++)fwRocket(P[4].x+120+k*110,P[4].y-220-Math.random()*120,k*10);[...$('tut-dots').children].forEach(d=>d.classList.add('on'));$('tut-txt').innerHTML='Tutorial complete!';$('tut-sub').textContent='';tut.endAt=now+2600}}
+    return}
+  if(s.cond(tut.s)){tut.okAt=now;return}
+  if(s.fail&&s.fail())back('MISSED IT! AGAIN');
+};
+// ---- every frame: show the prompt only while actually playing
+let lastTouch=null;
+window.tutFrame=function(){const show=tut.on&&!paused&&!replayMode;if((box.style.display!=='none')!==show)box.style.display=show?'block':'none';
+  if(show&&!tut.endAt&&touchMode!==lastTouch){lastTouch=touchMode;render()}};   // switch mouse/finger wording if the input type changes
 })();
 </script>
 <style>

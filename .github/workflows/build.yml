@@ -1,0 +1,33 @@
+name: Build index.html
+
+# Edit files in src/, push (or merge a PR) to main, and this rebuilds the single-file
+# index.html that players and GitHub Pages use, then commits it back to main.
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'tools/build.py']
+  pull_request:
+    paths: ['src/**', 'tools/build.py', 'index.html']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check build (pull requests)
+        if: github.event_name == 'pull_request'
+        run: python3 tools/build.py --check
+      - name: Build and commit (main)
+        if: github.event_name != 'pull_request'
+        run: |
+          python3 tools/build.py
+          if git diff --quiet index.html; then echo "index.html already up to date"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Rebuild index.html from src/"
+          git push

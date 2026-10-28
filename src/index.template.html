@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<script>
+<!-- @include js/boot.js -->
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ski Stunt Simulator (remake)</title>
+<style><!-- @inline css/font.css --></style>
+<style>
+<!-- @include css/game.css -->
+</style><style>
+<!-- @include css/touch.css -->
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="slime" x="-10%" y="-10%" width="120%" height="130%"><feTurbulence type="fractalNoise" baseFrequency=".03 .07" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="16" xChannelSelector="R" yChannelSelector="G"/></filter><filter id="mud" x="-10%" y="-10%" width="120%" height="130%"><feTurbulence type="fractalNoise" baseFrequency=".05 .1" numOctaves="2" seed="2"/><feDisplacementMap in="SourceGraphic" scale="8" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+<div id="intro" aria-label="Ski Stunt opening screen"><canvas id="introFx"></canvas><svg id="introMountains" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none">
+<defs><linearGradient id="farSnow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c9fc9"/><stop offset="1" stop-color="#494b78"/></linearGradient></defs>
+<path d="M0 490 L90 390 150 435 250 300 320 390 405 265 480 365 575 290 665 400 755 275 830 370 930 255 1010 365 1090 300 1200 400 L1200 700 0 700Z" fill="url(#farSnow)" opacity=".62"/>
+<path d="M0 520 L105 440 180 475 300 345 360 420 445 315 520 425 620 350 720 455 815 330 900 425 1015 335 1090 430 1200 365 L1200 700 0 700Z" fill="#303657" opacity=".88"/>
+<path d="M0 570 L110 495 200 525 305 430 385 490 490 405 565 500 680 420 770 510 870 405 965 490 1080 415 1200 480 L1200 700 0 700Z" fill="#171e3b"/>
+<path d="M250 300 L276 333 250 324 232 340Z M405 265 L438 310 407 295 386 315Z M755 275 L785 317 754 304 733 325Z M930 255 L960 300 929 286 910 306Z M1090 300 L1113 328 1088 319 1072 334Z" fill="#fbe8df" opacity=".88"/>
+<path d="M0 520 L105 440 180 475 300 345 360 420 445 315 520 425 620 350 720 455 815 330 900 425 1015 335 1090 430 1200 365" fill="none" stroke="#ffd8cb" stroke-width="3" opacity=".4"/>
+</svg><div id="introTitle">SKI STUNT</div><div id="introCredit">a game by PJ</div></div><canvas id="fx"></canvas><p id="h"></p><div id="pops"></div><div id="sco"><span id="sct">SCORE: 0</span></div><div id="adrenaline"><div id="adrenaline-label">ADRENALINE</div><div id="adrenaline-track"><div id="adrenaline-fill"></div></div></div><div id="trick-score" aria-live="polite"></div><div id="trick-stack" aria-live="polite"></div><div id="w"><canvas id="c"></canvas></div>
+<button id="lb">&#9776; Levels (M)</button><button id="replay-open" title="Replay this run">⏪ Replay</button><button id="reset-skis" title="Reset the skier here; costs 25,000 points and blocks A/S grades">↻ Reset Skis · −25,000</button>
+<div id="m"><button id="dbg-open" title="Debug mode: a simple downhill with live physics values and tools">🐞 Debug</button><h2 id="mh">Ski Stunt Simulator</h2><p id="ms">Choose a level</p>
+<div id="sc"><div id="sn">0</div><div id="sl">POINTS</div><div id="rows"></div><div id="rt"></div><div id="aw"></div><div id="sb"></div></div>
+<div id="fb"><button class="b" id="again">&#8635; Try again</button><button class="b" id="replay-menu" style="display:none;background:#176b78">⏪ View Replay</button><button class="b" id="all">All levels</button><button class="b" id="next">Next level &rarr;</button></div>
+<div id="sel"><div id="g"><button class="ar" id="pv" aria-label="Previous level">&#9664;</button><div id="card"><canvas id="th" width="480" height="200"></canvas><div id="ln"></div><div id="ld"></div><div id="level-length" aria-live="polite"></div></div><button class="ar" id="nx" aria-label="Next level">&#9654;</button></div>
+<div id="dots"></div>
+<div id="hs"><div id="hsn"></div><div id="hsl"><span>GRADE</span><b id="hsg"></b></div></div>
+<div class="pr"><button class="b" id="play">&#9654; Play</button><button class="b" id="customize-open" style="background:#147c83">🎨 Customize</button><button class="b" id="tut-open" style="background:#2e8a52" onclick="startTutorial()">&#127891; Tutorial</button><button class="b" id="faqb">? FAQ</button><button class="b" id="upd-btn" style="background:#5b49b8;position:relative">&#11014; Update</button></div><div id="ver-tag"></div></div>
+<section id="customizer" aria-label="Character customization">
+<h3>🎨 Customize your skier</h3>
+<div id="custom-layout">
+ <div id="custom-preview-wrap"><canvas id="custom-preview" width="320" height="340" aria-label="Large skier preview"></canvas><div id="custom-preview-label">YOUR SKIER</div></div>
+ <div id="custom-colors">
+  <div class="color-choice" id="custom-part-picker">
+   <span>Clothing piece</span><div class="color-controls"><button class="color-arrow" id="part-prev" aria-label="Previous clothing piece">‹</button><div class="color-current"><span id="part-name" class="color-name">Jacket + gloves</span></div><button class="color-arrow" id="part-next" aria-label="Next clothing piece">›</button></div>
+  </div>
+  <div class="color-choice" id="custom-color-picker">
+   <span>Color</span><div class="color-controls"><button class="color-arrow" id="color-prev" aria-label="Previous color">‹</button><div class="color-current"><span class="color-swatch" id="custom-swatch"></span><span class="color-name" id="custom-color-name"></span></div><button class="color-arrow" id="color-next" aria-label="Next color">›</button></div>
+   <div class="color-filters"><label class="filter-control">Bright <input id="custom-brightness" type="range" min="35" max="160" value="100" data-filter="brightness"><span class="filter-value">100%</span></label><label class="filter-control">Satur. <input id="custom-saturation" type="range" min="0" max="180" value="100" data-filter="saturation"><span class="filter-value">100%</span></label></div>
+  </div>
+ </div>
+</div>
+<div id="custom-actions"><button id="custom-reset" type="button">Reset colors</button><button id="custom-back" type="button">Done</button></div>
+<div id="custom-note">Preview shows the actual skier from the game. Use the arrows to choose a piece and its color; changes save automatically.</div>
+</section>
+<div id="replay-controls" aria-label="Replay controls"><button id="rp-rewind" title="Rewind">⏪</button><button id="rp-forward" title="Play forward">▶</button><button id="rp-slow" title="Slow motion">½×</button><button id="rp-pause" title="Pause replay">Ⅱ</button><span id="replay-status">REPLAY</span><button id="rp-exit" title="Exit replay">✕</button></div>
+<div id="faqp"><div id="how"><div class="fh"><b>FAQ &middot; How to play</b><button class="b" id="faqx">Close</button></div><ul>
+<li>Click the game to capture the mouse (touch screens need no capture). Only mouse <u>movement</u> counts, and your pose holds where you leave it.</li>
+<li>Flick up = jump / stand &middot; move down = crouch &middot; right / left = tuck forward / lean back.</li>
+<li>Backflip: lean back (move left) and crouch on the ramp, then stand up hard to pop off the lip. In the air, tuck to spin faster, stretch to slow down, and stand before landing.</li>
+<li>A very hard fall onto your body knocks your skis clean off.</li>
+<li>Hold the left mouse button to brake: it grips harder the longer you hold and throws up snow. Only works while your skis are on the ground. Right-click restarts.</li>
+<li>On a phone or tablet: drag with ONE finger to move, and hold a SECOND finger down to brake. The finger you are moving with never brakes. Tap after a wipeout to restart.</li>
+<li>Cross the finish line with your skis still on your feet and the level counts as finished, no matter how battered you are.</li>
+<li>Hard landings and hits damage your skis. They darken as they take damage, and too much damage makes them snap off.</li>
+<li>Even after a wipeout you can still wiggle a little with the mouse.</li>
+<li>Finish a level for a rating from F up to S, plus awards for flips, combos, air time, landings and speed. Tucking tight (crouching) in the air makes you spin faster.</li>
+<li>Scroll wheel or + / &minus; / 0 = zoom &middot; R retry &middot; F fullscreen &middot; M / Esc menu &middot; 1&ndash;9 pick a level &middot; N next level</li>
+<li>On the level screen, use the arrow buttons or the &larr; / &rarr; keys to browse levels and Enter to play. Your best score and best grade for each level are saved.</li></ul></div></div></div>
+<script>
+<!-- @include js/setup.js -->
+<!-- @include js/physics.js -->
+<!-- @include js/hazards.js -->
+<!-- @include js/camera.js -->
+<!-- @include js/render.js -->
+<!-- @include js/input.js -->
+<!-- @include js/hud.js -->
+<!-- @include js/haptics.js -->
+<!-- @include js/fx.js -->
+<!-- @include js/props.js -->
+<!-- @include js/levels.js -->
+<!-- @include js/menu.js -->
+<!-- @include js/main.js -->
+</script><style>
+<!-- @include css/audio.css -->
+</style>
+<button id="vol-btn" aria-label="Volume" title="Volume">&#128266;</button>
+<div id="vol-menu"><label>Master <input type="range" id="v-master" min="0" max="1" step=".01"></label><label>Skiing (wind, snow, crashes) <input type="range" id="v-fx" min="0" max="1" step=".01"></label><label>Hazards (fire, water, shark) <input type="range" id="v-haz" min="0" max="1" step=".01"></label><label id="hap-row" style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" id="v-hap" style="width:auto;margin:0"> Vibration (phones)</label><button id="v-mute"></button></div>
+<script>
+<!-- @include js/audio.js -->
+</script>
+<script>
+<!-- @include js/debug.js -->
+</script>
+<script>
+<!-- @include js/tutorial.js -->
+</script>
+<style>
+<!-- @include css/updater.css -->
+</style>
+<div id="upd-modal" role="dialog" aria-modal="true" aria-labelledby="upd-title"><div id="upd-card"><h3 id="upd-title">Updates</h3><div id="upd-msg"></div><div id="upd-notes"></div><div id="upd-act"></div></div></div>
+<script>
+<!-- @include js/updater.js -->
+</script>
+</body></html>

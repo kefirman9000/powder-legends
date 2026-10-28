@@ -1,0 +1,10 @@
+#ver-tag{font:600 11px system-ui;letter-spacing:.08em;opacity:.55;margin-top:2px}
+#upd-btn .dot{position:absolute;top:-6px;right:-6px;font:800 9px system-ui;letter-spacing:.06em;padding:3px 5px;border-radius:8px;background:#ff3d6e;color:#fff;box-shadow:0 0 10px #ff3d6e;animation:pulse .7s ease-in-out infinite alternate}
+#upd-modal{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(5,10,18,.82);padding:16px}
+#upd-card{width:min(440px,94vw);background:#18222f;border:1px solid #ffffff30;border-radius:14px;padding:18px 20px;color:#fff;text-align:left;box-shadow:0 10px 40px #000a}
+#upd-card h3{margin:0 0 6px;font:400 26px/1.1 var(--gf);color:#b8a6ff}
+#upd-msg{font:14px/1.45 system-ui;opacity:.9;white-space:pre-wrap}
+#upd-notes{margin-top:10px;padding:8px 12px;border-radius:9px;background:#ffffff10;font:13px/1.45 system-ui;display:none}
+#upd-act{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:16px}
+#upd-act .b{padding:8px 16px;font-size:14px}
+#upd-act .ghost{background:#ffffff22}
