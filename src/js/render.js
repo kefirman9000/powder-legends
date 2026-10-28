@@ -29,6 +29,7 @@ function draw(){
   const ln=(a,b,w,c)=>{cx.strokeStyle=c;cx.lineWidth=w;cx.lineCap='round';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke()};
   const mid={x:(Q[0].x+Q[1].x)/2,y:(Q[0].y+Q[1].y)/2};
   const ad=Math.max(0,Math.min(100,st.adrenaline||0));
+  windTrails(Q,ad>=99);   // faint white air trails (windtrails.js)
   if(ad>1){
     const glow=ad/100, radius=8+glow*11;
     cx.save();cx.globalCompositeOperation='lighter';

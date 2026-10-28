@@ -20,26 +20,17 @@ function fwDrawFountains(){if(!FW.lips)return;const x0=cam.x-120,x1=cam.x+W/Z+12
     for(const off of [-34,-12]){const bx=L.x+off,by=ter(bx).y;cx.fillStyle='#3a2a52';cx.strokeStyle='#ffd36b';cx.lineWidth=1.5;
       cx.beginPath();cx.moveTo(bx-6,by+1);cx.lineTo(bx-3.5,by-10);cx.lineTo(bx+3.5,by-10);cx.lineTo(bx+6,by+1);cx.closePath();cx.fill();cx.stroke()}}}
 // Leaving a ramp: a shower of sparks at the lip and a volley of rockets bursting along the flight path.
-function fwJump(){const q=P[4],vx=Math.max(2,q.x-q.px);fwBurst(q.x,q.y+10,RM()*360,130,4.6,true);fwBurst(q.x,q.y+10,45,60,2.4,false);
-  for(let n=0;n<5;n++)fwRocket(q.x+vx*(150+n*60)+RM()*80,q.y-40-RM()*110,n*8,q.y+120)}
+// (kept small: the air belongs to the skier and the wind trails now)
+function fwJump(){const q=P[4];fwBurst(q.x,q.y+12,42,22,2.0,false)}
 // Sticking a landing: rockets go up around you, more for bigger tricks.
-function fwLand(pts,flips){const q=P[4],n=Math.min(7,2+flips+Math.floor(pts/60000));
-  for(let i=0;i<n;i++)fwRocket(q.x-120+RM()*520,q.y-110-RM()*170,i*7)}
+function fwLand(pts,flips){if(flips<1&&pts<60000)return;const q=P[4],n=Math.min(3,1+Math.floor(flips/2)+(pts>=150000?1:0));
+  for(let i=0;i<n;i++)fwRocket(q.x-80+RM()*420,q.y-110-RM()*150,i*9)}
 function fwBurst(x,y,h,n,sp,rain){n=Math.ceil(n*FX_SCALE);for(let i=0;i<n;i++){const a=RM()*6.283,v=sp*(.25+RM()*.75);FW.sp.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:1,d:.008+RM()*.01,h:rain?RM()*360:h+RM()*40-20,z:1.2+RM()*1.4,s:100})}}
 function fwTrick(x,y,flips){
-  if(flips<2)return; // Keep the first rotation clean; fireworks begin on rotation two.
-  const n=flips,level=Math.min(n-2,4);
-  const count=Math.min(270,155+level*42),speed=4.0+level*.72,glow=2.8+level*.65,hue=RM()*360,start=FW.sp.length;
-  // Each additional rotation gets brighter, faster, and more layered, with a hard cap
-  // on particles so the celebration stays lightweight during gameplay.
-  fwBurst(x,y,hue,count,speed,true);
-  fwBurst(x,y,hue+155,Math.floor(count*(.62+level*.035)),speed*.78,true);
-  if(n>=3)fwBurst(x,y,hue+45,Math.floor(count*(n>=4?.48:.32)),speed*.55,false);
-  if(n>=4)fwBurst(x,y,hue+220,Math.floor(count*.28),speed*1.12,true);
-  for(let i=start;i<FW.sp.length;i++){
-    const p=FW.sp[i];p.s=100;p.z*=(i-start<count?glow:1.8);p.l=1;
-    p.d=.0045+RM()*.003;p.vy-=.28+level*.035;
-  }
+  if(flips<2)return; // the first rotation stays clean; a small pop from rotation two, a little bigger each time
+  const level=Math.min(flips-2,4),start=FW.sp.length;
+  fwBurst(x,y,RM()*360,34+level*12,2.6+level*.35,true);
+  for(let i=start;i<FW.sp.length;i++){const p=FW.sp[i];p.d=.012+RM()*.008;p.vy-=.15}
 }
 function fwRocket(x,ty,wait,y0){const g=ter(x);FW.rk.push({x,y:y0===undefined?g.y:Math.min(g.y,y0),vy:-(11+RM()*3),ty,h:RM()*360,r:RM()<.25,w:wait||0})}
 function fwFinale(){const g=ter(FINISH);for(let i=0;i<8;i++)fwRocket(FINISH-260+i*90+RM()*40,g.y-230-RM()*160,i*14)}
