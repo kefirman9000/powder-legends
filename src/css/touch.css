@@ -1,0 +1,14 @@
+/* Touch devices: swap animations that repaint every frame (filter, text-shadow, letter-spacing) for transform/opacity ones the GPU composites cheaply. */
+@media (pointer:coarse){
+ #trick-score{transition:none}
+ #trick-score.power-1,#trick-score.power-2{animation:trickPulseM .45s ease-in-out infinite alternate;filter:none}
+ #trick-score.power-3,#trick-score.power-4{animation:trickWildM .25s ease-in-out infinite alternate;filter:none}
+ #sct.hot,#sct.inferno{animation:none}
+ #adrenaline.hot #adrenaline-fill{animation:adPulseM .7s ease-in-out infinite alternate}
+ .pp.pp.landed,.pp.pp.landed.big-flip,.pp.pp.landed.mega-flip{animation:landedM 1.35s cubic-bezier(.18,.8,.24,1) forwards;filter:none}
+ #sn,#sb.nb{animation:none}
+}
+@keyframes trickPulseM{from{transform:translateX(-50%) rotate(-1deg) scale(var(--scale,1))}to{transform:translateX(-50%) rotate(-1deg) scale(calc(var(--scale,1)*1.05))}}
+@keyframes trickWildM{from{transform:translateX(-50%) rotate(-2deg) scale(var(--scale,1))}to{transform:translateX(-50%) rotate(2deg) scale(calc(var(--scale,1)*1.06))}}
+@keyframes adPulseM{to{opacity:.7}}
+@keyframes landedM{0%{opacity:0;transform:translateY(18px) scale(.72) rotate(-4deg)}12%{opacity:1;transform:translateY(-4px) scale(1.14) rotate(2deg)}24%{transform:translateY(2px) scale(.98) rotate(-1deg)}42%{transform:translateY(-5px) scale(1.06) rotate(1deg)}100%{opacity:0;transform:translateY(-38px) scale(1.12) rotate(0deg)}}
