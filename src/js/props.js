@@ -22,7 +22,7 @@ function stepRocks(){for(const q of rocks){if(!q.dyn)continue;q.vy+=GP;q.x+=q.vx
   if(sdn<q.r){const pen=q.r-sdn;q.x+=nx*pen;q.y+=ny*pen;const vn=q.vx*nx+q.vy*ny;if(vn<0){q.vx-=nx*vn*1.2;q.vy-=ny*vn*1.2}q.w+=((q.vx*g.tx+q.vy*g.ty)/q.r-q.w)*.15}}}
 // Brushing through a soft obstacle (Lantern Forest): one-off speed loss, a little ski damage, a puff of snow
 function brush(x,y,keep,dmgAmt){if(st.crash||st.done)return;P.forEach(q=>{q.px=q.x-(q.x-q.px)*keep;q.py=q.y-(q.y-q.py)*keep});hurt(dmgAmt);
-  for(let k=0;k<12;k++)snow.push({x:x+(Math.random()-.5)*16,y:y+(Math.random()-.5)*10,vx:(Math.random()-.5)*2.2,vy:-Math.random()*1.8,l:1,d:.025,g:.04,s:.9})}
+  for(let k=0;k<12&&partRoom()>0;k++)snow.push({x:x+(Math.random()-.5)*16,y:y+(Math.random()-.5)*10,vx:(Math.random()-.5)*2.2,vy:-Math.random()*1.8,l:1,d:.025,g:.04,s:.9})}
 function collideProps(){
   P.forEach((p,i)=>{const m=M[i]*3;
     for(const t of trees){

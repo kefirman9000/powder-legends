@@ -14,7 +14,7 @@ function findLips(){const out=[],w=LVc&&LVc.water;let minS=0;
 function fwFountains(){if(!FW.lips)return;const x0=cam.x-120,x1=cam.x+W/Z+120;
   for(const L of FW.lips){if(L.x<x0||L.x>x1)continue;
     for(const off of [-34,-12]){const g=ter(L.x+off),bx=L.x+off,by=g.y;
-      for(let k=0;k<(LOWFX?1:2);k++){const gold=RM()<.7;FW.sp.push({x:bx+(RM()-.5)*3,y:by-9,vx:(RM()-.5)*1.1,vy:-(2.6+RM()*2.4),l:1,d:.018+RM()*.014,h:gold?35+RM()*20:L.h+RM()*60,z:1.8+RM()*1.2})}}}}
+      if(partRoom()<4)continue;for(let k=0;k<(LOWFX?1:2);k++){const gold=RM()<.7;FW.sp.push({x:bx+(RM()-.5)*3,y:by-9,vx:(RM()-.5)*1.1,vy:-(2.6+RM()*2.4),l:1,d:.018+RM()*.014,h:gold?35+RM()*20:L.h+RM()*60,z:1.8+RM()*1.2})}}}}
 function fwDrawFountains(){if(!FW.lips)return;const x0=cam.x-120,x1=cam.x+W/Z+120;
   for(const L of FW.lips){if(L.x<x0||L.x>x1)continue;
     for(const off of [-34,-12]){const bx=L.x+off,by=ter(bx).y;cx.fillStyle='#3a2a52';cx.strokeStyle='#ffd36b';cx.lineWidth=1.5;
@@ -25,7 +25,7 @@ function fwJump(){const q=P[4];fwBurst(q.x,q.y+12,42,22,2.0,false)}
 // Sticking a landing: rockets go up around you, more for bigger tricks.
 function fwLand(pts,flips){if(flips<1&&pts<60000)return;const q=P[4],n=Math.min(3,1+Math.floor(flips/2)+(pts>=150000?1:0));
   for(let i=0;i<n;i++)fwRocket(q.x-80+RM()*420,q.y-110-RM()*150,i*9)}
-function fwBurst(x,y,h,n,sp,rain){n=Math.ceil(n*FX_SCALE);for(let i=0;i<n;i++){const a=RM()*6.283,v=sp*(.25+RM()*.75);FW.sp.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:1,d:.008+RM()*.01,h:rain?RM()*360:h+RM()*40-20,z:1.2+RM()*1.4,s:100})}}
+function fwBurst(x,y,h,n,sp,rain){n=Math.min(Math.ceil(n*FX_SCALE),partRoom());for(let i=0;i<n;i++){const a=RM()*6.283,v=sp*(.25+RM()*.75);FW.sp.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:1,d:.008+RM()*.01,h:rain?RM()*360:h+RM()*40-20,z:1.2+RM()*1.4,s:100})}}
 function fwTrick(x,y,flips){
   if(flips<2)return; // the first rotation stays clean; a small pop from rotation two, a little bigger each time
   const level=Math.min(flips-2,4),start=FW.sp.length;
@@ -36,7 +36,7 @@ function fwRocket(x,ty,wait,y0){const g=ter(x);FW.rk.push({x,y:y0===undefined?g.
 function fwFinale(){const g=ter(FINISH);for(let i=0;i<8;i++)fwRocket(FINISH-260+i*90+RM()*40,g.y-230-RM()*160,i*14)}
 function fwStep(){if(paused)return;const dt=Math.min(fdt,.05)*60;fwFountains();
   if(FW.on&&!st.crash&&P[4].x>FW.next){const q=P[4];for(let n=0;n<2;n++)fwRocket(q.x+380+n*240+RM()*200,q.y-70-RM()*110);FW.next=q.x+LVc.fw.gap*(.7+RM()*.7)}
-  for(const r of FW.rk){if(r.w>0){r.w-=dt;continue}r.y+=r.vy*dt;r.vy*=Math.pow(.99,dt);FW.sp.push({x:r.x,y:r.y,vx:0,vy:.3,l:.5,d:.05,h:r.h,z:1.2});
+  for(const r of FW.rk){if(r.w>0){r.w-=dt;continue}r.y+=r.vy*dt;r.vy*=Math.pow(.99,dt);if(partRoom()>0)FW.sp.push({x:r.x,y:r.y,vx:0,vy:.3,l:.5,d:.05,h:r.h,z:1.2});
     if(r.y<=r.ty||r.vy>-2.2){r.dead=1;fwBurst(r.x,r.y,r.h,r.r?90:64,3.2,r.r);fwBurst(r.x,r.y,r.h+40,22,1.6,r.r)}}
   FW.rk=FW.rk.filter(r=>!r.dead);
   for(const p of FW.sp){p.l-=p.d*dt;p.vx*=Math.pow(.97,dt);p.vy=p.vy*Math.pow(.97,dt)+.06*dt;p.x+=p.vx*dt;p.y+=p.vy*dt}

@@ -10,7 +10,8 @@ const GATHER_END=2.05,REVEAL_AT=1.95,BLOW_OFF=1.1;   // seconds: flakes settle b
 function reveal(){if(revealed)return;revealed=true;logo.classList.add('revealed');intro.classList.add('revealed')}
 function size(){const d=Math.min(devicePixelRatio||1,2);fc.width=Math.round(innerWidth*d);fc.height=Math.round(innerHeight*d);g.setTransform(d,0,0,d,0,0);w=innerWidth;h=innerHeight;
   flakes=Array.from({length:COARSE?40:90},()=>({x:Math.random()*w,y:Math.random()*h,r:.6+Math.random()*1.8,v:12+Math.random()*28,p:Math.random()*6}))}
-size();addEventListener('resize',()=>{size();gust.length=0;reveal()});   // a resize mid-gust: just show the title
+const onResize=()=>{if(intro.style.display==='none'){removeEventListener('resize',onResize);return}size();gust.length=0;reveal()};   // a resize mid-gust: just show the title
+size();addEventListener('resize',onResize);
 
 // ---- sample the real title's letter shapes into target points for the snow
 function buildGust(){
@@ -37,7 +38,7 @@ const ridge=(x,s,sharp)=>{const a=Math.sin(x/180+s)*.5+Math.sin(x/77+s*2.1)*.3+M
 const ground=x=>h*.76+(x/w)*h*.13;   // foreground slope, falling to the right
 const ease=u=>1-Math.pow(1-u,3);
 function frame(now){
-  if(intro.style.display==='none')return;
+  if(intro.style.display==='none'){removeEventListener('resize',onResize);gust.length=0;flakes.length=0;fc.width=fc.height=1;return}   // intro gone: free its canvas memory and listener
   const t=(now-t0)/1000;g.clearRect(0,0,w,h);
   // sky
   const sky=g.createLinearGradient(0,0,0,h);[[0,'#170a3a'],[.3,'#4b1a6e'],[.5,'#a3286f'],[.64,'#f0503f'],[.74,'#ff9a3c'],[.82,'#ffd27a']].forEach(([o,c])=>sky.addColorStop(o,c));

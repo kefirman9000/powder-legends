@@ -83,7 +83,7 @@ function drawCheckpoints(){
   }
 }
 function reset(){
-  camSnap();sceneryReset();gearReset();windReset();if(LVc&&LVc.onReset)LVc.onReset();
+  camSnap();sceneryReset();gearReset();windReset();ghostLoad();if(LVc&&LVc.onReset)LVc.onReset();
   headHitFx=0; // clear concussion flash/dizziness whenever a level or full run is reset
   rpClear();replayMode=false;document.getElementById("replay-controls").style.removeProperty('display');document.getElementById("replay-controls").style.display="none";document.getElementById("replay-open").style.display="none";document.getElementById("replay-menu").style.display="none";
   clearTrickHUD();
@@ -109,7 +109,7 @@ function commitRun(){
   if(!st||st.committed||!st.done||st.fireDeath||st.sharkDeath||LVc!==LV[cur]||LVc.tutorial)return;
   if(!st.finishedLevel&&!st.timeoutF)return;
   st.committed=true;
-  if(st.finishedLevel&&!st.noSkiFinish){best[cur]=Math.max(best[cur],st.score);const gi=RATES.indexOf(rate().r);if(gi>=0&&(bestG[cur]<0||gi<bestG[cur]))bestG[cur]=gi;save()}
+  if(st.finishedLevel&&!st.noSkiFinish){const was=best[cur];if(st.score>was)ghostSave();best[cur]=Math.max(best[cur],st.score);const gi=RATES.indexOf(rate().r);if(gi>=0&&(bestG[cur]<0||gi<bestG[cur]))bestG[cur]=gi;save()}
 }
 function resetSkisHere(){
   if(paused||!st||st.finishedLevel)return;
@@ -355,7 +355,7 @@ function step(){
   }
   {const on=braking&&!st.crash&&!st.done&&(ct[0]||ct[1]||(st.skisOff&&ct[2]));   // click-and-hold brake: grips harder the longer you hold, and throws up snow
     if(on){const headAge=(performance.now()-headHitFx)/1000,brakeDull=headHitFx>0&&headAge>=0&&headAge<2?.55:1;brakeT=Math.min(1,brakeT+1/120/BRAMP);const b=(BRAKE0+(BRAKE1-BRAKE0)*brakeT)*brakeDull;P.forEach(p=>{p.px+=(p.x-p.px)*b});
-      const q=P[0],vx=q.x-q.px,vy=q.y-q.py;if(Math.hypot(vx,vy)>.8&&(snowC++%2===0))for(let k=0;k<2;k++)snow.push({x:q.x,y:q.y-2,vx:-vx*.25+(Math.random()-.5)*.9,vy:-Math.random()*1.3-.2,l:1})}
+      const q=P[0],vx=q.x-q.px,vy=q.y-q.py;if(Math.hypot(vx,vy)>.8&&(snowC++%2===0)&&partRoom()>2)for(let k=0;k<2;k++)snow.push({x:q.x,y:q.y-2,vx:-vx*.25+(Math.random()-.5)*.9,vy:-Math.random()*1.3-.2,l:1})}
     else brakeT=Math.max(0,brakeT-.03)}
   for(let i=snow.length-1;i>=0;i--){const q=snow[i];q.x+=q.vx;q.y+=q.vy;q.vy+=q.g||.025;q.l-=q.d||.022;if(q.g){const gy=ter(q.x).y-1;if(q.y>gy){q.y=gy;q.vx*=.6;q.vy=0}}if(q.l<=0)snow.splice(i,1)}
   P.forEach((p,i)=>{const c=ct[i];if(!c)return;ct[i]=0;const vx=p.x-p.px,vy=p.y-p.py,vn=vx*c[0]+vy*c[1],m=i<2?.0025:.08;p.px=p.x-(vx-c[0]*vn)*(1-m)-c[0]*vn;p.py=p.y-(vy-c[1]*vn)*(1-m)-c[1]*vn});

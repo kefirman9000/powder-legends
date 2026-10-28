@@ -11,7 +11,7 @@ function celebrateLanding(pts){
     const src=P[i%2],u=Math.random(),back=Math.random()<.22,
       along=back?-(.4+Math.random()*1.2):vt*(.25+.75*u)+(Math.random()-.5)*1.5,
       up=(.5+Math.random()*1.5)*power*(back?.7:1);
-    snow.push({x:src.x+(Math.random()-.5)*14,y:src.y-2,vx:tx*along+nx*up,vy:ty*along+ny*up,l:1,
+    if(partRoom()>0)snow.push({x:src.x+(Math.random()-.5)*14,y:src.y-2,vx:tx*along+nx*up,vy:ty*along+ny*up,l:1,
       d:.009+Math.random()*.01,g:.045,s:.8+Math.random()*1.1*power});
   }
 }

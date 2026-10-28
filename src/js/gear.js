@@ -52,7 +52,7 @@ function drawGearBack(Q){   // behind the skier: trails and wings
   if(!tr||st.fireDeath)return;cx.save();cx.globalCompositeOperation='lighter';
   if(tr==='aurora'){const H=gfx.hist;for(let i=1;i<H.length;i++){const u=i/H.length,c='hsl('+(130+u*170+Math.sin(t+i*.3)*20)+' 95% 62%)';
       cx.globalAlpha=u*.55;cx.fillStyle=c;cx.beginPath();cx.moveTo(H[i-1].a.x,H[i-1].a.y);cx.lineTo(H[i].a.x,H[i].a.y);cx.lineTo(H[i].h.x,H[i].h.y);cx.lineTo(H[i-1].h.x,H[i-1].h.y);cx.closePath();cx.fill()}}
-  if(tr==='sparks'&&!paused){const v=Math.hypot(P[4].x-P[4].px,P[4].y-P[4].py);if(v>2&&gfx.sp.length<(COARSE?60:140))for(let k=0;k<2;k++){const s=Math.random()<.5?Q[0]:Q[1];gfx.sp.push({x:s.x,y:s.y,vx:(Math.random()-.5)*1.6,vy:-Math.random()*1.6,l:1,h:Math.random()*360})}}
+  if(tr==='sparks'&&!paused){const v=Math.hypot(P[4].x-P[4].px,P[4].y-P[4].py);if(v>2&&gfx.sp.length<(COARSE?60:140)&&partRoom()>2)for(let k=0;k<2;k++){const s=Math.random()<.5?Q[0]:Q[1];gfx.sp.push({x:s.x,y:s.y,vx:(Math.random()-.5)*1.6,vy:-Math.random()*1.6,l:1,h:Math.random()*360})}}
   if(tr==='wings'&&air){const s=Q[5],h=Q[4],ang=Math.atan2(s.y-h.y,s.x-h.x),flap=Math.sin(t*9)*.25,len=34;
     cx.globalCompositeOperation='source-over';   // solid, outlined wings: glow blending vanishes against bright skies
     for(const side of [-1,1]){cx.globalAlpha=.85;const g=cx.createLinearGradient(s.x,s.y,s.x-Math.cos(ang)*len,s.y-Math.sin(ang)*len);g.addColorStop(0,'rgba(255,255,255,.98)');g.addColorStop(1,'rgba(140,200,255,.35)');cx.fillStyle=g;cx.strokeStyle='#5d9be0';cx.lineWidth=1.2;cx.lineJoin='round';
@@ -64,7 +64,7 @@ function drawGearFront(Q){   // on top of the skier: skis, suit and helmet effec
   if(!st||st.fireDeath)return;const t=performance.now()/1000,sk=gearOn('skis'),su=gearOn('suit'),he=gearOn('helmet');cx.save();
   if(sk&&!st.skisOff){cx.globalCompositeOperation='lighter';
     if(sk==='lava'){glowLine(Q[0],Q[1],10,'#ff5a14',.28+.08*Math.sin(t*8));glowLine(Q[0],Q[1],3.5,'#ffc04a',.95);
-      if(!paused&&Math.random()<.5)gfx.sp.push({x:Q[0].x+(Q[1].x-Q[0].x)*Math.random(),y:Q[0].y+(Q[1].y-Q[0].y)*Math.random(),vx:(Math.random()-.5)*.6,vy:-.4-Math.random()*.8,l:.8,h:20+Math.random()*25})}
+      if(!paused&&Math.random()<.5&&partRoom()>0)gfx.sp.push({x:Q[0].x+(Q[1].x-Q[0].x)*Math.random(),y:Q[0].y+(Q[1].y-Q[0].y)*Math.random(),vx:(Math.random()-.5)*.6,vy:-.4-Math.random()*.8,l:.8,h:20+Math.random()*25})}
     if(sk==='ice'){glowLine(Q[0],Q[1],9,'#5fd8ff',.3);glowLine(Q[0],Q[1],3,'#e6fbff',.95);
       for(let k=0;k<3;k++){const u=(t*.6+k/3)%1,x=Q[0].x+(Q[1].x-Q[0].x)*u,y=Q[0].y+(Q[1].y-Q[0].y)*u-3,s=2.5*Math.sin(u*Math.PI);cx.globalAlpha=.9;cx.strokeStyle='#ffffff';cx.lineWidth=1;cx.beginPath();cx.moveTo(x-s,y);cx.lineTo(x+s,y);cx.moveTo(x,y-s);cx.lineTo(x,y+s);cx.stroke()}}}
   if(su){const limbs=[[2,3],[3,4],[4,5],[5,7]];cx.globalCompositeOperation='lighter';

@@ -16,10 +16,10 @@
 <button id="lb">&#9776; Levels (M)</button><button id="replay-open" title="Replay this run">⏪ Replay</button><button id="reset-skis" title="Reset the skier here; costs 25,000 points and blocks A and LEGEND grades">↻ Reset Skis · −25,000</button>
 <div id="m"><button id="dbg-open" title="Debug mode: a simple downhill with live physics values and tools">🐞 Debug</button><h2 id="mh">Powder Legends</h2><p id="ms">Choose a level</p>
 <div id="sc"><div id="sn">0</div><div id="sl">POINTS</div><div id="rows"></div><div id="rt"></div><div id="aw"></div><div id="sb"></div></div>
-<div id="fb"><button class="b" id="again">&#8635; Try again</button><button class="b" id="replay-menu" style="display:none;background:#176b78">⏪ View Replay</button><button class="b" id="all">All levels</button><button class="b" id="next">Next level &rarr;</button></div>
+<div id="fb"><button type="button" id="nextcard" title="Play the next level"><div class="nc-in"><canvas id="nextth" width="132" height="50"></canvas><span><small>UP NEXT</small><b id="nextname"></b><i id="nextbest"></i></span></div></button><button class="b" id="again">&#8635; Try again</button><button class="b" id="replay-menu" style="display:none;background:#176b78">⏪ View Replay</button><button class="b" id="all">All levels</button><button class="b" id="next">Next level &rarr;</button></div>
 <div id="sel"><div id="g"><button class="ar" id="pv" aria-label="Previous level">&#9664;</button><div id="card"><canvas id="th" width="480" height="200"></canvas><div id="ln"></div><div id="ld"></div><div id="level-length" aria-live="polite"></div></div><button class="ar" id="nx" aria-label="Next level">&#9654;</button></div>
 <div id="dots"></div>
-<div id="hs"><div id="hsn"></div><div id="hsl"><span>GRADE</span><b id="hsg"></b></div></div>
+<div id="hs"><div id="hsn"></div><div id="hsl"><span>GRADE</span><b id="hsg"></b></div></div><div id="prog"></div>
 <div class="pr"><button class="b" id="play">&#9654; Play</button><button class="b" id="customize-open" style="background:#147c83">🎨 Customize</button><button class="b" id="faqb">? FAQ</button><button class="b" id="set-btn" style="background:#4b5a72">&#9881; Settings</button></div><div id="upd-banner" role="status" hidden><span id="upd-banner-txt"></span><button type="button" id="upd-banner-more">What's new</button><button type="button" id="upd-banner-go">Install</button></div></div>
 <section id="customizer" aria-label="Character customization">
 <h3>🎨 Customize your skier</h3>
@@ -39,19 +39,25 @@
 <div id="custom-note">Preview shows the actual skier from the game. Use the arrows to choose a piece and its color; changes save automatically.</div>
 </section>
 <div id="replay-controls" aria-label="Replay controls"><button id="rp-rewind" title="Rewind">⏪</button><button id="rp-forward" title="Play forward">▶</button><button id="rp-slow" title="Slow motion">½×</button><button id="rp-pause" title="Pause replay">Ⅱ</button><span id="replay-status">REPLAY</span><button id="rp-exit" title="Exit replay">✕</button></div>
-<div id="faqp"><div id="how"><div class="fh"><b>FAQ &middot; How to play</b><button class="b" id="faqx">Close</button></div><ul>
-<li>Click the game to capture the mouse (touch screens need no capture). Only mouse <u>movement</u> counts, and your pose holds where you leave it.</li>
-<li>Flick up = jump / stand &middot; move down = crouch &middot; right / left = tuck forward / lean back.</li>
-<li>Backflip: lean back (move left) and crouch on the ramp, then stand up hard to pop off the lip. In the air, tuck to spin faster, stretch to slow down, and stand before landing.</li>
-<li>A very hard fall onto your body knocks your skis clean off.</li>
-<li>Hold the left mouse button to brake: it grips harder the longer you hold and throws up snow. Only works while your skis are on the ground. Right-click restarts.</li>
-<li>On a phone or tablet: drag with ONE finger to move, and hold a SECOND finger down to brake. The finger you are moving with never brakes. Tap after a wipeout to restart.</li>
-<li>Cross the finish line with your skis still on your feet and the level counts as finished, no matter how battered you are.</li>
-<li>Hard landings and hits damage your skis. They darken as they take damage, and too much damage makes them snap off.</li>
-<li>Even after a wipeout you can still wiggle a little with the mouse.</li>
-<li>Finish a level for a rating from F up to S, plus awards for flips, combos, air time, landings and speed. Tucking tight (crouching) in the air makes you spin faster.</li>
-<li>Scroll wheel or + / &minus; / 0 = zoom &middot; R retry &middot; F fullscreen &middot; M / Esc menu &middot; 1&ndash;9 pick a level &middot; N next level</li>
-<li>On the level screen, use the arrow buttons or the &larr; / &rarr; keys to browse levels and Enter to play. Your best score and best grade for each level are saved.</li></ul></div></div></div>
+<div id="faqp"><div id="how"><div class="fh"><b>FAQ &middot; How to play</b><button class="b" id="faqx">Close</button></div>
+<h4>Controls</h4><ul>
+<li>New here? Play <b>Ski School</b> (level 1): six quick steps teach everything below.</li>
+<li><b>Mouse:</b> only <u>movement</u> counts and your pose holds where you leave it. Move <b>down</b> = crouch, flick <b>up</b> = jump / stand, <b>left</b> = lean back, <b>right</b> = tuck forward. Hold the left button to <b>brake</b>; right-click restarts.</li>
+<li><b>Phone / tablet:</b> drag with one finger to move; hold a second finger down to brake. Tap after a wipeout to restart.</li>
+<li><b>Keys:</b> R retry &middot; M / Esc menu &middot; N next level &middot; 1&ndash;9 pick a level &middot; F fullscreen &middot; scroll or + / &minus; / 0 zoom. In the menu: &larr; / &rarr; browse, Enter play.</li></ul>
+<h4>Tricks &amp; landings</h4><ul>
+<li><b>Backflip:</b> crouch on the ramp, stand up hard at the lip, then lean back and tuck in the air. Tuck tight to spin faster, stretch out to slow down.</li>
+<li><b>Land with your skis flat</b> on the slope: PERFECT pays &times;1.25, GOOD &times;1, SKETCHY half, and NOT FLAT pays nothing. Points only count once you've stayed up for a moment.</li>
+<li>Big landings fill the <b>adrenaline</b> bar; keep it full for a rainbow trail. Hazards (fire walls, the shark pool, lava) pay a bonus when you clear them, more for a close shave.</li>
+<li>Hard hits damage your skis (they darken) and too much snaps them off. Cross the finish with skis on and the level counts.</li>
+<li><b>Reset Skis</b> puts you back at the last checkpoint for 25,000 points, but A and LEGEND grades are off for that run.</li></ul>
+<h4>Grades, records &amp; extras</h4><ul>
+<li>Every finish gets a grade from F up to <b>LEGEND</b>, plus awards for flips, air, landings, speed and style. Your best score and grade show on each level's card.</li>
+<li>Your <b>best run</b> plays back as a see-through <b>ghost</b> to race (turn it off in Settings).</li>
+<li><b>Ski Jump Hill</b> measures your distance and keeps a hill record. The <b>Endless Run</b> never ends: your score at the first crash is your record.</li>
+<li>Finishing certain levels unlocks <b>special gear</b> (glowing skis, suits, helmets, trails). Wear it from <b>Customize</b>.</li>
+<li><b>Replay</b> any run from the results screen. Tap anywhere on the results to skip the tally.</li>
+<li><b>Settings</b>: graphics quality, ghost, vibration, updates and resetting scores. Updates show up as a banner on the menu.</li></ul></div></div></div>
 <script>
 <!-- @include js/setup.js -->
 <!-- @include js/physics.js -->
@@ -65,6 +71,7 @@
 <!-- @include js/scenery.js -->
 <!-- @include js/gear.js -->
 <!-- @include js/windtrails.js -->
+<!-- @include js/ghost.js -->
 <!-- @include js/props.js -->
 <!-- @include js/skijump.js -->
 <!-- @include js/endless.js -->

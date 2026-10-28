@@ -3,7 +3,7 @@ function draw(){
   crashWasActive=!!(st&&st.crash);
   const Q=P.map((p,i)=>snap?{x:snap[i][0]+(p.x-snap[i][0])*al,y:snap[i][1]+(p.y-snap[i][1])*al}:p); // draw between the last two physics steps so motion stays smooth
   cx.setTransform(1,0,0,1,0,0);
-  const sk=cx.createLinearGradient(0,0,0,H);sk.addColorStop(0,LVc.sky[0]);sk.addColorStop(1,LVc.sky[1]);
+  const skyKey=H+'|'+LVc.sky[0]+LVc.sky[1];if(skyCache.key!==skyKey){const g0=cx.createLinearGradient(0,0,0,H);g0.addColorStop(0,LVc.sky[0]);g0.addColorStop(1,LVc.sky[1]);skyCache={key:skyKey,g:g0}}const sk=skyCache.g;   // sky gradient built once per level/size
   cx.fillStyle=sk;cx.fillRect(0,0,W,H);
   drawMountains();   // parallax mountain layers (scenery.js)
   const camHold=paused&&!replayMode;   // behind a menu: no easing, the camera is placed exactly where it belongs
@@ -26,6 +26,7 @@ function draw(){
     cx.beginPath();cx.moveTo(-b.hw,-b.hh);cx.lineTo(b.hw,b.hh);cx.moveTo(b.hw,-b.hh);cx.lineTo(-b.hw,b.hh);cx.stroke();cx.restore()}
   fwStep();fwDrawFountains();fwDraw();if(LVc.drawFront){cx.save();LVc.drawFront();cx.restore()}drawProps();{const g=ter(FINISH);cx.fillStyle='#222';cx.fillRect(FINISH-2,g.y-90,4,90);cx.fillStyle='#fff';cx.fillRect(FINISH+2,g.y-90,36,22);cx.fillStyle='#111';cx.fillRect(FINISH+2,g.y-90,12,11);cx.fillRect(FINISH+26,g.y-90,12,11);cx.fillRect(FINISH+14,g.y-79,12,11)}
   cx.fillStyle='#fff';cx.strokeStyle='#a9c4e0';cx.lineWidth=1;for(const q of snow){cx.globalAlpha=Math.max(0,q.l);cx.beginPath();cx.arc(q.x,q.y,(q.s||1)*(1.5+(1-q.l)*2.5),0,7);cx.fill();cx.stroke()}cx.globalAlpha=1;
+  drawGhost();   // your best run, see-through (ghost.js)
   const ln=(a,b,w,c)=>{cx.strokeStyle=c;cx.lineWidth=w;cx.lineCap='round';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke()};
   const mid={x:(Q[0].x+Q[1].x)/2,y:(Q[0].y+Q[1].y)/2};
   const ad=Math.max(0,Math.min(100,st.adrenaline||0));

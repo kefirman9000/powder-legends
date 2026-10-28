@@ -6,12 +6,26 @@ function thumb(l,c){const LT=l.endless?(l._preview=l._preview||endlessPreview())
   g.beginPath();g.moveTo(0,h);R.forEach(([x,y])=>g.lineTo(ox+x*s,7+(y-y0)*s));g.lineTo(w,h);g.closePath()}g.fillStyle=l.snow;g.fill();g.strokeStyle=l.edge;g.lineWidth=2;g.stroke();if(l.lava)for(const L_ of l.lava){const yb=Math.max(...l.T.filter(p=>p[0]>=L_.x0&&p[0]<=L_.x1).map(p=>p[1]));g.fillStyle='#ff6a1a';g.fillRect(ox+L_.x0*s,7+(L_.y-y0)*s,(L_.x1-L_.x0)*s,Math.max(3,(yb-L_.y)*s))}if(l.water){const W_=l.water,yb=Math.max(...l.T.filter(p=>p[0]>=W_.x0&&p[0]<=W_.x1).map(p=>p[1]));g.fillStyle='#2a9bd6';g.fillRect(ox+W_.x0*s,7+(W_.y-y0)*s,(W_.x1-W_.x0)*s,Math.max(3,(yb-W_.y)*s))}}
 const selE=document.getElementById('sel'),thC=document.getElementById('th'),cardE=document.getElementById('card'),lnE=document.getElementById('ln'),ldE=document.getElementById('ld'),lenE=document.getElementById('level-length'),dotsE=document.getElementById('dots'),hsnE=document.getElementById('hsn'),hsgE=document.getElementById('hsg'),faqE=document.getElementById('faqp');
 LV.forEach((l,i)=>{const d=document.createElement('i');d.onclick=()=>{const dir=i>sel?1:-1;sel=i;showSel(dir)};dotsE.append(d)});
-function showSel(dir){const l=LV[sel];thumb(l,thC);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent=l.tutorial?'TUTORIAL · ABOUT 2 MINUTES':l.endless?'LEVEL LENGTH · ENDLESS':'LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
+const thumbCache=new Map();   // level -> pre-drawn thumbnail (redrawn only if the card's canvas size changes)
+function drawThumb(l){const k=l.n+'|'+thC.width+'x'+thC.height+(l.endless?'|'+(l._preview?1:0):'');let c=thumbCache.get(k);
+  if(!c){c=document.createElement('canvas');c.width=thC.width;c.height=thC.height;thumb(l,c);thumbCache.set(k,c)}
+  const g=thC.getContext('2d');g.clearRect(0,0,thC.width,thC.height);g.drawImage(c,0,0)}
+function showSel(dir){const l=LV[sel];drawThumb(l);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent=l.tutorial?'TUTORIAL · ABOUT 2 MINUTES':l.endless?'LEVEL LENGTH · ENDLESS':'LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
   [...dotsE.children].forEach((d,i)=>d.classList.toggle('on',i===sel));
   const s=best[sel],g=bestG[sel];let tutDone=false;try{tutDone=localStorage.getItem('skiTutDone')==='1'}catch(e){}
   hsnE.textContent=l.tutorial?(tutDone?'COMPLETED ✓':'START HERE'):s?'BEST '+s.toLocaleString():'NOT PLAYED YET';if(LV[sel].endless&&endlessFarthest())hsnE.textContent+=' · FARTHEST '+endlessFarthest().toLocaleString()+' m';if(LV[sel].jump&&jumpRecord())hsnE.textContent+=' · RECORD '+jumpRecord().toFixed(1)+' m';hsnE.className=s?'':'no';
-  hsgE.textContent=s&&g>=0?gradeLabel(RATES[g][0]):'\u2013';hsgE.className=s&&g>=0?'g-'+RATES[g][0].replace('+','p'):'';
+  hsgE.textContent=s&&g>=0?gradeLabel(RATES[g][0]):'\u2013';updateProgress();hsgE.className=s&&g>=0?'g-'+RATES[g][0].replace('+','p'):'';
   if(dir){cardE.style.setProperty('--dx',dir*60+'px');cardE.style.animation='none';void cardE.offsetWidth;cardE.style.animation=''}}
+// progress strip: how far through the game you are
+function updateProgress(){const el=document.getElementById('prog');if(!el)return;const real=LV.map((l,i)=>i).filter(i=>!LV[i].tutorial);
+  const legends=real.filter(i=>bestG[i]===0&&best[i]>0).length,played=real.filter(i=>best[i]>0).length;
+  el.innerHTML='<span>LEGEND <b>'+legends+'/'+real.length+'</b></span><span>FINISHED <b>'+played+'/'+real.length+'</b></span>'+(typeof GEAR!=='undefined'?'<span>GEAR <b>'+gear.unlocked.length+'/'+GEAR.length+'</b></span>':'')}
+// results screen: preview of the next level
+function updateNextCard(){const nc=document.getElementById('nextcard');if(!nc)return;const ni=(cur+1)%LV.length,l=LV[ni];
+  if(!l||l.tutorial||LVc!==LV[cur]){nc.style.display='none';return}nc.style.display='';
+  document.getElementById('nextname').textContent=(ni+1)+'. '+l.n;
+  document.getElementById('nextbest').textContent=best[ni]?'Best '+best[ni].toLocaleString()+(bestG[ni]>=0?' · '+gradeLabel(RATES[bestG[ni]][0]):''):'Not played yet';
+  const c=document.getElementById('nextth');thumb(l,c)}
 function selStep(d){sel=(sel+d+LV.length)%LV.length;showSel(d)}
 document.getElementById('pv').onclick=()=>selStep(-1);document.getElementById('nx').onclick=()=>selStep(1);
 cardE.onclick=()=>go(sel);document.getElementById('play').onclick=()=>go(sel);
@@ -93,12 +107,12 @@ function openMenu(fin){commitRun();paused=true;customizer.style.display='none';d
   if(fin){mh.textContent=LVc.endless?'⛷️ Run over · '+(st.endM||0).toLocaleString()+' m':st.sharkDeath?'🦈 Shark snack!':st.fireDeath?'🔥 Burned to a crisp!':'\u{1F3C1} '+LVc.n+' complete!';ms.textContent=st.sharkDeath?'The shark got you. Jump higher next time!':st.fireDeath?(st.lavaDeath?'You fell in the lava. F FOR FIRE!!!':'You touched the flames. F FOR FIRE!!!'):'';fb.style.display='flex';document.getElementById('replay-menu').style.display=RP.n>1?'':'none';runTally=true}
   else{tId++;fxStop();mh.textContent='Powder Legends';ms.textContent='Choose a level';fb.style.display='none'}
   document.getElementById('customizer').style.display='none';document.getElementById('sc').style.display='';customOpen.style.display=fin?'none':'';
-  mEl.style.display='flex';
+  mEl.style.display='flex';if(fin)updateNextCard();
   if(runTally){scE.style.setProperty('display','block','important');scE.style.visibility='visible';scE.style.opacity='1';tally()}
 }
 document.getElementById('again').onclick=()=>go(cur);
 document.getElementById('all').onclick=()=>openMenu();
-document.getElementById('next').onclick=()=>go((cur+1)%LV.length);
+document.getElementById('next').onclick=()=>go((cur+1)%LV.length);document.getElementById('nextcard').onclick=()=>go((cur+1)%LV.length);
 document.getElementById('replay-open').onclick=()=>startReplay();document.getElementById('replay-menu').onclick=()=>startReplay();
 function replaySetStatus(){const el=document.getElementById('replay-status');el.textContent=(replaySpeed===0?'PAUSED':replaySpeed<0?'REWIND':replaySpeed<1?'SLOW MO':'PLAY')+' · '+Math.max(0,Math.min(100,Math.round(replayIndex/Math.max(1,RP.n-1)*100)))+'%'}
 function startReplay(){if(RP.n<2)return;const controls=document.getElementById('replay-controls');if(controls.parentElement!==document.body)document.body.appendChild(controls);replayLiveP=P.map(p=>({...p}));replayLiveCam={...cam};replayLiveZoom=zoom;replayMode=true;paused=true;replayIndex=0;replaySpeed=1;P=rpPose(0,0,0);snap=null;controls.style.setProperty('display','flex','important');controls.style.setProperty('visibility','visible','important');controls.style.setProperty('opacity','1','important');controls.style.setProperty('pointer-events','auto','important');controls.style.zIndex='2147483647';document.getElementById('replay-open').style.display='none';mEl.style.display='none';document.exitPointerLock&&document.exitPointerLock();replaySetStatus()}
