@@ -1,25 +1,41 @@
-// ======================= INTRO SCREEN: animated sunset =======================
-// Drawn on one canvas: sunset sky, glowing sun, drifting cloud streaks, three rim-lit mountain ranges, a
-// foreground slope with a kicker, a silhouetted skier backflipping across the sun on a loop, and falling snow.
+// ======================= INTRO SCREEN: sunset + snow-gust title =======================
+// Drawn on one canvas: sunset sky, glowing sun, drifting cloud streaks, three rim-lit mountain ranges, a foreground
+// slope and falling snow. The title arrives as a gust of snow: flakes blow in from the left, swirl, and settle into the
+// shape of the POWDER LEGENDS letters; then the solid title fades in and the loose powder blows away.
 (function(){
-const fc=document.getElementById('introFx'),g=fc.getContext('2d');let w=0,h=0,flakes=[];
+const fc=document.getElementById('introFx'),g=fc.getContext('2d'),logo=document.getElementById('introLogo');
+const reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+let w=0,h=0,flakes=[],gust=[],revealed=false,t0=performance.now();
+const GATHER_END=2.05,REVEAL_AT=1.95,BLOW_OFF=1.1;   // seconds: flakes settle by GATHER_END; title fades in at REVEAL_AT; leftover powder blows off over BLOW_OFF
+function reveal(){if(revealed)return;revealed=true;logo.classList.add('revealed');intro.classList.add('revealed')}
 function size(){const d=Math.min(devicePixelRatio||1,2);fc.width=Math.round(innerWidth*d);fc.height=Math.round(innerHeight*d);g.setTransform(d,0,0,d,0,0);w=innerWidth;h=innerHeight;
   flakes=Array.from({length:COARSE?40:90},()=>({x:Math.random()*w,y:Math.random()*h,r:.6+Math.random()*1.8,v:12+Math.random()*28,p:Math.random()*6}))}
-size();addEventListener('resize',size);
-const ridge=(x,s,sharp)=>{const a=Math.sin(x/180+s)*.5+Math.sin(x/77+s*2.1)*.3+Math.sin(x/33+s*.7)*.12,pk=1-Math.abs(Math.sin(x/(120+s*15)+s));return (a*.5+.5)*(1-sharp)+pk*pk*sharp};
-const ground=x=>h*.76+(x/w)*h*.13;                       // foreground slope, falling to the right
-const KX=()=>w*.3;                                        // kicker position
-function groundK(x){const k=KX(),u=(x-(k-w*.07))/(w*.07);return ground(x)-(u>0&&u<=1?Math.sin(u*Math.PI/2)*h*.035:0)}
-function skier(x,y,ang,crouch){   // simple silhouette: skis, legs, body, arm, head
-  g.save();g.translate(x,y);g.rotate(ang);g.strokeStyle='#14081f';g.fillStyle='#14081f';g.lineCap='round';
-  const s=Math.max(.7,Math.min(1.4,h/700));g.scale(s,s);
-  g.lineWidth=3.5;g.beginPath();g.moveTo(-24,0);g.lineTo(26,0);g.stroke();                               // skis
-  const kn=crouch?[-4,-14]:[-1,-17],hp=crouch?[-10,-22]:[-6,-30],sh=crouch?[2,-34]:[0,-46];
-  g.lineWidth=5;g.beginPath();g.moveTo(0,-3);g.lineTo(kn[0],kn[1]);g.lineTo(hp[0],hp[1]);g.lineTo(sh[0],sh[1]);g.stroke();   // legs + body
-  g.lineWidth=3.5;g.beginPath();g.moveTo(sh[0],sh[1]+3);g.lineTo(sh[0]+14,sh[1]+(crouch?6:10));g.stroke();                   // arm
-  g.beginPath();g.arc(sh[0]+3,sh[1]-7,6,0,7);g.fill();g.restore();
+size();addEventListener('resize',()=>{size();gust.length=0;reveal()});   // a resize mid-gust: just show the title
+
+// ---- sample the real title's letter shapes into target points for the snow
+function buildGust(){
+  const spans=[...document.querySelectorAll('#introTitle span')];if(!spans.length)return[];
+  const oc=document.createElement('canvas');oc.width=Math.ceil(w);oc.height=Math.ceil(h);const o=oc.getContext('2d');o.fillStyle='#fff';o.textBaseline='middle';
+  for(const sp of spans){const r=sp.getBoundingClientRect(),cs=getComputedStyle(sp),ls=parseFloat(cs.letterSpacing)||0;
+    o.font=cs.fontWeight+' '+cs.fontSize+' '+cs.fontFamily;
+    const txt=sp.textContent,total=[...txt].reduce((a,ch)=>a+o.measureText(ch).width+ls,0)-ls;
+    let x=r.left+(r.width-total-ls)/2+ls/2;const y=r.top+r.height/2;   // centre the run the same way the page does
+    for(const ch of txt){o.fillText(ch,x,y);x+=o.measureText(ch).width+ls}}
+  const area=spans.reduce((a,s)=>{const r=s.getBoundingClientRect();return a+r.width*r.height},0);
+  const cap=COARSE?2200:4200,step=Math.max(2,Math.ceil(Math.sqrt(area*.4/cap)));   // keep the flake count bounded on any screen
+  const img=o.getImageData(0,0,oc.width,oc.height).data,pts=[];
+  for(let y=0;y<oc.height;y+=step)for(let x=0;x<oc.width;x+=step)if(img[(y*oc.width+x)*4+3]>140)pts.push([x+(Math.random()-.5)*step*.6,y+(Math.random()-.5)*step*.6]);
+  return pts.map(([tx,ty])=>({tx,ty,
+    sx:-40-Math.random()*w*.45,sy:ty+(Math.random()-.5)*h*.5-h*.08,   // start off-screen left, scattered
+    delay:(tx/w)*.75+Math.random()*.25,dur:.85+Math.random()*.35,   // sweep in left to right
+    sw:(Math.random()-.5)*60,ph:Math.random()*6.28,s:step*(.55+Math.random()*.35),
+    bvx:30+Math.random()*90,bvy:-10-Math.random()*40,tw:Math.random()*6.28}));
 }
-let t0=performance.now();
+if(reduceMotion)reveal();else requestAnimationFrame(()=>{gust=buildGust();if(!gust.length)reveal()});
+
+const ridge=(x,s,sharp)=>{const a=Math.sin(x/180+s)*.5+Math.sin(x/77+s*2.1)*.3+Math.sin(x/33+s*.7)*.12,pk=1-Math.abs(Math.sin(x/(120+s*15)+s));return (a*.5+.5)*(1-sharp)+pk*pk*sharp};
+const ground=x=>h*.76+(x/w)*h*.13;   // foreground slope, falling to the right
+const ease=u=>1-Math.pow(1-u,3);
 function frame(now){
   if(intro.style.display==='none')return;
   const t=(now-t0)/1000;g.clearRect(0,0,w,h);
@@ -41,19 +57,26 @@ function frame(now){
     const off=t*12*par;g.fillStyle=col;g.beginPath();g.moveTo(0,h);const pts=[];
     for(let x=0;x<=w+12;x+=12){const y=h*base-M*amp*ridge(x+off,seed,sharp);pts.push([x,y]);g.lineTo(x,y)}g.lineTo(w,h);g.closePath();g.fill();
     if(rim){g.strokeStyle=rim;g.lineWidth=1.5;g.beginPath();pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.stroke()}});
-  // foreground slope with kicker
-  g.fillStyle='#14081f';g.beginPath();g.moveTo(0,h);for(let x=0;x<=w+8;x+=8)g.lineTo(x,groundK(x));g.lineTo(w,h);g.closePath();g.fill();
-  g.strokeStyle='rgba(255,140,110,.45)';g.lineWidth=1.5;g.beginPath();for(let x=0;x<=w+8;x+=8)x?g.lineTo(x,groundK(x)):g.moveTo(x,groundK(x));g.stroke();
-  // skier loop: ride in, launch off the kicker, backflip across the sun, land, ride out
-  {const P=4.2,u=(t%P)/P,k=KX(),x1=w*.8;let x,y,a,cr=false;
-    if(u<.3){x=-w*.06+(k+w*.06)*(u/.3);y=groundK(x);a=Math.atan(h*.13/w);cr=u>.18}
-    else if(u<.72){const v=(u-.3)/.42;x=k+(x1-k)*v;const y0=groundK(k),y1=ground(x1);y=y0+(y1-y0)*v-Math.sin(v*Math.PI)*Math.min(h*.3,w*.32);a=Math.atan(h*.13/w)-v*Math.PI*2;cr=v>.2&&v<.8}
-    else{const v=(u-.72)/.28;x=x1+(w*1.08-x1)*v;y=ground(x);a=Math.atan(h*.13/w);cr=v<.15}
-    skier(x,y,a,cr)}
+  // foreground slope
+  g.fillStyle='#14081f';g.beginPath();g.moveTo(0,h);for(let x=0;x<=w+8;x+=8)g.lineTo(x,ground(x));g.lineTo(w,h);g.closePath();g.fill();
+  g.strokeStyle='rgba(255,140,110,.45)';g.lineWidth=1.5;g.beginPath();for(let x=0;x<=w+8;x+=8)x?g.lineTo(x,ground(x)):g.moveTo(x,ground(x));g.stroke();
   // falling snow
   g.fillStyle='rgba(255,240,245,.8)';for(const f of flakes){f.y+=f.v/60;f.x+=Math.sin(t+f.p)*.3;if(f.y>h){f.y=-4;f.x=Math.random()*w}g.globalAlpha=.4+f.r/3;g.beginPath();g.arc(f.x,f.y,f.r,0,7);g.fill()}g.globalAlpha=1;
   // vignette
   const vg=g.createRadialGradient(w/2,h*.45,Math.min(w,h)*.35,w/2,h*.5,Math.max(w,h)*.8);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(10,0,25,.55)');g.fillStyle=vg;g.fillRect(0,0,w,h);
+  // the snow gust that forms the title
+  if(gust.length){
+    if(t>=REVEAL_AT)reveal();
+    const blow=Math.max(0,t-GATHER_END)/BLOW_OFF;   // 0 → 1 as the leftover powder blows away
+    if(blow>=1)gust.length=0;
+    else{g.fillStyle='#f6f9ff';
+      for(const p of gust){const u=Math.min(1,Math.max(0,(t-p.delay)/p.dur));if(u<=0)continue;const e=ease(u);
+        let x=p.sx+(p.tx-p.sx)*e+Math.sin(p.ph+u*7)*p.sw*(1-e),y=p.sy+(p.ty-p.sy)*e+Math.cos(p.ph+u*5)*p.sw*.5*(1-e);
+        let a=Math.min(1,u*3)*(.75+.25*Math.sin(t*6+p.tw));
+        if(blow>0){const b=blow*blow;x+=p.bvx*b;y+=p.bvy*b;a*=1-blow}
+        g.globalAlpha=a;g.fillRect(x-p.s/2,y-p.s/2,p.s,p.s)}
+      g.globalAlpha=1}
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

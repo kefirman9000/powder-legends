@@ -26,6 +26,7 @@ function mkLevel(){const k=track(),sl=dbg.slope,a=-dbg.kAng,L=dbg.kLen;k.line(90
   return Object.assign({},LV.find(l=>l.n==='Pine Hop')||LV[0],{n:'Debug Slope',d:'',T:k.t,fin:1e9,build:null,cliff:false})}
 function applyLevel(){LVc=mkLevel();T=LVc.T;FINISH=LVc.fin}
 function start(){tId++;fxStop();popsE.replaceChildren();dbg.on=true;dbg.frozen=false;dbg.ts=1;dbg.stepN=0;dbg.trail.length=0;dbg.hist.length=0;applyLevel();closeMenu();reset();sync()}
+window.exitDebug=()=>exit();
 function exit(){if(!dbg.on)return;dbg.on=false;dbg.frozen=false;dbg.ts=1;TL.forEach(t=>SE(t[1],DEF[t[1]]));panel.style.display='none'}
 const _go=go;go=function(){exit();return _go.apply(this,arguments)};
 const _om=openMenu;openMenu=function(f){if(dbg.on&&f===true){reset();return}return _om.apply(this,arguments)};   // a run can never "finish" or save a score in debug mode
