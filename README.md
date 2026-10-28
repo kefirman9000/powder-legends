@@ -46,6 +46,9 @@ The game is edited as separate files in `src/` and built into the single `index.
 | `src/js/hud.js` | Trick popups and score display |
 | `src/js/haptics.js` | Phone vibration |
 | `src/js/fx.js` | Fireworks and results-screen effects |
+| `src/js/scenery.js` | Parallax mountains and falling snow / ash |
+| `src/js/gear.js` | Unlockable special gear: unlock rules, customizer panel, effects |
+| `src/js/skijump.js` | Ski Jump Hill: distance measuring, hill record, markers |
 | `src/js/props.js` | Trees, rocks, crates, replay recorder |
 | `src/js/levels.js` | **All levels** (terrain + obstacles) |
 | `src/js/menu.js` | Level select, grades, awards, results screen |
@@ -53,5 +56,5 @@ The game is edited as separate files in `src/` and built into the single `index.
 | `src/js/main.js` | Game loop |
 | `src/js/audio.js`, `debug.js`, `updater.js` | Sound, debug mode, in-game updater |
 
-**Build:** `python3 tools/build.py` (no installs needed). A GitHub Action also rebuilds `index.html`
+**Build:** `python3 tools/build.py` (no installs needed; if Node is installed it also syntax-checks the game and refuses to write a broken build). A GitHub Action also rebuilds `index.html`
 automatically whenever `src/` changes on `main`, so editing on github.com works too.

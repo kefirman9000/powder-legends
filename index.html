@@ -4,8 +4,8 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.1.0';
-window.GAME_NOTES='3 new levels (Rickety Bridge, Volcano Run, Lantern Forest), a Ski School tutorial, a camera that pulls back at speed and in big air, and phone vibration.';
+window.GAME_VERSION='1.2.0';
+window.GAME_NOTES='New Ski Jump Hill with a longest-jump record, 9 pieces of unlockable glowing gear, parallax mountains, and falling snow (ash on Volcano Run).';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
 window.verCmp=function(a,b){a=String(a).split('.').map(Number);b=String(b).split('.').map(Number);for(var i=0;i<Math.max(a.length,b.length);i++){var d=(a[i]||0)-(b[i]||0);if(d)return d>0?1:-1}return 0};
@@ -338,7 +338,7 @@ function stepColor(dir){const part=currentPart();let i=COLOR_PALETTE.findIndex(c
 document.getElementById('part-prev').addEventListener('click',()=>stepPart(-1));document.getElementById('part-next').addEventListener('click',()=>stepPart(1));document.getElementById('color-prev').addEventListener('click',()=>stepColor(-1));document.getElementById('color-next').addEventListener('click',()=>stepColor(1));document.querySelectorAll('#custom-color-picker input[data-filter]').forEach(input=>input.addEventListener('input',()=>{colorAdjustments[currentPart()][input.dataset.filter]=Number(input.value);applySkierColors()}));
 document.getElementById('custom-reset').addEventListener('click',()=>{baseSkierColors={...DEFAULT_SKIER_COLORS};colorAdjustments=Object.fromEntries(Object.keys(DEFAULT_SKIER_COLORS).map(k=>[k,{brightness:100,saturation:100}]));applySkierColors()});
 const customizer=document.getElementById('customizer'),selPanel=document.getElementById('sel'),customOpen=document.getElementById('customize-open');
-function showCustomize(){customizer.style.display='block';customizer.setAttribute('aria-hidden','false');drawCustomizationPreview()}
+function showCustomize(){customizer.style.display='block';if(window.gearPanel)gearPanel();customizer.setAttribute('aria-hidden','false');drawCustomizationPreview()}
 function hideCustomize(){customizer.style.display='none';customizer.setAttribute('aria-hidden','true')}
 customOpen.addEventListener('click',showCustomize);document.getElementById('custom-back').addEventListener('click',hideCustomize);
 applySkierColors();
@@ -432,7 +432,7 @@ function drawCheckpoints(){
   }
 }
 function reset(){
-  camSnap();
+  camSnap();sceneryReset();gearReset();if(LVc&&LVc.onReset)LVc.onReset();
   headHitFx=0; // clear concussion flash/dizziness whenever a level or full run is reset
   rpClear();replayMode=false;document.getElementById("replay-controls").style.removeProperty('display');document.getElementById("replay-controls").style.display="none";document.getElementById("replay-open").style.display="none";document.getElementById("replay-menu").style.display="none";
   clearTrickHUD();
@@ -461,6 +461,7 @@ function resetSkisHere(){
 }
 // Put a fresh skier back on the snow at x0 (no penalty). Used by Reset Skis and the tutorial.
 function respawnAt(x0){
+  if(LVc&&LVc.onReset)LVc.onReset();
   const g=ter(x0), ux=g.tx,uy=g.ty,nx=g.ty,ny=-g.tx;
   // Fully clear stale input/control state so the first movement after a checkpoint reset works normally.
   headHitFx=0;lastM=null;lastMove=performance.now();braking=false;brakeT=0;fingers.length=0;
@@ -938,7 +939,7 @@ function draw(){
   cx.setTransform(1,0,0,1,0,0);
   const sk=cx.createLinearGradient(0,0,0,H);sk.addColorStop(0,LVc.sky[0]);sk.addColorStop(1,LVc.sky[1]);
   cx.fillStyle=sk;cx.fillRect(0,0,W,H);
-  cx.fillStyle=LVc.far;cx.beginPath();cx.moveTo(0,H);for(let X=0;X<=W+30;X+=30){const wx=X/Z+cam.x*.12;cx.lineTo(X,H*.78-cam.y*.1*Z-Z*(70*Math.sin(wx/260)+35*Math.sin(wx/97+1)))}cx.lineTo(W,H);cx.fill();   // distant ridge (parallax)
+  drawMountains();   // parallax mountain layers (scenery.js)
   zoom+=(zoomT-zoom)*(1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale
   const ck=1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
   cx.setTransform(Z,0,0,Z,-cam.x*Z,-cam.y*Z);
@@ -1001,6 +1002,7 @@ function draw(){
     if(!sk||!wt||sk.done)sharkAlpha=0;else if(sk.vy>0&&sk.y>wt.y)sharkAlpha=Math.max(0,1-(sk.y-wt.y)/230)}
   if((!st.fireDeath || burnAge<3.15)&&(!st.sharkDeath||sharkAlpha>0)){
   cx.save();if(st.fireDeath)cx.globalAlpha=Math.max(0,1-burnAge/3.15);if(st.sharkDeath)cx.globalAlpha=sharkAlpha;
+  {const ga=cx.globalAlpha;drawGearBack(Q);cx.globalAlpha=ga}   // unlockable gear: trails and wings (gear.js)
   ln(Q[0],Q[1],4,st.fireDeath?'#111111':dmg>70?'#8f2f26':dmg>35?'#b8362b':skierColors.skis);
   { // flat boot: sole lies along the ski, heel under the ankle, toe pointing forward
     const ux=(Q[1].x-Q[0].x),uy=(Q[1].y-Q[0].y),l=Math.hypot(ux,uy)||1,u={x:ux/l,y:uy/l},n={x:u.y,y:-u.x};
@@ -1017,6 +1019,7 @@ function draw(){
   cx.fillStyle=st.fireDeath?'#080808':'#fcd9b8';cx.beginPath();cx.arc(Q[6].x,Q[6].y,5.5,0,Math.PI*2);cx.fill();
   {const torsoAngle=Math.atan2(Q[5].y-Q[4].y,Q[5].x-Q[4].x);cx.save();cx.translate(Q[6].x,Q[6].y);cx.rotate(torsoAngle+Math.PI/4); // slight 45-degree right tilt of the head/helmet
    cx.fillStyle=st.fireDeath?'#080808':damageTint(skierColors.helmet);cx.beginPath();cx.arc(0,-2,6,Math.PI,Math.PI*2);cx.lineTo(6,0);cx.lineTo(-6,0);cx.closePath();cx.fill();cx.restore();}
+  {const ga=cx.globalAlpha;drawGearFront(Q);cx.globalAlpha=ga}   // unlockable gear: glowing skis, suit, helmet (gear.js)
   // Fire clings to the whole skier after contact: separate small, flickering tongues
   // follow the skis/boots, legs, torso, arms, and head without scaling the body.
   if(st.fireDeath&&burnAge<2.35){
@@ -1062,6 +1065,7 @@ function draw(){
     }
   }
   drawShark();drawWaterFront();drawLava();
+  cx.setTransform(1,0,0,1,0,0);drawWeather();   // falling snow / ash in front of everything (scenery.js)
   const t=st.msg||'';
   if(hud.textContent!==t){hud.textContent=t;hud.style.display=t?'block':'none'}
   // If a collision marks the just-processed touchdown as a crash later in the same frame,
@@ -1342,6 +1346,133 @@ function fxLoop(t){if(!fxRun)return;const dt=Math.min(.05,(t-fxL)/1000)*60;fxL=t
     else if(p.k===6){p.x+=p.vx*dt;p.y+=p.vy*dt;p.z*=.994;fg.globalCompositeOperation='lighter';fg.globalAlpha=a;fg.fillStyle=p.h<15?'#ff2700':p.h<35?'#ff8a00':'#fff19a';fg.shadowColor='#ff3b00';fg.shadowBlur=p.z;fg.beginPath();fg.moveTo(p.x,p.y-p.z);fg.quadraticCurveTo(p.x+p.z*.85,p.y-p.z*.1,p.x,p.y+p.z*.55);fg.quadraticCurveTo(p.x-p.z*.75,p.y-p.z*.1,p.x,p.y-p.z);fg.fill();fg.shadowBlur=0;fg.globalAlpha=1}
     else{p.vx+=(RM()-.5)*.9*dt;p.vy+=(RM()-.5)*.9*dt;p.vx*=.9;p.vy*=.9;p.x=(p.x+p.vx*dt*2+w)%w;p.y=(p.y+p.vy*dt*2+h)%h;fg.globalCompositeOperation='source-over';fg.fillStyle='#111';fg.beginPath();fg.arc(p.x,p.y,p.z,0,7);fg.fill();fg.fillStyle='#fff7';fg.fillRect(p.x-3,p.y-2,2,1);fg.fillRect(p.x+1,p.y-2,2,1)}}
   fxP=fxP.filter(p=>p.l>0&&p.y<h+30);if(fxP.length>FXP_MAX)fxP.splice(0,fxP.length-FXP_MAX);requestAnimationFrame(fxLoop)}
+// ======================= SCENERY: parallax mountains + weather =======================
+// Both are drawn in screen space. Colours come from each level's sky / far colours, so every level gets
+// a matching backdrop without extra setup. A level can set weather:'snow' | 'ash' | 'none' (default 'snow').
+function hexRgb(h){const n=parseInt(h.slice(1),16);return[n>>16&255,n>>8&255,n&255]}
+function mixHex(a,b,t){const A=hexRgb(a),B=hexRgb(b);return'rgb('+A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')+')'}
+// three mountain layers: furthest first. px = sideways parallax, py = vertical drift with the descent,
+// base = horizon height (fraction of screen), amp = peak height, sharp = how jagged the peaks are
+const MTN=[{px:.04,py:.012,base:.6,amp:150,sharp:.55,seed:1.7,haze:.6,cap:1},
+           {px:.09,py:.03,base:.7,amp:115,sharp:.35,seed:4.1,haze:.32,cap:.6},
+           {px:.17,py:.06,base:.8,amp:80,sharp:.15,seed:7.3,haze:0,cap:0}];
+let mtnY0=null;
+function mtnHeight(L,wx){const s=L.seed;let h=Math.sin(wx/310+s)*.5+Math.sin(wx/131+s*2.3)*.3+Math.sin(wx/57+s*.7)*.2;   // -1..1 rolling
+  const pk=1-Math.abs(Math.sin(wx/(190+s*20)+s));return (h*.5+.5)*(1-L.sharp)+pk*pk*L.sharp}                          // add pointy peaks
+function drawMountains(){
+  const sc=ZB*zoom;if(mtnY0===null)mtnY0=cam.y;
+  const step=Math.max(16,Math.round(W/70));
+  MTN.forEach((L,li)=>{
+    const col=mixHex(LVc.far,LVc.sky[1],L.haze),top=mixHex(LVc.far,'#ffffff',.1+L.cap*.25);
+    const drift=Math.max(-.12*H,Math.min(.25*H,(cam.y-mtnY0)*L.py*sc)),baseY=H*L.base-drift;
+    const g=cx.createLinearGradient(0,baseY-L.amp*sc,0,baseY+40*sc);g.addColorStop(0,top);g.addColorStop(.45,col);g.addColorStop(1,col);
+    cx.fillStyle=g;cx.beginPath();cx.moveTo(0,H);
+    for(let X=0;X<=W+step;X+=step){const wx=X/sc+cam.x*L.px;cx.lineTo(X,baseY-L.amp*sc*mtnHeight(L,wx))}
+    cx.lineTo(W,H);cx.closePath();cx.fill();
+  });
+}
+// ---- weather: particles live in screen pixels and are pushed by the camera, nearer flakes moving more
+const WX={n:COARSE?55:140,p:[],lastX:null,lastY:null,kind:null};
+function weatherKind(){return(LVc&&LVc.weather)||'snow'}
+function wxSpawn(p,anywhere){const k=WX.kind,d=.35+Math.random()*.65;p.d=d;p.x=Math.random()*W;p.y=anywhere?Math.random()*H:-10;p.ph=Math.random()*6.28;
+  if(k==='ash'){p.ember=Math.random()<.18;p.vy=(p.ember?-25:35+Math.random()*25)*d;p.vx=(Math.random()-.5)*20;p.r=(p.ember?1.4:1.6+Math.random()*1.6)*d;if(p.ember&&!anywhere)p.y=H+10}
+  else{p.ember=false;p.vy=(45+Math.random()*45)*d;p.vx=(Math.random()-.5)*15;p.r=(1+Math.random()*1.8)*d}}
+function drawWeather(){
+  const k=weatherKind();if(k==='none'||!st)return;
+  if(WX.kind!==k||!WX.p.length){WX.kind=k;WX.p=Array.from({length:WX.n},()=>{const p={};wxSpawn(p,true);return p})}
+  const dpr=window.DPR||1,dt=Math.min(fdt,.05),dX=WX.lastX===null?0:(cam.x-WX.lastX)*Z,dY=WX.lastY===null?0:(cam.y-WX.lastY)*Z;WX.lastX=cam.x;WX.lastY=cam.y;
+  const jump=Math.abs(dX)>W*.5||Math.abs(dY)>H*.5,t=performance.now()/1000;   // camera teleported (respawn / new level): don't smear
+  cx.save();
+  for(const p of WX.p){
+    if(!paused||replayMode){p.x+=(p.vx+Math.sin(t*1.3+p.ph)*12)*dt*dpr-(jump?0:dX*p.d*.6);p.y+=p.vy*dt*dpr-(jump?0:dY*p.d*.6)}
+    if(p.y>H+12){p.y-=H+20;p.x=Math.random()*W}else if(p.y<-14){p.y+=H+20;p.x=Math.random()*W}
+    if(p.x<-12)p.x+=W+20;else if(p.x>W+12)p.x-=W+20;
+    const r=p.r*dpr*1.3;
+    if(p.ember){cx.globalCompositeOperation='lighter';cx.fillStyle='rgba(255,'+(120+Math.round(60*Math.sin(t*6+p.ph)))+',40,'+(.55+.35*Math.sin(t*4+p.ph))+')';cx.beginPath();cx.arc(p.x,p.y,r,0,7);cx.fill()}
+    else{cx.globalCompositeOperation='source-over';cx.fillStyle=k==='ash'?'rgba(70,64,62,'+(.35+.4*p.d)+')':'rgba(255,255,255,'+(.4+.5*p.d)+')';cx.fillRect(p.x-r,p.y-r,r*2,r*2)}
+  }
+  cx.restore();
+}
+function sceneryReset(){mtnY0=null;WX.lastX=null;WX.lastY=null;WX.p.length=0}
+// ======================= UNLOCKABLE GEAR =======================
+// Special-effect gear, earned by finishing certain levels (with your skis still on). One item per slot can be
+// worn at a time; equip it in the customizer. Effects are drawn on top of the normal skier, using additive
+// "lighter" blending for glow so they stay cheap on phones (no canvas shadow blur).
+const GEAR=[
+ {id:'ice',   slot:'skis',  ic:'❄️',name:'Ice Crystal Skis',how:'Finish Icefall Slalom',  level:'Icefall Slalom'},
+ {id:'lava',  slot:'skis',  ic:'🌋',name:'Lava Skis',       how:'Finish Volcano Run',     level:'Volcano Run'},
+ {id:'neon',  slot:'suit',  ic:'💡',name:'Neon Suit',       how:'Finish Lantern Forest',  level:'Lantern Forest'},
+ {id:'ghost', slot:'suit',  ic:'👻',name:'Ghost Suit',      how:'Finish Death Valley',    level:'Death Valley'},
+ {id:'gold',  slot:'helmet',ic:'👑',name:'Gold Helmet',     how:'Finish Mega Ramp',       level:'Mega Ramp'},
+ {id:'fin',   slot:'helmet',ic:'🦈',name:'Shark Fin Helmet',how:'Finish Shark Pool',      level:'Shark Pool'},
+ {id:'sparks',slot:'trail', ic:'🎆',name:'Firework Trail',  how:'Finish Fireworks Hill',  level:'Fireworks Hill'},
+ {id:'aurora',slot:'trail', ic:'🌌',name:'Aurora Trail',    how:'Finish The Long Haul',   level:'The Long Haul'},
+ {id:'wings', slot:'trail', ic:'🪽',name:'Jump Wings',      how:'Land 100 m on Ski Jump Hill'}
+];
+const GSLOTS={skis:'Skis',suit:'Suit',helmet:'Helmet',trail:'Trail'};
+let gear={unlocked:[],on:{}};
+try{const g=JSON.parse(localStorage.getItem('skiGear')||'null');if(g&&Array.isArray(g.unlocked))gear={unlocked:g.unlocked,on:g.on||{}}}catch(e){}
+const gearSave=()=>{try{localStorage.setItem('skiGear',JSON.stringify(gear))}catch(e){}};
+const gearHas=id=>gear.unlocked.includes(id),gearOn=slot=>gear.on[slot]||null;
+function gearUnlock(id){if(gearHas(id))return false;gear.unlocked.push(id);const g=GEAR.find(x=>x.id===id);if(g&&!gear.on[g.slot])gear.on[g.slot]=id;gearSave();return true}   // a new item is worn right away if that slot is empty
+function gearSync(){GEAR.forEach(g=>{if(g.level){const i=LV.findIndex(l=>l.n===g.level);if(i>=0&&best[i]>0)gearUnlock(g.id)}})}   // players who already beat a level get its gear
+function gearNewUnlocks(){   // called by the results screen
+  if(!st||!st.finishedLevel||st.noSkiFinish||!LVc)return[];
+  return GEAR.filter(g=>g.level===LVc.n&&gearUnlock(g.id));
+}
+function gearJump(m){if(m>=100&&gearUnlock('wings'))spray('UNLOCKED: JUMP WINGS','equip them in Customize',true)}
+// ---- customizer panel
+function gearPanel(){
+  gearSync();let box=document.getElementById('gear-panel');
+  if(!box){box=document.createElement('div');box.id='gear-panel';const a=document.getElementById('custom-actions');a.parentNode.insertBefore(box,a)}
+  box.innerHTML='<h4>✨ Special gear <span>'+gear.unlocked.length+' / '+GEAR.length+' unlocked</span></h4>'+Object.keys(GSLOTS).map(slot=>'<div class="gslot"><b>'+GSLOTS[slot]+'</b><div class="gitems">'+
+    GEAR.filter(g=>g.slot===slot).map(g=>{const has=gearHas(g.id),on=gear.on[slot]===g.id;return '<button type="button" class="gi'+(has?'':' locked')+(on?' on':'')+'" data-id="'+g.id+'"'+(has?'':' disabled')+' title="'+(has?g.name+(on?' (click to take off)':' (click to wear)'):'Locked: '+g.how)+'"><span class="gic">'+(has?g.ic:'🔒')+'</span><span class="gn">'+g.name+'</span><span class="gh">'+(has?(on?'WEARING':'tap to wear'):g.how)+'</span></button>'}).join('')+'</div></div>').join('');
+  box.querySelectorAll('.gi:not(.locked)').forEach(b=>b.onclick=()=>{const g=GEAR.find(x=>x.id===b.dataset.id);gear.on[g.slot]=gear.on[g.slot]===g.id?null:g.id;gearSave();gearPanel()});
+}
+{const css=document.createElement('style');css.textContent=`
+#gear-panel{max-width:620px;margin:12px auto 0;padding:10px;border-radius:12px;background:#ffffff0b;border:1px solid #ffffff18}
+#gear-panel h4{margin:0 0 8px;font:800 13px system-ui;letter-spacing:.06em;color:#ffd36b;display:flex;justify-content:space-between}#gear-panel h4 span{color:#9fb6cc;font-weight:600;letter-spacing:0}
+.gslot{display:grid;grid-template-columns:56px 1fr;align-items:center;gap:8px;margin-top:6px}.gslot>b{font:700 11px system-ui;color:#bfe9ff;letter-spacing:.08em;text-transform:uppercase}
+.gitems{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.gi{display:grid;grid-template-columns:auto 1fr;column-gap:7px;align-items:center;text-align:left;padding:6px 8px;border-radius:9px;border:1px solid #ffffff28;background:#ffffff10;color:#fff;cursor:pointer;font:600 12px system-ui}
+.gi .gic{grid-row:1/3;font-size:20px}.gi .gh{font:600 9.5px system-ui;color:#9fb6cc;letter-spacing:.04em}
+.gi.on{border-color:#7cffa0;background:#7cffa022;box-shadow:0 0 12px #7cffa055}.gi.on .gh{color:#7cffa0}
+.gi.locked{opacity:.55;cursor:default}.gi:not(.locked):hover{background:#ffffff22}`;document.head.appendChild(css)}
+// ---- drawing
+const gfx={hist:[],sp:[],last:0};
+function gearReset(){gfx.hist.length=0;gfx.sp.length=0}
+const glowLine=(a,b,w,col,alpha)=>{cx.globalAlpha=alpha;cx.strokeStyle=col;cx.lineWidth=w;cx.lineCap='round';cx.beginPath();cx.moveTo(a.x,a.y);cx.lineTo(b.x,b.y);cx.stroke()};
+function drawGearBack(Q){   // behind the skier: trails and wings
+  const t=performance.now()/1000,tr=gearOn('trail'),air=st&&st.onAir;
+  gfx.hist.push({a:{x:Q[0].x,y:Q[0].y},b:{x:Q[1].x,y:Q[1].y},h:{x:Q[4].x,y:Q[4].y}});if(gfx.hist.length>26)gfx.hist.shift();
+  if(!tr||st.fireDeath)return;cx.save();cx.globalCompositeOperation='lighter';
+  if(tr==='aurora'){const H=gfx.hist;for(let i=1;i<H.length;i++){const u=i/H.length,c='hsl('+(130+u*170+Math.sin(t+i*.3)*20)+' 95% 62%)';
+      cx.globalAlpha=u*.55;cx.fillStyle=c;cx.beginPath();cx.moveTo(H[i-1].a.x,H[i-1].a.y);cx.lineTo(H[i].a.x,H[i].a.y);cx.lineTo(H[i].h.x,H[i].h.y);cx.lineTo(H[i-1].h.x,H[i-1].h.y);cx.closePath();cx.fill()}}
+  if(tr==='sparks'&&!paused){const v=Math.hypot(P[4].x-P[4].px,P[4].y-P[4].py);if(v>2&&gfx.sp.length<(COARSE?60:140))for(let k=0;k<2;k++){const s=Math.random()<.5?Q[0]:Q[1];gfx.sp.push({x:s.x,y:s.y,vx:(Math.random()-.5)*1.6,vy:-Math.random()*1.6,l:1,h:Math.random()*360})}}
+  if(tr==='wings'&&air){const s=Q[5],h=Q[4],ang=Math.atan2(s.y-h.y,s.x-h.x),flap=Math.sin(t*9)*.25,len=34;
+    cx.globalCompositeOperation='source-over';   // solid, outlined wings: glow blending vanishes against bright skies
+    for(const side of [-1,1]){cx.globalAlpha=.85;const g=cx.createLinearGradient(s.x,s.y,s.x-Math.cos(ang)*len,s.y-Math.sin(ang)*len);g.addColorStop(0,'rgba(255,255,255,.98)');g.addColorStop(1,'rgba(140,200,255,.35)');cx.fillStyle=g;cx.strokeStyle='#5d9be0';cx.lineWidth=1.2;cx.lineJoin='round';
+      cx.beginPath();cx.moveTo(s.x,s.y);for(let k=0;k<=4;k++){const a=ang+Math.PI+side*(.5+k*.22+flap),r=len*(1-k*.12);cx.lineTo(s.x+Math.cos(a)*r,s.y+Math.sin(a)*r)}cx.closePath();cx.fill();cx.stroke()}cx.globalCompositeOperation='lighter'}
+  for(const p of gfx.sp){if(!paused){p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.l-=.025}cx.globalAlpha=Math.max(0,p.l);cx.fillStyle='hsl('+p.h+' 100% 65%)';cx.fillRect(p.x-1.2,p.y-1.2,2.4,2.4)}
+  gfx.sp=gfx.sp.filter(p=>p.l>0);cx.restore();
+}
+function drawGearFront(Q){   // on top of the skier: skis, suit and helmet effects
+  if(!st||st.fireDeath)return;const t=performance.now()/1000,sk=gearOn('skis'),su=gearOn('suit'),he=gearOn('helmet');cx.save();
+  if(sk&&!st.skisOff){cx.globalCompositeOperation='lighter';
+    if(sk==='lava'){glowLine(Q[0],Q[1],10,'#ff5a14',.28+.08*Math.sin(t*8));glowLine(Q[0],Q[1],3.5,'#ffc04a',.95);
+      if(!paused&&Math.random()<.5)gfx.sp.push({x:Q[0].x+(Q[1].x-Q[0].x)*Math.random(),y:Q[0].y+(Q[1].y-Q[0].y)*Math.random(),vx:(Math.random()-.5)*.6,vy:-.4-Math.random()*.8,l:.8,h:20+Math.random()*25})}
+    if(sk==='ice'){glowLine(Q[0],Q[1],9,'#5fd8ff',.3);glowLine(Q[0],Q[1],3,'#e6fbff',.95);
+      for(let k=0;k<3;k++){const u=(t*.6+k/3)%1,x=Q[0].x+(Q[1].x-Q[0].x)*u,y=Q[0].y+(Q[1].y-Q[0].y)*u-3,s=2.5*Math.sin(u*Math.PI);cx.globalAlpha=.9;cx.strokeStyle='#ffffff';cx.lineWidth=1;cx.beginPath();cx.moveTo(x-s,y);cx.lineTo(x+s,y);cx.moveTo(x,y-s);cx.lineTo(x,y+s);cx.stroke()}}}
+  if(su){const limbs=[[2,3],[3,4],[4,5],[5,7]];cx.globalCompositeOperation='lighter';
+    if(su==='neon'){const hue=(t*60)%360;limbs.forEach(([a,b],i)=>{glowLine(Q[a],Q[b],9,'hsl('+((hue+i*40)%360)+' 100% 60%)',.3);glowLine(Q[a],Q[b],2,'hsl('+((hue+i*40)%360)+' 100% 82%)',.9)})}
+    if(su==='ghost'){const H=gfx.hist;for(let k=1;k<=3;k++){const o=H[Math.max(0,H.length-1-k*5)];if(!o)continue;const dx=o.h.x-Q[4].x,dy=o.h.y-Q[4].y;limbs.forEach(([a,b])=>glowLine({x:Q[a].x+dx,y:Q[a].y+dy},{x:Q[b].x+dx,y:Q[b].y+dy},6,'#bfe6ff',.16/k))}
+      limbs.forEach(([a,b])=>glowLine(Q[a],Q[b],8,'#d8f2ff',.18+.1*Math.sin(t*3)))}}
+  if(he){cx.globalCompositeOperation='source-over';cx.globalAlpha=1;const ta=Math.atan2(Q[5].y-Q[4].y,Q[5].x-Q[4].x);cx.translate(Q[6].x,Q[6].y);cx.rotate(ta+Math.PI/4);
+    if(he==='gold'){const g=cx.createLinearGradient(-6,-8,6,0);g.addColorStop(0,'#fff6c2');g.addColorStop(.4,'#ffcc33');g.addColorStop(1,'#a8740c');cx.fillStyle=g;cx.beginPath();cx.arc(0,-2,6.4,Math.PI,Math.PI*2);cx.lineTo(6.4,0);cx.lineTo(-6.4,0);cx.closePath();cx.fill();
+      const sh=((t*.7)%1)*16-8;cx.globalCompositeOperation='lighter';cx.globalAlpha=.8;cx.fillStyle='#fffbe0';cx.beginPath();cx.arc(sh,-4,1.6,0,7);cx.fill()}
+    if(he==='fin'){cx.fillStyle='#5f7f97';cx.strokeStyle='#2c4252';cx.lineWidth=1;cx.beginPath();cx.moveTo(-4,-7);cx.quadraticCurveTo(1,-19,7,-21);cx.quadraticCurveTo(4,-13,4,-7);cx.closePath();cx.fill();cx.stroke()}}
+  cx.restore();
+}
 const trees=[],rocks=[],best=Array(40).fill(0),bestG=Array(40).fill(-1);let cur=0,paused=true,sel=0;
 // Replay: one preallocated Float32 ring buffer, recorded every 2nd physics step (60/s). No per-frame allocations, so no GC stutter.
 const RP_MAX=45000,RP_W=32,RP={buf:new Float32Array(RP_MAX*RP_W),sh:new Array(RP_MAX),head:0,n:0,tick:0};
@@ -1463,6 +1594,50 @@ function drawProps(){
       cx.fillStyle=k%2?'#2f6b3d':'#3a7d48';cx.beginPath();cx.moveTo(ax-nx*w,ay-ny*w);cx.lineTo(B[0]+ex*.5,B[1]+ey*.5);cx.lineTo(ax+nx*w,ay+ny*w);cx.closePath();cx.fill();
       cx.strokeStyle='#e9f2ff';cx.lineWidth=3;cx.beginPath();cx.moveTo(ax-nx*w,ay-ny*w);cx.lineTo(B[0]+ex*.5,B[1]+ey*.5);cx.stroke()}}
   for(const q of rocks){cx.save();cx.translate(q.x,q.y);cx.rotate(q.a);cx.beginPath();q.J.forEach((j,i)=>{const a=i/9*6.2832;cx[i?'lineTo':'moveTo'](Math.cos(a)*q.r*j,Math.sin(a)*q.r*j)});cx.closePath();cx.fillStyle='#6d7179';cx.fill();cx.strokeStyle='#3b3e44';cx.lineWidth=2;cx.lineJoin='round';cx.stroke();cx.restore()}
+}
+// ======================= SKI JUMP HILL =======================
+// One big Olympic-style jump. Distance is measured along the landing hill from the edge of the takeoff table
+// to where the skis first touch down. A clean landing pays 1,000 points per metre, and the longest clean jump
+// is saved as the hill record (shown on the hill as a gold flag and on the level-select card).
+const JUMP_PX_PER_M=15,JUMP_K=120,JUMP_PTS_PER_M=1000;
+const sjh=(()=>{const k=track();
+  k.line(380,.12);                                   // start gate
+  k.ease(320,.62);k.line(600,.62);k.ease(560,.2);k.line(220,.2);const edge=k.x,edgeY=k.y;   // inrun and takeoff table
+  k.ease(480,.72);k.line(1100,.72);k.ease(500,.95);k.line(1000,.95);   // knoll + landing slope that steepens further down, so long flights still meet it at a shallow angle
+  k.ease(1300,.04);k.line(500,0);k.ease(420,-.12);k.line(260,-.12);k.ease(220,0);k.line(1400,0);   // outrun: flattens, then a gentle rise to bleed off speed
+  return{t:k.t,edge,edgeY,fin:k.x-900}})();
+function jumpRecord(){try{return+localStorage.getItem('skiJumpRecord')||0}catch(e){return 0}}
+function hillDist(xa,xb){let d=0,x=xa,y=ter(xa).y;const n=Math.max(4,Math.ceil((xb-xa)/20));for(let i=1;i<=n;i++){const nx=xa+(xb-xa)*i/n,ny=ter(nx).y;d+=Math.hypot(nx-x,ny-y);x=nx;y=ny}return d}
+const jumpTrack={on:false,land:0,landX:0,confirm:0};
+function jumpPost(){   // runs every physics step on Ski Jump Hill
+  if(!st||st.done&&!st.finishedLevel)return;const mx=(P[0].x+P[1].x)/2,now=performance.now();
+  if(st.onAir&&!jumpTrack.on&&!jumpTrack.landX&&mx>sjh.edge-90&&mx<sjh.edge+450&&!st.crash){jumpTrack.on=true}   // left the table
+  if(jumpTrack.on&&!st.onAir){jumpTrack.on=false;jumpTrack.landX=mx;jumpTrack.confirm=now}                          // first touchdown
+  if(jumpTrack.landX&&jumpTrack.confirm&&now-jumpTrack.confirm>400){jumpTrack.confirm=0;                         // still on your feet a moment later?
+    const m=Math.round(hillDist(sjh.edge,jumpTrack.landX)/JUMP_PX_PER_M*10)/10;
+    if(st.crash||st.skisOff){spray(m.toFixed(1)+' m','fell, so it doesn\'t count');return}
+    const pts=Math.round(m*JUMP_PTS_PER_M),rec=jumpRecord(),isRec=m>rec;
+    st.score+=pts;st.dPts=(st.dPts||0)+pts;st.jumpM=Math.max(st.jumpM||0,m);
+    spray(m.toFixed(1)+' m'+(m>=JUMP_K?' · PAST K!':''),'+'+pts.toLocaleString()+(isRec?' · NEW HILL RECORD!':''),true,pts,'landed');
+    if(isRec){try{localStorage.setItem('skiJumpRecord',String(m))}catch(e){}if(m>=50)fwFinale()}
+    if(window.gearJump)gearJump(m);
+  }
+}
+function jumpReset(){jumpTrack.on=false;jumpTrack.landX=0;jumpTrack.confirm=0}
+function jumpDrawFront(){   // distance markers along the landing hill, the K line and the record flag
+  const rec=jumpRecord(),x0=cam.x-60,x1=cam.x+W/Z+60;cx.textAlign='center';cx.font='bold 13px system-ui';
+  // walk the hill once, dropping a marker every 10 m
+  let d=0,x=sjh.edge,y=ter(x).y,next=10;
+  for(let i=0;i<1400&&x<x1+200;i++){const nx=x+4,ny=ter(nx).y;d+=Math.hypot(4,ny-y);x=nx;y=ny;
+    const m=d/JUMP_PX_PER_M;if(m<next)continue;const mm=next;next+=10;if(x<x0)continue;
+    const k=mm===JUMP_K,big=mm%50===0;cx.strokeStyle=k?'#e0242c':big?'#1d3a6a':'#5f7fb0';cx.lineWidth=k?4:big?3:1.5;
+    cx.beginPath();cx.moveTo(x,y+2);cx.lineTo(x,y-(k?26:big?18:9));cx.stroke();
+    if(k||big||mm%20===0){cx.fillStyle=k?'#e0242c':'#1d3a6a';cx.fillText(k?'K '+mm:String(mm),x,y-(k?31:big?23:14))}}
+  if(rec>0){let d2=0,xx=sjh.edge,yy=ter(xx).y;while(d2/JUMP_PX_PER_M<rec&&xx<sjh.edge+8000){const nx=xx+3,ny=ter(nx).y;d2+=Math.hypot(3,ny-yy);xx=nx;yy=ny}
+    if(xx>x0&&xx<x1){cx.strokeStyle='#5b4512';cx.lineWidth=2;cx.beginPath();cx.moveTo(xx,yy);cx.lineTo(xx,yy-48);cx.stroke();cx.fillStyle='#ffc93a';cx.beginPath();cx.moveTo(xx+1,yy-48);cx.lineTo(xx+30,yy-40);cx.lineTo(xx+1,yy-32);cx.closePath();cx.fill();
+      cx.fillStyle='#5b4512';cx.font='bold 11px system-ui';cx.textAlign='left';cx.fillText('RECORD '+rec.toFixed(1)+' m',xx+5,yy-53)}}
+  // the takeoff table edge
+  {const ex=sjh.edge,ey=ter(ex).y;cx.fillStyle='#1d3a6a';cx.fillRect(ex-3,ey,6,22);cx.fillStyle='#e0242c';cx.fillRect(ex-30,ey-1,30,3)}
 }
 // --- terrain profiles (terrain control points are [x,y], y down; the skier starts at x=300)
 // Smooth terrain builder: line() = straight run, ease() = slope changes smoothly (smoothstep) so ramps have no kinks
@@ -1627,11 +1802,13 @@ const LV=[
   T:brg.t,fin:brg.fin,cliff:true,sky:['#6f8fb5','#e6d9c5'],far:'#8d97a6',snow:'#f4f2ee',edge:'#a49a8a',
   build(){brg.g.forEach((g,i)=>bridge(g,i===2?26:30,i===2?9:10))}},
  {n:'Volcano Run',d:'Ash-grey snow on the flank of a live volcano. Jump two walls of fire and two pools of lava; touch either and you go up in smoke. Every hazard you clear pays a x2 bonus on that jump (x3 if you skim just over it).',
-  T:vol.t,fin:vol.fin,lava:vol.lava,sky:['#2a0d10','#c4471f'],far:'#4a2420',snow:'#d6d0cc',edge:'#6b4c44',
+  T:vol.t,fin:vol.fin,lava:vol.lava,weather:'ash',sky:['#2a0d10','#c4471f'],far:'#4a2420',snow:'#d6d0cc',edge:'#6b4c44',
   build(){for(const wx of vol.walls){const hh=90;addBox(wx,ter(wx).y+8-hh,12,hh,{k:'fire-wall',lim:[420,200],say:'Touched the fire!',mu:.08})}}},
  {n:'Lantern Forest',d:'A night run through a lantern-lit pine forest. The trail is littered with saplings and rocks: small, quick hops get you over them cleanly, big air just gets you lost in the trees. Three little kickers and one proper jump at the end.',
   T:lan.t,fin:lan.fin,sky:['#060b20','#1f2d58'],far:'#121a38',snow:'#dbe4f5',edge:'#7c8fc2',drawBack:lanternBack,drawFront:lanternFront,
   build(){const soft=()=>{rocks[rocks.length-1].soft=1};lan.secs.forEach((s,i)=>{addRock(s+140,9+rnd()*3,false);soft();for(let k=0;k<3;k++){addTree(s+380+k*58+(rnd()-.5)*10,26+rnd()*8);trees[trees.length-1].soft=1}addRock(s+640,10+rnd()*3,false);soft()})}},
+ {n:'Ski Jump Hill',d:'One giant Olympic-style ski jump. Crouch on the inrun, pop off the edge of the table, and lean forward in the air so you do not rotate onto your back. Fly as far as you can and land it clean: every metre is worth 1,000 points, and your longest jump is saved as the hill record. K marks 120 m. Land past it and the hill flattens out under you, so the landings get harder.',
+  T:sjh.t,fin:sjh.fin,jump:true,post:jumpPost,onReset:jumpReset,drawFront:jumpDrawFront,sky:['#3f86d6','#d9ecfb'],far:'#93add0',snow:'#f8fbff',edge:'#7ea6d0'},
  {n:'Fireworks Hill',d:'A night run down a long hill with three kickers while fireworks go off in the sky ahead of you the whole way down. Flip in time with the show.',
   T:fwk.t,fin:fwk.fin,sky:['#060924','#3a2866'],far:'#1b1842',snow:'#dfe6ff',edge:'#8d9ee0',fw:{from:500,gap:230}},
  {n:'Glacier Run',d:'The long one. Roll over gentle swells to build speed, clear two mellow jumps, then send the big glacier kicker at the end.',
@@ -1646,11 +1823,11 @@ const LV=[
 // Finish lines sit a bit farther down every course so there's room to land and settle before crossing. The shark pool gets extra.
 const FIN_EXTRA=500,FIN_EXTRA_SHARK=900;
 // Level order, easiest first (based on jump size, hazards, length and how often a hands-off test run crashes).
-const LEVEL_ORDER=['Sunset Double','Pine Hop','Icefall Slalom','Avalanche Escape','Lantern Forest','Crate Stack','Rickety Bridge','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Mega Ramp','Inferno Walls','Shark Pool','Volcano Run','Death Valley','The Long Haul'];
+const LEVEL_ORDER=['Sunset Double','Pine Hop','Icefall Slalom','Avalanche Escape','Lantern Forest','Crate Stack','Rickety Bridge','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Ski Jump Hill','Mega Ramp','Inferno Walls','Shark Pool','Volcano Run','Death Valley','The Long Haul'];
 LV.sort((a,b)=>LEVEL_ORDER.indexOf(a.n)-LEVEL_ORDER.indexOf(b.n));
 LV.forEach(l=>{const add=l.water?FIN_EXTRA_SHARK:FIN_EXTRA;l.fin+=add;const e=l.T[l.T.length-1];if(e[0]<l.fin+800)l.T.push([l.fin+800,e[1]])});   // flat ground already continues past a course's last point; the extra point just keeps it drawn past the new line
 let CRX=[480,5,680,4];
-const PAR={'Pine Hop':.8,'Death Valley':.8,'Inferno Walls':1,'Shark Pool':.9,'Mega Ramp':1.5,'Crate Stack':1.1,'Mogul Field':1.1,'Quarter Pipe':1.5,'Sunset Double':.9,'Rickety Bridge':1,'Volcano Run':1.1,'Lantern Forest':.8,'Glacier Run':1.6,'Fireworks Hill':1};
+const PAR={'Ski Jump Hill':.55,'Pine Hop':.8,'Death Valley':.8,'Inferno Walls':1,'Shark Pool':.9,'Mega Ramp':1.5,'Crate Stack':1.1,'Mogul Field':1.1,'Quarter Pipe':1.5,'Sunset Double':.9,'Rickety Bridge':1,'Volcano Run':1.1,'Lantern Forest':.8,'Glacier Run':1.6,'Fireworks Hill':1};
 LV.forEach(l=>l.par=l.par||PAR[l.n]||1);   // par: how big a score counts as an S on each level (times SPAR)
 // --- level select menu
 const mEl=document.getElementById('m');
@@ -1662,7 +1839,7 @@ const selE=document.getElementById('sel'),thC=document.getElementById('th'),card
 LV.forEach((l,i)=>{const d=document.createElement('i');d.onclick=()=>{const dir=i>sel?1:-1;sel=i;showSel(dir)};dotsE.append(d)});
 function showSel(dir){const l=LV[sel];thumb(l,thC);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent='LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
   [...dotsE.children].forEach((d,i)=>d.classList.toggle('on',i===sel));
-  const s=best[sel],g=bestG[sel];hsnE.textContent=s?'BEST '+s.toLocaleString():'NOT PLAYED YET';hsnE.className=s?'':'no';
+  const s=best[sel],g=bestG[sel];hsnE.textContent=s?'BEST '+s.toLocaleString():'NOT PLAYED YET';if(LV[sel].jump&&jumpRecord())hsnE.textContent+=' · RECORD '+jumpRecord().toFixed(1)+' m';hsnE.className=s?'':'no';
   hsgE.textContent=s&&g>=0?RATES[g][0]:'\u2013';hsgE.className=s&&g>=0?'g-'+RATES[g][0].replace('+','p'):'';
   if(dir){cardE.style.setProperty('--dx',dir*60+'px');cardE.style.animation='none';void cardE.offsetWidth;cardE.style.animation=''}}
 function selStep(d){sel=(sel+d+LV.length)%LV.length;showSel(d)}
@@ -1701,13 +1878,15 @@ const wait=ms=>new Promise(r=>setTimeout(r,fast?0:ms));
 function setScore(v){snE.textContent=v.toLocaleString();snE.style.setProperty('--g',glowOf(v).toFixed(3))}
 function count(a,b,D,ok){return new Promise(res=>{const t0=performance.now(),f=t=>{if(!ok())return res();const u=fast?1:Math.min(1,(t-t0)/D),e=1-Math.pow(1-u,3);setScore(Math.round(a+(b-a)*e));if(!fast&&window.sndTick)sndTick(u);if(u<1)requestAnimationFrame(f);else res()};requestAnimationFrame(f)})}
 async function tally(){const id=++tId,ok=()=>id===tId;fast=false;fxStop();scE.style.setProperty('display','block','important');scE.style.visibility='visible';rowsE.innerHTML='';rtE.innerHTML='';awE.innerHTML='';sbE.textContent='\u00a0';sbE.className='';scE.style.zoom='';awE.style.zoom='';awE.style.setProperty('--fo','0');setScore(0);
-  const rows=[['AIR TIME',st.tAir.toFixed(1)+' s in the air',st.aPts],['FLIPS',(st.ff+st.bf)+' flip'+(st.ff+st.bf===1?'':'s')+' ('+st.ff+' front, '+st.bf+' back)',st.fPts]];if(st.hPts>0)rows.push(['HAZARD BONUS',st.hNames||'Cleared a hazard',st.hPts]);if(resetPenaltyTotal>0)rows.push(['RESET PENALTY',resetsUsed+' Reset Skis use'+(resetsUsed===1?'':'s'),-resetPenaltyTotal]);const rowSum=rows.reduce((n,r)=>n+r[2],0),adjustment=st.score-rowSum;if(adjustment!==0)rows.push(['SCORE ADJUSTMENT','Other score corrections',adjustment]);
+  const rows=[['AIR TIME',st.tAir.toFixed(1)+' s in the air',st.aPts],['FLIPS',(st.ff+st.bf)+' flip'+(st.ff+st.bf===1?'':'s')+' ('+st.ff+' front, '+st.bf+' back)',st.fPts]];if(st.hPts>0)rows.push(['HAZARD BONUS',st.hNames||'Cleared a hazard',st.hPts]);if(st.dPts>0)rows.push(['DISTANCE','Longest jump '+(st.jumpM||0).toFixed(1)+' m'+(st.jumpM>=JUMP_K?' (past K!)':''),st.dPts]);if(resetPenaltyTotal>0)rows.push(['RESET PENALTY',resetsUsed+' Reset Skis use'+(resetsUsed===1?'':'s'),-resetPenaltyTotal]);const rowSum=rows.reduce((n,r)=>n+r[2],0),adjustment=st.score-rowSum;if(adjustment!==0)rows.push(['SCORE ADJUSTMENT','Other score corrections',adjustment]);
   // Put the first line on screen immediately so the finish panel never looks like a title-only screen.
   let cum=0;for(const [l,d,p] of rows){const r=document.createElement('div');r.className='row';r.innerHTML='<b>'+l+'</b><span>'+d+'</span><em>'+(p<0?'−':'+')+Math.abs(p).toLocaleString()+'</em>';rowsE.append(r)}
   // Lay out the grade and every award now (hidden), so the screen can be sized to fit once and never jumps while they appear.
   const R=rate(),noSkiEffort=st.noSkiFinish&&!resetsUsed,gradeWord=st.fireDeath?'FOR FIRE!!!':st.sharkDeath?'FOR FISH!!!':noSkiEffort?'(for effort)':R.r[2],gradeNote=noSkiEffort?'':R.note;
   rtE.innerHTML='<div class="stamp pend g-'+R.r[0].replace('+','p')+(st.fireDeath?' fire-grade':'')+(st.sharkDeath?' shark-grade':'')+'"><div class="L">'+R.r[0]+'</div><div class="W">'+gradeWord+'</div></div>'+(gradeNote?'<div class="note" style="visibility:hidden">'+gradeNote+'</div>':'')+(resetsUsed?'<div class="note" style="visibility:hidden">↻ Reset count: '+resetsUsed+' · points deducted: '+resetPenaltyTotal.toLocaleString()+'</div>':'');
   const A=awards(),cards=A.map(a=>{const d=document.createElement('div');d.className='aw pend t'+a.ti;d.style.setProperty('--tc',TIERC[a.ti]);d.title=a.name+' · '+a.k+' · '+a.det;d.innerHTML='<div class="ic">'+a.ic+'</div><b>'+a.name+'</b><i>'+a.k+' \u00b7 '+a.det+'</i><u>'+TIERN[a.ti]+'</u>';awE.append(d);return d});
+  for(const g of gearNewUnlocks()){const d=document.createElement('div');d.className='aw pend t3';d.style.setProperty('--tc','#c58bff');d.title='Unlocked '+g.name;   // new gear joins the award reveal
+    d.innerHTML='<div class="ic">'+g.ic+'</div><b>'+g.name+'</b><i>NEW GEAR · equip it in Customize</i><u>UNLOCKED</u>';awE.append(d);cards.push(d);A.push({ti:3})}
   if(!A.length){awE.innerHTML='<div class="none" style="visibility:hidden">No awards this run. Go land a flip!</div>'}
   fitResults();
   await wait(350);for(let i=0;i<rows.length;i++){const [l,d,p]=rows[i];if(!ok())return;const r=rowsE.children[i];await count(cum,cum+p,p?900:200,ok);cum+=p;if(p&&!fast&&window.sndRow)sndRow();await wait(300)}
@@ -1775,7 +1954,7 @@ introTimer=setTimeout(skipIntro,3000);
 let last=performance.now(),acc=0;
 function loop(t){const dt=Math.min((t-last)/1000,.05);acc+=dt*(dbg.on?dbg.ts:1);last=t;fdt=dt;window.audioTick&&audioTick();
   if(replayMode){acc=0;replayIndex+=replaySpeed*dt*60;if(replayIndex<0){replayIndex=0;replaySpeed=0}if(replayIndex>=RP.n-1){replayIndex=RP.n-1;replaySpeed=0}const i=Math.floor(replayIndex),j=Math.min(RP.n-1,i+1),u=replayIndex-i;P=rpPose(i,j,u);snap=null;replaySetStatus();}
-  else {if(paused)acc=0;if(dbg.on&&dbg.frozen){acc=dbg.stepN>0?1/120:0;if(dbg.stepN>0)dbg.stepN--}while(acc>=1/120){snap=P.map(p=>[p.x,p.y]);step();if(dbg.on)dbgPost();if(window.tutPost)tutPost();if(!replayMode&&P&&P.length) {if((RP.tick++&1)===0)rpPush();if(RP.n===2){document.getElementById('replay-open').style.display=''}if(st&&st.finishedLevel&&RP.n>1&&!st.rpMenuShown){st.rpMenuShown=true;document.getElementById('replay-menu').style.display=''}}acc-=1/120}}al=acc*120;
+  else {if(paused)acc=0;if(dbg.on&&dbg.frozen){acc=dbg.stepN>0?1/120:0;if(dbg.stepN>0)dbg.stepN--}while(acc>=1/120){snap=P.map(p=>[p.x,p.y]);step();if(dbg.on)dbgPost();if(window.tutPost)tutPost();if(LVc.post)LVc.post();if(!replayMode&&P&&P.length) {if((RP.tick++&1)===0)rpPush();if(RP.n===2){document.getElementById('replay-open').style.display=''}if(st&&st.finishedLevel&&RP.n>1&&!st.rpMenuShown){st.rpMenuShown=true;document.getElementById('replay-menu').style.display=''}}acc-=1/120}}al=acc*120;
   // Behind the level select / results screen nothing moves, so redraw only ~4x a second (saves battery). The customizer previews the live canvas, so it keeps full rate.
   const idle=paused&&!replayMode&&customizer.style.display==='none';if(!idle||t-lastIdleDraw>250||lastIdleDraw===0){draw();if(dbg.on)dbgDraw();lastIdleDraw=idle?t:0}
   hapTick();if(window.tutFrame)tutFrame();
