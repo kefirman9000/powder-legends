@@ -4,8 +4,8 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.3.4';
-window.GAME_NOTES='Smoother menus: the camera is already in place when a menu opens, and the scene behind it holds perfectly still instead of stuttering.';
+window.GAME_VERSION='1.3.5';
+window.GAME_NOTES='Steadier camera during flips: it now follows the skier\'s centre of mass, so spins no longer make the view bob up and down.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
 window.verCmp=function(a,b){a=String(a).split('.').map(Number);b=String(b).split('.').map(Number);for(var i=0;i<Math.max(a.length,b.length);i++){var d=(a[i]||0)-(b[i]||0);if(d)return d>0?1:-1}return 0};
@@ -446,7 +446,7 @@ function reset(){
   P=loc.map(([a,b])=>{const x=x0+ux*a+nx*(b+3),y=g.y+uy*a+ny*(b+3);return{x,y,px:x-ux*.8,py:y-uy*.8}});
   len=C.map(([a,b])=>dist(P[a],P[b]));
   st={ff:0,bf:0,combo:0,tAir:0,bAir:0,land:0,aPts:0,fPts:0,maxV:0,time:0,adrenaline:0,la:0,fireDeath:false,specialFire:false,burnX:0,burnY:0,fireStarted:0,skisOff:false,skisStill:0,timeoutF:false,finishedLevel:false,noSkiFinish:false,warn:0,fl:0,fwFlips:0,fwDoves:0,pb:0,air:0,rot:0,ang:null,onAir:false,lt:0,lr:0,crash:false,done:false,msg:'',score:0,pendingPts:0,failedPendingShown:false,lastLandingPts:0,lastLandingAPts:0,lastLandingFPts:0,lastLandingAt:0,lastLandingRolledBack:false,lastLandingHPts:0,hPts:0,hzMult:1,hzFlat:0,hzName:'',hNames:'',sk:null,sharkDeath:false,sharkStarted:0};
-  snap=null;cam.x=P[4].x-W/Z*CAMX;cam.y=P[4].y-H/Z*CAMY;
+  snap=null;{const fc=camFocus(P);cam.x=fc.x-W/Z*CAMX;cam.y=fc.y-H/Z*CAMY;}
   boxes.length=0;trees.length=0;rocks.length=0;sd=11;if(LVc&&LVc.build)LVc.build();hazardInit();buildCheckpoints();fwReset();
 }
 function updateResetButton(){const b=document.getElementById('reset-skis');if(!b)return;b.textContent='↻ Reset Skis · −25,000'+(resetsUsed?' ('+resetsUsed+')':'');b.disabled=paused||!!(st&&st.finishedLevel);b.title='Reset skier at the latest checkpoint behind you. Deducts up to 25,000 points; '+resetsUsed+' reset'+(resetsUsed===1?'':'s')+' used. A/S grades are disabled for this run.'}
@@ -472,7 +472,7 @@ function respawnAt(x0){
   const loc=[[-35,0],[35,0],ank,kn,hip,sh,add(sh,dir(pb-.15),SEG.neck),add(sh,dir(pa),SEG.arm)];
   P=loc.map(([a,b])=>{const x=x0+ux*a+nx*(b+3),y=g.y+uy*a+ny*(b+3);return{x,y,px:x-ux*.8,py:y-uy*.8}});len=C.map(([a,b])=>dist(P[a],P[b]));
   st.crash=false;st.done=false;st.msg='';st.adrenaline=0;st.skisOff=false;st.skisStill=0;st.timeoutF=false;st.finishedLevel=false;st.noSkiFinish=false;st.warn=0;st.onAir=false;st.air=0;st.rot=0;st.ang=null;st.lt=0;st.lr=0;st.la=0;st.pendingPts=0;st.failedPendingShown=false;st.jumpScored=false;st.fin=0;st.shown=false;hazardRearm();
-  snap=null;cam.x=P[4].x-W/Z*CAMX;cam.y=P[4].y-H/Z*CAMY;
+  snap=null;{const fc=camFocus(P);cam.x=fc.x-W/Z*CAMX;cam.y=fc.y-H/Z*CAMY;}
   trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';trickScoreE.classList.remove('failed','landed','power-1','power-2','power-3','power-4');trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');
 }
 document.getElementById('reset-skis').addEventListener('click',resetSkisHere);
@@ -928,15 +928,22 @@ const CAMS={
 };
 const camK={z:1,lx:0,ly:0};
 const clamp01=v=>v<0?0:v>1?1:v;
-function camVel(){   // hip velocity in px/s, also during replays (read from the recorder, which runs at 60/s)
-  if(replayMode&&RP.n>1){const i=Math.max(0,Math.min(RP.n-2,Math.floor(replayIndex))),a=rpSlot(i)*RP_W+16,b=rpSlot(i+1)*RP_W+16;return[(RP.buf[b]-RP.buf[a])*60,(RP.buf[b+1]-RP.buf[a+1])*60]}
-  const h=P[4];return[(h.x-h.px)*120,(h.y-h.py)*120];
+// The camera follows the skier's centre of mass, not the hips. During a flip the hips swing in a circle around
+// the centre of mass, which made the camera bob; the centre of mass flies one smooth arc however the body spins.
+// Once the skis come off they're left out, so the camera stays with the skier rather than a tumbling ski.
+const CAM_FIRST=()=>st&&st.skisOff?2:0;
+function camFocus(Q){let x=0,y=0,m=0;for(let k=CAM_FIRST();k<8;k++){x+=M[k]*Q[k].x;y+=M[k]*Q[k].y;m+=M[k]}return{x:x/m,y:y/m}}
+function camVel(){   // centre-of-mass velocity in px/s, also during replays (read from the recorder, which runs at 60/s)
+  const f=CAM_FIRST();let vx=0,vy=0,m=0;
+  if(replayMode&&RP.n>1){const i=Math.max(0,Math.min(RP.n-2,Math.floor(replayIndex))),a=rpSlot(i)*RP_W,b=rpSlot(i+1)*RP_W;
+    for(let k=f;k<8;k++){vx+=M[k]*(RP.buf[b+k*4]-RP.buf[a+k*4]);vy+=M[k]*(RP.buf[b+k*4+1]-RP.buf[a+k*4+1]);m+=M[k]}return[vx/m*60,vy/m*60]}
+  for(let k=f;k<8;k++){vx+=M[k]*(P[k].x-P[k].px);vy+=M[k]*(P[k].y-P[k].py);m+=M[k]}return[vx/m*120,vy/m*120];
 }
 function camTick(Q){
   if(!P||!P.length||!st)return;
   if(paused&&!replayMode){camK.z=1;camK.lx=0;camK.ly=0;return}   // behind a menu: plain framing, no pull-back or look-ahead easing in
   const dt=Math.min(fdt,.05),[vx,vy]=camVel(),sp=Math.hypot(vx,vy);
-  const mx=(Q[0].x+Q[1].x)/2,ht=Math.max(0,ter(mx).y-Math.max(Q[0].y,Q[1].y));
+  const fc=camFocus(Q),ht=Math.max(0,ter(fc.x).y-fc.y-41);   // height of the centre of mass above its normal standing height (spinning skis no longer wobble the zoom)
   const s=t=>t*t*(3-2*t);   // smoothstep
   let tz=1-CAMS.vOut*s(clamp01((sp-CAMS.v0)/(CAMS.v1-CAMS.v0)))-CAMS.hOut*s(clamp01((ht-CAMS.h0)/(CAMS.h1-CAMS.h0)));
   if(st.sharkDeath||st.fireDeath||paused&&!replayMode)tz=camK.z;   // hold still during death scenes and behind menus
@@ -959,7 +966,7 @@ function draw(){
   drawMountains();   // parallax mountain layers (scenery.js)
   const camHold=paused&&!replayMode;   // behind a menu: no easing, the camera is placed exactly where it belongs
   zoom+=(zoomT-zoom)*(camHold?1:1-Math.pow(.75,fdt*60));camTick(Q);Z=ZB*zoom*camK.z;   // camK: speed-aware pull-back (camera.js)   // eased zoom; the camera below re-centres on the skier at the new scale
-  const ck=camHold?1:1-Math.pow(.9,fdt*60);if(!st.sharkDeath){cam.x+=(Q[4].x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(Q[4].y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
+  const ck=camHold?1:1-Math.pow(.9,fdt*60);if(!st.sharkDeath){const fc=camFocus(Q);cam.x+=(fc.x+camK.lx-W/Z*CAMX-cam.x)*ck;cam.y+=(fc.y+camK.ly-H/Z*CAMY-cam.y)*ck;}   // camera stays put once the shark has you
   cx.setTransform(Z,0,0,Z,-cam.x*Z,-cam.y*Z);
   if(LVc.drawBack){cx.save();LVc.drawBack();cx.restore()}   // scenery behind the slope
   {   // ground: only the stretch on screen (plus a margin). Huge off-screen coordinates made some phone GPUs draw a torn, shimmering edge
