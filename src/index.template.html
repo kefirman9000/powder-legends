@@ -4,7 +4,7 @@
 <!-- @include js/boot.js -->
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ski Stunt Simulator (remake)</title>
+<title>Powder Legends</title>
 <style><!-- @inline css/font.css --></style>
 <style>
 <!-- @include css/game.css -->
@@ -12,16 +12,9 @@
 <!-- @include css/touch.css -->
 </style></head><body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="slime" x="-10%" y="-10%" width="120%" height="130%"><feTurbulence type="fractalNoise" baseFrequency=".03 .07" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="16" xChannelSelector="R" yChannelSelector="G"/></filter><filter id="mud" x="-10%" y="-10%" width="120%" height="130%"><feTurbulence type="fractalNoise" baseFrequency=".05 .1" numOctaves="2" seed="2"/><feDisplacementMap in="SourceGraphic" scale="8" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
-<div id="intro" aria-label="Ski Stunt opening screen"><canvas id="introFx"></canvas><svg id="introMountains" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none">
-<defs><linearGradient id="farSnow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c9fc9"/><stop offset="1" stop-color="#494b78"/></linearGradient></defs>
-<path d="M0 490 L90 390 150 435 250 300 320 390 405 265 480 365 575 290 665 400 755 275 830 370 930 255 1010 365 1090 300 1200 400 L1200 700 0 700Z" fill="url(#farSnow)" opacity=".62"/>
-<path d="M0 520 L105 440 180 475 300 345 360 420 445 315 520 425 620 350 720 455 815 330 900 425 1015 335 1090 430 1200 365 L1200 700 0 700Z" fill="#303657" opacity=".88"/>
-<path d="M0 570 L110 495 200 525 305 430 385 490 490 405 565 500 680 420 770 510 870 405 965 490 1080 415 1200 480 L1200 700 0 700Z" fill="#171e3b"/>
-<path d="M250 300 L276 333 250 324 232 340Z M405 265 L438 310 407 295 386 315Z M755 275 L785 317 754 304 733 325Z M930 255 L960 300 929 286 910 306Z M1090 300 L1113 328 1088 319 1072 334Z" fill="#fbe8df" opacity=".88"/>
-<path d="M0 520 L105 440 180 475 300 345 360 420 445 315 520 425 620 350 720 455 815 330 900 425 1015 335 1090 430 1200 365" fill="none" stroke="#ffd8cb" stroke-width="3" opacity=".4"/>
-</svg><div id="introTitle">SKI STUNT</div><div id="introCredit">a game by PJ</div></div><canvas id="fx"></canvas><p id="h"></p><div id="pops"></div><div id="sco"><span id="sct">SCORE: 0</span></div><div id="adrenaline"><div id="adrenaline-label">ADRENALINE</div><div id="adrenaline-track"><div id="adrenaline-fill"></div></div></div><div id="trick-score" aria-live="polite"></div><div id="trick-stack" aria-live="polite"></div><div id="w"><canvas id="c"></canvas></div>
+<div id="intro" aria-label="Powder Legends opening screen"><canvas id="introFx"></canvas><div id="introLogo"><div id="introKicker">A SKI STUNT GAME</div><div id="introTitle"><span>POWDER</span><span>LEGENDS</span></div><div id="introCredit">by PJ</div></div><div id="introPrompt">Tap or press any key</div></div><canvas id="fx"></canvas><p id="h"></p><div id="pops"></div><div id="sco"><span id="sct">SCORE: 0</span></div><div id="adrenaline"><div id="adrenaline-label">ADRENALINE</div><div id="adrenaline-track"><div id="adrenaline-fill"></div></div></div><div id="trick-score" aria-live="polite"></div><div id="trick-stack" aria-live="polite"></div><div id="w"><canvas id="c"></canvas></div>
 <button id="lb">&#9776; Levels (M)</button><button id="replay-open" title="Replay this run">⏪ Replay</button><button id="reset-skis" title="Reset the skier here; costs 25,000 points and blocks A/S grades">↻ Reset Skis · −25,000</button>
-<div id="m"><button id="dbg-open" title="Debug mode: a simple downhill with live physics values and tools">🐞 Debug</button><h2 id="mh">Ski Stunt Simulator</h2><p id="ms">Choose a level</p>
+<div id="m"><button id="dbg-open" title="Debug mode: a simple downhill with live physics values and tools">🐞 Debug</button><h2 id="mh">Powder Legends</h2><p id="ms">Choose a level</p>
 <div id="sc"><div id="sn">0</div><div id="sl">POINTS</div><div id="rows"></div><div id="rt"></div><div id="aw"></div><div id="sb"></div></div>
 <div id="fb"><button class="b" id="again">&#8635; Try again</button><button class="b" id="replay-menu" style="display:none;background:#176b78">⏪ View Replay</button><button class="b" id="all">All levels</button><button class="b" id="next">Next level &rarr;</button></div>
 <div id="sel"><div id="g"><button class="ar" id="pv" aria-label="Previous level">&#9664;</button><div id="card"><canvas id="th" width="480" height="200"></canvas><div id="ln"></div><div id="ld"></div><div id="level-length" aria-live="polite"></div></div><button class="ar" id="nx" aria-label="Next level">&#9654;</button></div>
@@ -73,8 +66,10 @@
 <!-- @include js/gear.js -->
 <!-- @include js/props.js -->
 <!-- @include js/skijump.js -->
+<!-- @include js/endless.js -->
 <!-- @include js/levels.js -->
 <!-- @include js/menu.js -->
+<!-- @include js/intro.js -->
 <!-- @include js/main.js -->
 </script><style>
 <!-- @include css/audio.css -->
