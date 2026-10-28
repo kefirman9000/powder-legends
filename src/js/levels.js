@@ -107,8 +107,13 @@ const lan=(()=>{const k=track(),secs=[];
   return{t:k.t,secs,fin:lip+2250}})();
 // Lantern Forest scenery: dark pine silhouettes behind the slope and warm lanterns along the run
 const hash=n=>{n=Math.sin(n*127.1)*43758.5453;return n-Math.floor(n)};
-function lanternBack(){const x0=Math.floor((cam.x-200)/64),x1=Math.ceil((cam.x+W/Z+200)/64);cx.fillStyle='#0c1530';cx.globalAlpha=.85;
-  for(let i=x0;i<=x1;i++){const x=i*64+hash(i)*40,h=110+hash(i+.5)*130,w=h*.32,y=ter(x).y+24;cx.beginPath();cx.moveTo(x,y-h);cx.lineTo(x+w,y);cx.lineTo(x-w,y);cx.closePath();cx.fill()}cx.globalAlpha=1}
+function lanternBack(){   // a distant pine forest band behind the slope (screen space, parallax) so it never looks like it's on the track
+  cx.save();cx.setTransform(1,0,0,1,0,0);const sc=ZB*zoom,par=.3,base=H*.66,step=Math.max(10,Math.round(26*sc));
+  for(const [k,col,a] of [[0,'#16234a',.9],[1,'#0e1736',1]]){cx.fillStyle=col;cx.globalAlpha=a;cx.beginPath();cx.moveTo(0,H);
+    const off=cam.x*(par+k*.12)*sc;for(let X=-step;X<=W+step;X+=step){const i=Math.floor((X+off)/step),x=i*step-off,hh=(48+hash(i+k*31)*60)*sc*(1+k*.25),yb=base+k*28*sc;
+      cx.lineTo(x-step*.5,yb);cx.lineTo(x,yb-hh);cx.lineTo(x+step*.5,yb)}
+    cx.lineTo(W,H);cx.closePath();cx.fill()}
+  cx.restore()}
 function lanternFront(){const t=performance.now()/1000,x0=Math.floor((cam.x-100)/420),x1=Math.ceil((cam.x+W/Z+100)/420);
   for(let i=Math.max(1,x0);i<=x1;i++){const x=i*420+90,y=ter(x).y,fl=.85+.15*Math.sin(t*7+i*2.3)*Math.sin(t*3.1+i);
     cx.strokeStyle='#2a2238';cx.lineWidth=2.5;cx.beginPath();cx.moveTo(x,y);cx.lineTo(x,y-46);cx.lineTo(x+9,y-46);cx.stroke();
