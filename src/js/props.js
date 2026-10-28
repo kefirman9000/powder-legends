@@ -6,8 +6,8 @@ function rpSlot(i){return (RP.head+i)%RP_MAX}
 function rpPush(){let s;if(RP.n<RP_MAX)s=rpSlot(RP.n++);else{s=RP.head;RP.head=(RP.head+1)%RP_MAX}const o=s*RP_W;for(let k=0;k<8;k++){const p=P[k];RP.buf[o+k*4]=p.x;RP.buf[o+k*4+1]=p.y;RP.buf[o+k*4+2]=p.px;RP.buf[o+k*4+3]=p.py}RP.sh[s]=sharkSnap()}
 function rpPose(i,j,u){const a=rpSlot(i)*RP_W,b=rpSlot(j)*RP_W,B=RP.buf,out=[];for(let k=0;k<8;k++){const o=k*4,x=B[a+o],y=B[a+o+1];out.push({x:x+(B[b+o]-x)*u,y:y+(B[b+o+1]-y)*u,px:x,py:y})}return out}
 let replayMode=false,replayIndex=0,replaySpeed=1,replayLiveP=null,replayLiveCam=null,replayLiveZoom=1;   // bestG: index into RATES of the best grade (0 = S), -1 = none yet
-const save=()=>{try{const o={};LV.forEach((l,i)=>{if(best[i])o[l.n]={s:best[i],g:bestG[i]}});localStorage.setItem('skiBest4',JSON.stringify(o))}catch(e){}};
-function loadBest(){let o={};try{['skiBest2','skiBest3'].forEach(k=>localStorage.removeItem(k));o=JSON.parse(localStorage.getItem('skiBest4')||'{}')||{}}catch(e){}   // skiBest4: fresh scores for the rebuilt levels; older saves are cleared
+const save=()=>{try{const o={};LV.forEach((l,i)=>{if(best[i])o[l.n]={s:best[i],g:bestG[i]}});localStorage.setItem('skiBest5',JSON.stringify(o))}catch(e){}};
+function loadBest(){let o={};try{['skiBest2','skiBest3','skiBest4'].forEach(k=>localStorage.removeItem(k));if(!localStorage.getItem('skiReset130')){['skiJumpRecord','skiEndlessM'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('skiReset130','1')}o=JSON.parse(localStorage.getItem('skiBest5')||'{}')||{}}catch(e){}   // skiBest4: fresh scores for the rebuilt levels; older saves are cleared
   LV.forEach((l,i)=>{const e=o[l.n];if(!e||!(e.s>0))return;best[i]=e.s|0;bestG[i]=e.g>=0?e.g|0:RATES.findIndex(r=>best[i]/(SPAR*(l.par||1))>=r[1])})}
 function addBox(x,y,hw,hh,o){const b=Object.assign({x,y,a:0,vx:0,vy:0,w:0,hw,hh,m:Infinity,I:Infinity,fixed:true,m0:8},o);b.I0=b.m0*(4*hw*hw+4*hh*hh)/12;boxes.push(b);return b}
 // --- bendy pine trees: a chain of 5 tapered segments hanging off a spring-loaded base. Landing on one bends it, then it springs back

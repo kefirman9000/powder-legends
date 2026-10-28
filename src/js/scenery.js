@@ -5,9 +5,9 @@ function hexRgb(h){const n=parseInt(h.slice(1),16);return[n>>16&255,n>>8&255,n&2
 function mixHex(a,b,t){const A=hexRgb(a),B=hexRgb(b);return'rgb('+A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')+')'}
 // three mountain layers: furthest first. px = sideways parallax, py = vertical drift with the descent,
 // base = horizon height (fraction of screen), amp = peak height, sharp = how jagged the peaks are
-const MTN=[{px:.04,py:.012,base:.6,amp:150,sharp:.55,seed:1.7,haze:.6,cap:1},
-           {px:.09,py:.03,base:.7,amp:115,sharp:.35,seed:4.1,haze:.32,cap:.6},
-           {px:.17,py:.06,base:.8,amp:80,sharp:.15,seed:7.3,haze:0,cap:0}];
+const MTN=[{px:.04,py:.012,base:.44,amp:210,sharp:.55,seed:1.7,haze:.6,cap:1},
+           {px:.09,py:.03,base:.56,amp:160,sharp:.35,seed:4.1,haze:.32,cap:.6},
+           {px:.17,py:.06,base:.68,amp:110,sharp:.15,seed:7.3,haze:0,cap:0}];
 let mtnY0=null;
 function mtnHeight(L,wx){const s=L.seed;let h=Math.sin(wx/310+s)*.5+Math.sin(wx/131+s*2.3)*.3+Math.sin(wx/57+s*.7)*.2;   // -1..1 rolling
   const pk=1-Math.abs(Math.sin(wx/(190+s*20)+s));return (h*.5+.5)*(1-L.sharp)+pk*pk*L.sharp}                          // add pointy peaks
@@ -16,7 +16,7 @@ function drawMountains(){
   const step=Math.max(16,Math.round(W/70));
   MTN.forEach((L,li)=>{
     const col=mixHex(LVc.far,LVc.sky[1],L.haze),top=mixHex(LVc.far,'#ffffff',.1+L.cap*.25);
-    const drift=Math.max(-.12*H,Math.min(.25*H,(cam.y-mtnY0)*L.py*sc)),baseY=H*L.base-drift;
+    const drift=Math.max(-.12*H,Math.min(.12*H,(cam.y-mtnY0)*L.py*sc)),baseY=H*L.base-drift;
     const g=cx.createLinearGradient(0,baseY-L.amp*sc,0,baseY+40*sc);g.addColorStop(0,top);g.addColorStop(.45,col);g.addColorStop(1,col);
     cx.fillStyle=g;cx.beginPath();cx.moveTo(0,H);
     for(let X=0;X<=W+step;X+=step){const wx=X/sc+cam.x*L.px;cx.lineTo(X,baseY-L.amp*sc*mtnHeight(L,wx))}

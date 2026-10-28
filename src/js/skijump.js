@@ -19,9 +19,11 @@ function jumpPost(){   // runs every physics step on Ski Jump Hill
   if(jumpTrack.landX&&jumpTrack.confirm&&now-jumpTrack.confirm>400){jumpTrack.confirm=0;                         // still on your feet a moment later?
     const m=Math.round(hillDist(sjh.edge,jumpTrack.landX)/JUMP_PX_PER_M*10)/10;
     if(st.crash||st.skisOff){spray(m.toFixed(1)+' m','fell, so it doesn\'t count');return}
-    const pts=Math.round(m*JUMP_PTS_PER_M),rec=jumpRecord(),isRec=m>rec;
+    const G=landingGrade(st.touchAng||0);
+    if(G.mult===0){spray(m.toFixed(1)+' m · NOT FLAT','land with your skis flat for the distance to count',false,0,'failed');return}
+    const pts=Math.round(m*JUMP_PTS_PER_M*G.mult),rec=jumpRecord(),isRec=m>rec;
     st.score+=pts;st.dPts=(st.dPts||0)+pts;st.jumpM=Math.max(st.jumpM||0,m);
-    spray(m.toFixed(1)+' m'+(m>=JUMP_K?' · PAST K!':''),'+'+pts.toLocaleString()+(isRec?' · NEW HILL RECORD!':''),true,pts,'landed');
+    spray(m.toFixed(1)+' m · '+G.name+(m>=JUMP_K?' · PAST K!':''),'+'+pts.toLocaleString()+(G.mult!==1?' (×'+G.mult+')':'')+(isRec?' · NEW HILL RECORD!':''),true,pts,'landed'+(G.name==='PERFECT'?' perfect':G.name==='SKETCHY'?' sketchy':''));
     if(isRec){try{localStorage.setItem('skiJumpRecord',String(m))}catch(e){}if(m>=50)fwFinale()}
     if(window.gearJump)gearJump(m);
   }

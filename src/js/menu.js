@@ -1,14 +1,14 @@
 // --- level select menu
 const mEl=document.getElementById('m');
-function thumb(l,c){const g=c.getContext('2d'),w=c.width,h=c.height,x1=l.fin+300,Q=l.T.filter(p=>p[0]>=0&&p[0]<=x1),y0=Math.min(...Q.map(p=>p[1])),y1=Math.max(...Q.map(p=>p[1])),s=Math.min(w/x1,(h-14)/(y1-y0)),ox=(w-x1*s)/2;
+function thumb(l,c){const LT=l.endless?(l._preview=l._preview||endlessPreview()):l.T;const g=c.getContext('2d'),w=c.width,h=c.height,x1=l.endless?6500:l.fin+300,Q=LT.filter(p=>p[0]>=0&&p[0]<=x1),y0=Math.min(...Q.map(p=>p[1])),y1=Math.max(...Q.map(p=>p[1])),s=Math.min(w/x1,(h-14)/(y1-y0)),ox=(w-x1*s)/2;
   const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,l.sky[0]);gr.addColorStop(1,l.sky[1]);g.fillStyle=gr;g.fillRect(0,0,w,h);
-  {const xa=-ox/s,xb=(w-ox)/s,R=[[xa,ter2(l.T,xa)],...l.T.filter(p=>p[0]>xa&&p[0]<xb),[xb,ter2(l.T,xb)]];   // run the ground flat past both ends so it always fills the full width
+  {const xa=-ox/s,xb=(w-ox)/s,R=[[xa,ter2(LT,xa)],...LT.filter(p=>p[0]>xa&&p[0]<xb),[xb,ter2(LT,xb)]];   // run the ground flat past both ends so it always fills the full width
   g.beginPath();g.moveTo(0,h);R.forEach(([x,y])=>g.lineTo(ox+x*s,7+(y-y0)*s));g.lineTo(w,h);g.closePath()}g.fillStyle=l.snow;g.fill();g.strokeStyle=l.edge;g.lineWidth=2;g.stroke();if(l.lava)for(const L_ of l.lava){const yb=Math.max(...l.T.filter(p=>p[0]>=L_.x0&&p[0]<=L_.x1).map(p=>p[1]));g.fillStyle='#ff6a1a';g.fillRect(ox+L_.x0*s,7+(L_.y-y0)*s,(L_.x1-L_.x0)*s,Math.max(3,(yb-L_.y)*s))}if(l.water){const W_=l.water,yb=Math.max(...l.T.filter(p=>p[0]>=W_.x0&&p[0]<=W_.x1).map(p=>p[1]));g.fillStyle='#2a9bd6';g.fillRect(ox+W_.x0*s,7+(W_.y-y0)*s,(W_.x1-W_.x0)*s,Math.max(3,(yb-W_.y)*s))}}
 const selE=document.getElementById('sel'),thC=document.getElementById('th'),cardE=document.getElementById('card'),lnE=document.getElementById('ln'),ldE=document.getElementById('ld'),lenE=document.getElementById('level-length'),dotsE=document.getElementById('dots'),hsnE=document.getElementById('hsn'),hsgE=document.getElementById('hsg'),faqE=document.getElementById('faqp');
 LV.forEach((l,i)=>{const d=document.createElement('i');d.onclick=()=>{const dir=i>sel?1:-1;sel=i;showSel(dir)};dotsE.append(d)});
-function showSel(dir){const l=LV[sel];thumb(l,thC);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent='LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
+function showSel(dir){const l=LV[sel];thumb(l,thC);lnE.textContent=(sel+1)+'. '+l.n;ldE.textContent=l.d;const metres=Math.max(0,l.fin-300);lenE.textContent=l.endless?'LEVEL LENGTH · ENDLESS':'LEVEL LENGTH · '+(metres>=1000?(metres/1000).toFixed(1)+' km':Math.round(metres)+' m');
   [...dotsE.children].forEach((d,i)=>d.classList.toggle('on',i===sel));
-  const s=best[sel],g=bestG[sel];hsnE.textContent=s?'BEST '+s.toLocaleString():'NOT PLAYED YET';if(LV[sel].jump&&jumpRecord())hsnE.textContent+=' · RECORD '+jumpRecord().toFixed(1)+' m';hsnE.className=s?'':'no';
+  const s=best[sel],g=bestG[sel];hsnE.textContent=s?'BEST '+s.toLocaleString():'NOT PLAYED YET';if(LV[sel].endless&&endlessFarthest())hsnE.textContent+=' · FARTHEST '+endlessFarthest().toLocaleString()+' m';if(LV[sel].jump&&jumpRecord())hsnE.textContent+=' · RECORD '+jumpRecord().toFixed(1)+' m';hsnE.className=s?'':'no';
   hsgE.textContent=s&&g>=0?RATES[g][0]:'\u2013';hsgE.className=s&&g>=0?'g-'+RATES[g][0].replace('+','p'):'';
   if(dir){cardE.style.setProperty('--dx',dir*60+'px');cardE.style.animation='none';void cardE.offsetWidth;cardE.style.animation=''}}
 function selStep(d){sel=(sel+d+LV.length)%LV.length;showSel(d)}
@@ -20,7 +20,7 @@ const mh=document.getElementById('mh'),ms=document.getElementById('ms'),fb=docum
 const scE=document.getElementById('sc'),snE=document.getElementById('sn'),sbE=document.getElementById('sb'),rowsE=document.getElementById('rows'),rtE=document.getElementById('rt'),awE=document.getElementById('aw');
 // ---- ratings (S, A+, A, B, C, D, F) and awards. Tune SPAR (points for an S on a par-1 level) and each level's par
 const SPAR=500000,RATES=[['S',1,'LEGENDARY'],['A+',.7,'INSANE'],['A',.5,'AWESOME'],['B',.32,'SOLID'],['C',.18,'DECENT'],['D',.08,'ROUGH'],['F',0,'NEEDS WORK']];
-function rate(){if(st.sharkDeath)return{r:RATES[6],note:'Eaten by the shark!'};if(st.fireDeath)return{r:RATES[6],note:'FIRE!!! You touched the flames.'};const failed=!st.finishedLevel; if(st.timeoutF||failed)return{r:RATES[6],note:st.timeoutF?'No input for 3 seconds after losing your skis':'Failed to finish the level'};if(st.noSkiFinish)return resetsUsed?{r:RATES[3],note:'Reset Skis used '+resetsUsed+' time'+(resetsUsed===1?'':'s')+' — maximum grade B'}:{r:RATES[2],note:'(for effort)'};const m=st.skisOff?.75:dmg<15?1.1:1,idx=st.score*m/(SPAR*(LVc.par||1));let ri=RATES.findIndex(r=>idx>=r[1]),note=st.skisOff?'Lost your skis: rating x0.75':dmg<15&&st.score>0?'Pristine skis: rating bonus':'';
+function rate(){if(st.sharkDeath)return{r:RATES[6],note:'Eaten by the shark!'};if(st.fireDeath)return{r:RATES[6],note:'FIRE!!! You touched the flames.'};const failed=!st.finishedLevel; if(st.timeoutF||failed)return{r:RATES[6],note:st.timeoutF?'No input for 3 seconds after losing your skis':'Failed to finish the level'};if(st.noSkiFinish)return resetsUsed?{r:RATES[3],note:'Reset Skis used '+resetsUsed+' time'+(resetsUsed===1?'':'s')+' — maximum grade B'}:{r:RATES[2],note:'(for effort)'};const m=LVc.endless?1:st.skisOff?.75:dmg<15?1.1:1,idx=st.score*m/(SPAR*(LVc.par||1));let ri=RATES.findIndex(r=>idx>=r[1]),note=st.skisOff?'Lost your skis: rating x0.75':dmg<15&&st.score>0?'Pristine skis: rating bonus':'';
   const n=st.ff+st.bf;if(st.done&&ri>5){ri=5;note='You finished the run: no F for that'}   // finishing a level always earns at least a D
   if(n>5&&ri>4){ri=4;note=n+' flips: at least a C'}                                     // more than 5 flips always earns at least a C
   // These are guaranteed minimum grades; score, flips, and other bonuses can still earn higher grades.
@@ -38,6 +38,7 @@ const AWD=[
  {k:'COMBO',ic:'\u{1F4A5}',v:q=>q.combo,u:n=>n+' flips in one jump',t:[[2,'Double Trouble'],[3,'Triple Threat'],[4,'Quad Squad'],[5,'Rotation Royalty']]},
  {k:'AIR',ic:'\u{1F680}',v:q=>q.bAir,u:n=>n.toFixed(1)+' s longest air',t:[[.8,'Hopper'],[1.5,'Hang Time'],[2.5,'Sky King'],[4,'Astronaut']]},
  {k:'LANDINGS',ic:'\u{1F3AF}',v:q=>q.land,u:n=>n+' clean landing'+(n>1?'s':''),t:[[1,'Soft Touch'],[3,'Smooth Operator'],[5,'Landing Legend'],[8,'Velcro Boots']]},
+ {k:'STYLE',ic:'\u{1F9C8}',v:q=>q.perfect||0,u:n=>n+' perfect landing'+(n>1?'s':''),t:[[1,'Butter'],[3,'Silky'],[5,'Surgeon'],[8,'Perfectionist']]},
  {k:'SPEED',ic:'\u26A1',v:q=>q.maxV,u:n=>Math.round(n/10)+' km/h top speed',t:[[900,'Quick'],[1300,'Speed Demon'],[1700,'Mach Skier'],[2200,'Sonic Boom']]}];
 function awards(){const out=[];for(const a of AWD){const v=a.v(st);let ti=-1;a.t.forEach((x,i)=>{if(v>=x[0])ti=i});if(ti>=0)out.push({ic:a.ic,k:a.k,name:a.t[ti][1],det:a.u(v,st),ti})}
   if(st.skisOff&&st.noSkiFinish)out.push({ic:'\u{1F9B6}',k:'STYLE',name:'Barefoot Legend',det:'Finished with no skis',ti:3});if(!st.skisOff&&dmg<10&&st.score>0)out.push({ic:'\u{1F3BF}',k:'STYLE',name:'Pristine Skis',det:'Barely a scratch',ti:2});if(resetsUsed>0)out.push({ic:'\u{1F9A8}',k:'STINKY',name:'Stinky Reset',det:'Reset Skis used '+resetsUsed+' time'+(resetsUsed===1?'':'s')+' · −'+resetPenaltyTotal.toLocaleString()+' points',ti:0});return out}
@@ -47,7 +48,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,fast?0:ms));
 function setScore(v){snE.textContent=v.toLocaleString();snE.style.setProperty('--g',glowOf(v).toFixed(3))}
 function count(a,b,D,ok){return new Promise(res=>{const t0=performance.now(),f=t=>{if(!ok())return res();const u=fast?1:Math.min(1,(t-t0)/D),e=1-Math.pow(1-u,3);setScore(Math.round(a+(b-a)*e));if(!fast&&window.sndTick)sndTick(u);if(u<1)requestAnimationFrame(f);else res()};requestAnimationFrame(f)})}
 async function tally(){const id=++tId,ok=()=>id===tId;fast=false;fxStop();scE.style.setProperty('display','block','important');scE.style.visibility='visible';rowsE.innerHTML='';rtE.innerHTML='';awE.innerHTML='';sbE.textContent='\u00a0';sbE.className='';scE.style.zoom='';awE.style.zoom='';awE.style.setProperty('--fo','0');setScore(0);
-  const rows=[['AIR TIME',st.tAir.toFixed(1)+' s in the air',st.aPts],['FLIPS',(st.ff+st.bf)+' flip'+(st.ff+st.bf===1?'':'s')+' ('+st.ff+' front, '+st.bf+' back)',st.fPts]];if(st.hPts>0)rows.push(['HAZARD BONUS',st.hNames||'Cleared a hazard',st.hPts]);if(st.dPts>0)rows.push(['DISTANCE','Longest jump '+(st.jumpM||0).toFixed(1)+' m'+(st.jumpM>=JUMP_K?' (past K!)':''),st.dPts]);if(resetPenaltyTotal>0)rows.push(['RESET PENALTY',resetsUsed+' Reset Skis use'+(resetsUsed===1?'':'s'),-resetPenaltyTotal]);const rowSum=rows.reduce((n,r)=>n+r[2],0),adjustment=st.score-rowSum;if(adjustment!==0)rows.push(['SCORE ADJUSTMENT','Other score corrections',adjustment]);
+  const rows=[['AIR TIME',st.tAir.toFixed(1)+' s in the air',st.aPts],['FLIPS',(st.ff+st.bf)+' flip'+(st.ff+st.bf===1?'':'s')+' ('+st.ff+' front, '+st.bf+' back)',st.fPts]];if(st.hPts>0)rows.push(['HAZARD BONUS',st.hNames||'Cleared a hazard',st.hPts]);if(LVc.endless)rows.push(['DISTANCE',(st.endM||0).toLocaleString()+' m before the crash',st.ePts||0]);if(st.dPts>0)rows.push(['DISTANCE','Longest jump '+(st.jumpM||0).toFixed(1)+' m'+(st.jumpM>=JUMP_K?' (past K!)':''),st.dPts]);if(resetPenaltyTotal>0)rows.push(['RESET PENALTY',resetsUsed+' Reset Skis use'+(resetsUsed===1?'':'s'),-resetPenaltyTotal]);const rowSum=rows.reduce((n,r)=>n+r[2],0),adjustment=st.score-rowSum;if(adjustment!==0)rows.push(['SCORE ADJUSTMENT','Other score corrections',adjustment]);
   // Put the first line on screen immediately so the finish panel never looks like a title-only screen.
   let cum=0;for(const [l,d,p] of rows){const r=document.createElement('div');r.className='row';r.innerHTML='<b>'+l+'</b><span>'+d+'</span><em>'+(p<0?'−':'+')+Math.abs(p).toLocaleString()+'</em>';rowsE.append(r)}
   // Lay out the grade and every award now (hidden), so the screen can be sized to fit once and never jumps while they appear.
@@ -84,8 +85,8 @@ function growFrame(){const els=[...awE.querySelectorAll('.aw:not(.pend)'),...[..
 addEventListener('resize',()=>fitResults());addEventListener('orientationchange',()=>setTimeout(fitResults,250));
 function openMenu(fin){paused=true;customizer.style.display='none';document.getElementById('sc').style.display='';selPanel.style.display='';document.exitPointerLock&&document.exitPointerLock();updateResetButton();let runTally=false;
   closeFaq();scE.style.display=fin?'block':'none';selE.style.display=fin?'none':'';if(!fin){sel=cur;showSel(0)}
-  if(fin){mh.textContent=st.sharkDeath?'🦈 Shark snack!':st.fireDeath?'🔥 Burned to a crisp!':'\u{1F3C1} '+LVc.n+' complete!';ms.textContent=st.sharkDeath?'The shark got you. Jump higher next time!':st.fireDeath?(st.lavaDeath?'You fell in the lava. F FOR FIRE!!!':'You touched the flames. F FOR FIRE!!!'):'';fb.style.display='flex';document.getElementById('replay-menu').style.display=RP.n>1?'':'none';runTally=true}
-  else{tId++;fxStop();mh.textContent='Ski Stunt Simulator';ms.textContent='Choose a level';fb.style.display='none'}
+  if(fin){mh.textContent=LVc.endless?'⛷️ Run over · '+(st.endM||0).toLocaleString()+' m':st.sharkDeath?'🦈 Shark snack!':st.fireDeath?'🔥 Burned to a crisp!':'\u{1F3C1} '+LVc.n+' complete!';ms.textContent=st.sharkDeath?'The shark got you. Jump higher next time!':st.fireDeath?(st.lavaDeath?'You fell in the lava. F FOR FIRE!!!':'You touched the flames. F FOR FIRE!!!'):'';fb.style.display='flex';document.getElementById('replay-menu').style.display=RP.n>1?'':'none';runTally=true}
+  else{tId++;fxStop();mh.textContent='Powder Legends';ms.textContent='Choose a level';fb.style.display='none'}
   document.getElementById('customizer').style.display='none';document.getElementById('sc').style.display='';customOpen.style.display=fin?'none':'';
   mEl.style.display='flex';
   if(runTally){scE.style.setProperty('display','block','important');scE.style.visibility='visible';scE.style.opacity='1';tally()}
@@ -99,7 +100,7 @@ function startReplay(){if(RP.n<2)return;const controls=document.getElementById('
 function stopReplay(){if(!replayMode)return;replayMode=false;document.getElementById('replay-controls').style.removeProperty('display');document.getElementById('replay-controls').style.display='none';if(replayLiveP)P=replayLiveP; if(replayLiveCam)cam=replayLiveCam;zoom=replayLiveZoom;replayLiveP=null;replayLiveCam=null;document.getElementById('replay-open').style.display=RP.n>1?'':'none';if(st&&st.finishedLevel){paused=true;mEl.style.display='flex'}else{paused=false;lastM=null}updateResetButton()}
 document.getElementById('rp-rewind').onclick=()=>{replaySpeed=-1.5;replaySetStatus()};document.getElementById('rp-forward').onclick=()=>{replaySpeed=1;replaySetStatus()};document.getElementById('rp-slow').onclick=()=>{replaySpeed=.25;replaySetStatus()};document.getElementById('rp-pause').onclick=()=>{replaySpeed=replaySpeed===0?1:0;replaySetStatus()};document.getElementById('rp-exit').onclick=stopReplay;
 function closeMenu(){fxStop();paused=false;lastM=null;mEl.style.display='none';updateResetButton()}
-function go(i){tId++;fxStop();popsE.replaceChildren();cur=i;LVc=LV[i];T=LVc.T;FINISH=LVc.fin;closeMenu();reset()}
+function go(i){tId++;fxStop();popsE.replaceChildren();cur=i;LVc=LV[i];T=LVc.T;FINISH=LVc.fin;closeMenu();reset();document.getElementById('reset-skis').style.display=LVc.endless?'none':''}   // no checkpoint resets in the endless run
 document.getElementById('lb').onclick=()=>paused?closeMenu():openMenu();
 loadBest();go(0);
 const intro=document.getElementById('intro');
@@ -107,17 +108,5 @@ let introTimer;
 function skipIntro(){if(intro.style.display==='none')return;intro.style.display='none';clearTimeout(introTimer);if(window.tutAutoStart&&tutAutoStart())return;openMenu()}
 intro.addEventListener('pointerdown',skipIntro);
 addEventListener('keydown',e=>{if(intro.style.display!=='none'){e.preventDefault();skipIntro()}},true);
-introTimer=setTimeout(skipIntro,3000);
-(function fireworks(){
-  const fc=document.getElementById('introFx'),ctx=fc.getContext('2d');let fw=[],lastBurst=0;
-  function size(){const d=devicePixelRatio||1;fc.width=Math.round(innerWidth*d);fc.height=Math.round(innerHeight*d);ctx.setTransform(d,0,0,d,0,0)}
-  size();addEventListener('resize',size);
-  function burst(){const x=innerWidth*(.12+Math.random()*.76),y=innerHeight*(.08+Math.random()*.4),h=Math.random()*360,n=Math.ceil((55+Math.floor(Math.random()*35))*FX_SCALE);
-    for(let i=0;i<n;i++){const a=Math.PI*2*i/n+(Math.random()-.5)*.08,v=1.1+Math.random()*3.8;fw.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:45+Math.random()*35,max:80,h,sz:1+Math.random()*2})}}
-  function frame(t){if(t-lastBurst>520){burst();if(Math.random()>.45)burst();lastBurst=t}
-    ctx.clearRect(0,0,innerWidth,innerHeight);
-    fw=fw.filter(p=>p.life-->0);for(const p of fw){p.x+=p.vx;p.y+=p.vy;p.vy+=.025;p.vx*=.99;ctx.globalAlpha=Math.min(1,p.life/18);ctx.fillStyle=`hsl(${p.h} 100%  ${65+Math.random()*25}%)`;ctx.shadowBlur=LOWFX?0:12;ctx.shadowColor=`hsl(${p.h} 100% 65%)`;ctx.beginPath();ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);ctx.fill()}
-    ctx.globalAlpha=1;ctx.shadowBlur=0;if(intro.style.display!=='none')requestAnimationFrame(frame)
-  }requestAnimationFrame(frame)
-})();
+introTimer=setTimeout(skipIntro,5000);
 let last=performance.now(),acc=0;

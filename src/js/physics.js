@@ -112,7 +112,7 @@ function resetSkisHere(){
 }
 // Put a fresh skier back on the snow at x0 (no penalty). Used by Reset Skis and the tutorial.
 function respawnAt(x0){
-  if(LVc&&LVc.onReset)LVc.onReset();
+  if(LVc&&LVc.onReset)LVc.onReset('respawn');
   const g=ter(x0), ux=g.tx,uy=g.ty,nx=g.ty,ny=-g.tx;
   // Fully clear stale input/control state so the first movement after a checkpoint reset works normally.
   headHitFx=0;lastM=null;lastMove=performance.now();braking=false;brakeT=0;fingers.length=0;
@@ -257,6 +257,28 @@ let UPRC=.05,UPRD=.12,UPR0=.55;               // upright spin limit: when standi
 const LEANH=.0002;                          // held-lean bias: while airborne, leaning the pose forward/back adds a gentle steady spin in that direction (about 2.3 rad/s after a second at full lean; tucking afterwards shrinks the body and speeds that spin up naturally). 0 = off
 const LEANB=.009;                            // lean bias in the air: horizontal mouse motion adds a small spin (right = forward, left = backward) in proportion to how far/fast you move. 0 = off
 const AIRD=.22,AIRT=.09;                      // air assist: a slow forward rotation (under AIRT rad/step, about 3.6 rad/s) is damped by AIRD per step so you glide off ramps instead of drifting into a front flip. Real flips spin faster than AIRT and are untouched. AIRD=0 turns it off
+// ---- landing grades: how flat the skis are on the snow at touchdown decides how much of the trick is paid
+const LAND_CONFIRM=36;   // physics steps (0.3 s) you must stay up after touchdown before the points bank
+const LAND_GRADES=[{max:10,name:'PERFECT',mult:1.25},{max:20,name:'GOOD',mult:1},{max:35,name:'SKETCHY',mult:.5},{max:999,name:'NOT FLAT',mult:0}];
+function landingGrade(deg){return LAND_GRADES.find(g=>deg<=g.max)}
+function skiSlopeAngle(){   // degrees between the skis and the slope under them (0 = perfectly flat; switch landings count as flat too)
+  const ux=P[1].x-P[0].x,uy=P[1].y-P[0].y,ul=Math.hypot(ux,uy)||1,g=ter((P[0].x+P[1].x)/2),tl=Math.hypot(g.tx,g.ty)||1;
+  return Math.acos(Math.min(1,Math.abs((ux*g.tx+uy*g.ty)/(ul*tl))))*57.2958}
+function bankLanding(L){
+  st.pendLand=null;const G=landingGrade(L.ang),raw=L.aP+L.fP+L.hB;
+  if(G.mult===0){queueTrickResult(raw,'failed');spray('NOT FLAT!',Math.round(L.ang)+'° off the slope · land with your skis flat to score',false,0,'failed');st.notFlat=(st.notFlat||0)+1;return}
+  const aP=Math.round(L.aP*G.mult),fP=Math.round(L.fP*G.mult),hB=Math.round(L.hB*G.mult),pts=aP+fP+hB,f=L.f;
+  st.failedPendingShown=false;
+  st.score+=pts;st.aPts+=aP;st.fPts+=fP;st.hPts+=hB;st.lastLandingHPts=hB;st.land++;st.tAir+=L.la;st.lastLandingPts=pts;st.lastLandingAPts=aP;st.lastLandingFPts=fP;st.lastLandingAt=performance.now();st.lastLandingRolledBack=false;st.adrenaline=Math.min(100,(st.adrenaline||0)+Math.min(44,10+Math.sqrt(Math.max(0,pts))*.28)*(G.mult>1?1.3:1));updateAdrenalineUI();
+  if(G.name==='PERFECT')st.perfect=(st.perfect||0)+1;
+  st.bAir=Math.max(st.bAir,L.la);st.combo=Math.max(st.combo,f);
+  if(f){if(L.lr>0)st.ff+=f;else st.bf+=f}
+  spray(G.name+' · '+(L.hB?L.hzName+' ×'+L.hzMult+' · ':'')+(f?f+'× '+(L.lr>0?'FRONT':'BACK')+'FLIP':'BIG AIR'),'+'+pts.toLocaleString()+(G.mult!==1?' (×'+G.mult+')':''),f>1||!!L.hB||G.mult>1,pts,'landed'+(G.name==='SKETCHY'?' sketchy':G.name==='PERFECT'?' perfect':''));
+  queueTrickResult(pts,'landed');
+  trickScoreE.classList.remove('failed','power-1','power-2','power-3','power-4','landed');
+  trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';
+  trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');fwLand(pts,f);
+}
 function step(){
   // Fire does not change the skier's physics: after contact, normal gravity,
   // collisions, momentum and rotation continue exactly as they normally would.
@@ -351,22 +373,18 @@ function step(){
     const pf=Math.max(st.fl,Math.floor(Math.abs(st.rot)/6.2832));
     {const base=(Math.round(st.air*100)+pf*1000)*SCORE_X;st.pendingPts=st.hzMult>1?Math.round(base*st.hzMult+st.hzFlat):base}
   }
+  // Touchdown: measure how flat the skis are on the slope, then wait a moment to make sure the landing holds.
+  if(!air&&st.onAir){st.touchAng=skiSlopeAngle();st.touchAt=st.time}
   if(!st.fireDeath&&!air&&st.onAir&&st.air>.4&&!st.jumpScored){
     st.lr=st.rot;st.la=st.air;
     const f=Math.max(st.fl,Math.floor(Math.abs(st.rot)/6.2832));
-    const aP=Math.round(st.la*100)*SCORE_X,fP=f*1000*SCORE_X,hB=st.hzMult>1?Math.round((aP+fP)*(st.hzMult-1)+st.hzFlat):0,pts=aP+fP+hB;
-    if(!st.crash){
-      st.failedPendingShown=false;
-      st.score+=pts;st.aPts+=aP;st.fPts+=fP;st.hPts+=hB;st.lastLandingHPts=hB;st.land++;st.tAir+=st.la;st.lastLandingPts=pts;st.lastLandingAPts=aP;st.lastLandingFPts=fP;st.lastLandingAt=performance.now();st.lastLandingRolledBack=false;st.adrenaline=Math.min(100,(st.adrenaline||0)+Math.min(44,10+Math.sqrt(Math.max(0,pts))*.28));updateAdrenalineUI();
-      st.bAir=Math.max(st.bAir,st.la);st.combo=Math.max(st.combo,f);
-      if(f){if(st.lr>0)st.ff+=f;else st.bf+=f}
-      spray((hB?st.hzName+' ×'+st.hzMult+' · ':'')+(f?f+'× '+(st.lr>0?'FRONT':'BACK')+'FLIP':'BIG AIR'),'+'+pts.toLocaleString(),f>1||!!hB,pts,'landed');
-      queueTrickResult(pts,'landed');
-      trickScoreE.classList.remove('failed','power-1','power-2','power-3','power-4','landed');
-      trickScoreE.textContent='';trickScoreE.dataset.value='';trickScoreE.dataset.result='';
-      trickScoreE.style.setProperty('--power','0');trickScoreE.style.setProperty('--scale','1');celebrateLanding(pts);fwLand(pts,f);
-    }
+    const aP=Math.round(st.la*100)*SCORE_X,fP=f*1000*SCORE_X,hB=st.hzMult>1?Math.round((aP+fP)*(st.hzMult-1)+st.hzFlat):0;
+    if(!st.crash){st.pendLand={aP,fP,hB,f,lr:st.lr,la:st.la,hzName:st.hzName,hzMult:st.hzMult,ang:st.touchAng,steps:0};celebrateLanding(aP+fP+hB)}
     st.pendingPts=0;if(!st.crash)st.failedPendingShown=false;st.jumpScored=true;st.hzMult=1;st.hzFlat=0;
+  }
+  if(st.pendLand){const L=st.pendLand,total=L.aP+L.fP+L.hB;
+    if(st.crash||st.fireDeath||st.sharkDeath){st.pendLand=null;if(total>0&&!st.fireDeath&&!st.sharkDeath)queueTrickResult(total,'failed')}   // fell right after touching down: nothing banked
+    else if(++L.steps>=LAND_CONFIRM)bankLanding(L);
   }
   // Keep the same provisional score visible after a crash, and let the HUD turn it red.
   // Do not create a separate POINTS LOST notification.
