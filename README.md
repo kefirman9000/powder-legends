@@ -90,3 +90,7 @@ Other keys: **M** or **Esc** for the menu · **N** next level · **1–9** pick 
 Made by **PJ**. Built with plain HTML and JavaScript; no libraries, no tracking.
 
 Want to tinker with it? See **[DEVELOPING.md](DEVELOPING.md)** for how the game is built and how updates ship.
+
+## Support Powder Legends
+
+Powder Legends is free to play, with no ads and no tracking. If you've had fun stomping landings, you can support new levels and tricks on **[GitHub Sponsors](https://github.com/sponsors/kefirman9000)**. Starring the repo and sharing it help too.
