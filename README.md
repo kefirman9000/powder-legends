@@ -94,3 +94,11 @@ Want to tinker with it? See **[DEVELOPING.md](DEVELOPING.md)** for how the game 
 ## Support Powder Legends
 
 Powder Legends is free to play, with no ads and no tracking. If you've had fun stomping landings, you can support new levels and tricks on **[GitHub Sponsors](https://github.com/sponsors/kefirman9000)**. Starring the repo and sharing it help too.
+
+## License and disclaimer
+
+Copyright © 2026 kefirman9000. All rights reserved. Powder Legends is free to play; see [LICENSE](LICENSE) for what is and isn't allowed.
+
+Powder Legends is provided **as is**, without warranty of any kind. Use it at your own risk; the author is not liable for any damage, data loss or other loss arising from its use.
+
+Found a security problem? Please report it privately; see [SECURITY.md](SECURITY.md).
