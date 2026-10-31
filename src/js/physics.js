@@ -93,7 +93,7 @@ function reset(){
   resetsUsed=0;resetPenaltyTotal=0;updateResetButton();
   dmg=0;braking=false;brakeT=0;fingers.length=0;snow.length=0;
   const x0=300,g=ter(x0),ux=g.tx,uy=g.ty,nx=g.ty,ny=-g.tx;
-  sm={x:.5,y:NY};ctl={x:.5,y:NY};cq=null;pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
+  sm={x:.5,y:NY};ctl={x:.5,y:NY};cq=null;pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;if(classicCtl)classicStartPose();const pz=pose();
   // forward kinematics in the ski frame (u forward, v up; angles CCW)
   const dir=a=>[Math.cos(a),Math.sin(a)],add=(p,d,l)=>[p[0]+d[0]*l,p[1]+d[1]*l];
   const ph=Math.PI/2-SHIN,pt=ph+pz.knee,pb=pt-pz.fold,pa=pb-(Math.PI-pz.arm);
@@ -129,7 +129,7 @@ function respawnAt(x0){
   headHitFx=0;lastM=null;lastMove=performance.now();braking=false;brakeT=0;fingers.length=0;
   if(document.pointerLockElement===cv&&document.exitPointerLock)document.exitPointerLock();
   dmg=0;snow.length=0;
-  sm={x:.5,y:NY};ctl={x:.5,y:NY};cq=null;pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
+  sm={x:.5,y:NY};ctl={x:.5,y:NY};cq=null;pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;if(classicCtl)classicStartPose();const pz=pose();
   const dir=a=>[Math.cos(a),Math.sin(a)],add=(p,d,l)=>[p[0]+d[0]*l,p[1]+d[1]*l];
   const ph=Math.PI/2-SHIN,pt=ph+pz.knee,pb=pt-pz.fold,pa=pb-(Math.PI-pz.arm);
   const ank=[-BOOT_BACK,8],kn=add(ank,dir(ph),SEG.shin),hip=add(kn,dir(pt),SEG.thigh),sh=add(hip,dir(pb),SEG.torso);
@@ -290,9 +290,15 @@ function classicTarget(){
   const x=Math.min(Math.max(sm.x,0),1),y=Math.min(Math.max(sm.y,0),1),cl=(v,a,b)=>Math.min(b,Math.max(a,v));
   return[cl(100*(1-y)+60*(1-x),0,100),cl(-110+150*y-40*x,-110,20),cl(20+50*y,-90,70)];
 }
+let cRamp=1;   // classic: joint speed multiplier that eases from .15 to 1 over the first half second of a run
+// Start a run already in the pose the pointer asks for. Otherwise the skier is built in the default crouch and the first nudge of the
+// mouse straightens the legs all at once, which launched the skier at the start of every level.
+function classicStartPose(){
+  if(typeof lastAim!=='undefined'&&lastAim)aimAt(lastAim.x,lastAim.y);
+  sm.x=ctl.x;sm.y=ctl.y;prevY=sm.y;cq=null;cRamp=.15}
 function classicSlew(){   // once per physics step: move each joint target toward the mouse pose, no faster than CJK/CJH/CJA
   const t=classicTarget();if(!cq){cq=t;return}
-  const R=[CJK,CJH,CJA];for(let k=0;k<3;k++){const m=R[k]/120;cq[k]+=Math.max(-m,Math.min(m,t[k]-cq[k]))}
+  cRamp=Math.min(1,cRamp+.0142);const R=[CJK,CJH,CJA];for(let k=0;k<3;k++){const m=R[k]/120*cRamp;cq[k]+=Math.max(-m,Math.min(m,t[k]-cq[k]))}
 }
 function classicPose(){
   if(!cq)cq=classicTarget();

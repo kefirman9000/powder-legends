@@ -5,7 +5,8 @@ let lastMove=0;
 // Classic controls (as in the original game): where the pointer is on the game screen IS the pose. Top = stand, bottom = crouch, right = lean forward.
 // The pose spans a box in the middle of the screen (CPW x CPH of its width/height), not the whole screen: the original ran in a small
 // window, and a full-screen browser would otherwise need huge arm movements. Outside the box the pose just stays at its limit.
-function aimAt(cx_,cy_){const r=cv.getBoundingClientRect(),w=r.width*CPW,h=r.height*CPH;lastMove=performance.now();
+let lastAim=null;   // last pointer position seen (Classic controls), so a restart can begin in that pose
+function aimAt(cx_,cy_){const r=cv.getBoundingClientRect(),w=r.width*CPW,h=r.height*CPH;lastMove=performance.now();lastAim={x:cx_,y:cy_};
   ctl.x=Math.min(1,Math.max(0,(cx_-(r.left+(r.width-w)/2))/w));ctl.y=Math.min(1,Math.max(0,1-(cy_-(r.top+(r.height-h)/2))/h))}
 function move(dx,dy){if(dx||dy)lastMove=performance.now();
   const r=cv.getBoundingClientRect();
