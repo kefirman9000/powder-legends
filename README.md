@@ -83,6 +83,7 @@ Other keys: **M** or **Esc** for the menu · **N** next level · **1–9** pick 
 - Only mouse *movement* counts, and your pose stays where you leave it.
 - Tuck tight to spin faster, and stand up straight before you land.
 - Big, clean landings fill the adrenaline bar. Keep it full for a rainbow trail.
+- Want the original Ski Stunt feel? **Settings → Classic controls** makes the pointer's *position* your pose, as in the original (top = stand, bottom = crouch, right = lean forward), with the original's posture and no flip or landing helpers. **Settings → Classic gravity** adds its lighter, floatier gravity. Use either or both.
 - Struggling on an older phone? **Settings → Graphics** lowers the effects. On Auto, it does this for you.
 
 ## Credits

@@ -20,6 +20,7 @@ m.innerHTML=`<div id="set-card"><h3>⚙ Settings <button type="button" id="set-c
  <div class="set-row"><div>Game version<small id="set-ver"></small></div><button type="button" id="set-upd">Check for updates</button></div>
  <div class="set-row"><div>Graphics<small id="set-gfx-note"></small></div><select id="set-gfx"><option value="auto">Auto</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
  <div class="set-row"><div>Classic gravity<small>The original Ski Stunt feel: floatier jumps with more hang time for flips</small></div><input type="checkbox" id="set-grav"></div>
+ <div class="set-row"><div>Classic controls<small>The original's mouse control: where the pointer is on screen sets the pose (top = stand, bottom = crouch, right = lean forward). No flip or landing helpers</small></div><input type="checkbox" id="set-ctl"></div>
  <div class="set-row"><div>Show FPS<small>A small frame-rate counter in the corner, handy if the game feels choppy</small></div><input type="checkbox" id="set-fps"></div>
  <div class="set-row"><div>Best-run ghost<small>Race a see-through copy of your best run on each level</small></div><input type="checkbox" id="set-ghost"></div>
  <div class="set-row" id="set-hap-row"><div>Vibration<small>Short buzzes on landings, flips and crashes (Android phones)</small></div><input type="checkbox" id="set-hap"></div>
@@ -28,7 +29,7 @@ document.body.appendChild(m);
 function open(){
   $('set-ver').textContent='v'+GAME_VERSION+(window.__SKI_FROM_UPDATE?' (installed update)':'');
   const ok=typeof HAPTIC_OK!=='undefined'&&HAPTIC_OK;$('set-hap-row').style.display=ok?'':'none';if(ok)$('set-hap').checked=hapOn;
-  $('set-gfx').value=qMode;gfxNote();$('set-fps').checked=fpsOn;$('set-grav').checked=classicGrav;$('set-ghost').checked=ghostOn();
+  $('set-gfx').value=qMode;gfxNote();$('set-fps').checked=fpsOn;$('set-grav').checked=classicGrav;$('set-ctl').checked=classicCtl;$('set-ghost').checked=ghostOn();
   $('set-reset').textContent='Reset';m.style.display='flex'}
 function gfxNote(){$('set-gfx-note').textContent=qMode==='auto'?'Adjusts itself if your device struggles (now: '+qCur().name+')':'Fixed at '+qCur().name}
 const close=()=>{m.style.display='none'};
@@ -38,6 +39,7 @@ $('set-upd').addEventListener('click',()=>{close();if(window.updCheck)updCheck()
 $('set-gfx').addEventListener('change',e=>{setQualityMode(e.target.value);gfxNote()});
 $('set-ghost').addEventListener('change',e=>setGhost(e.target.checked));
 $('set-fps').addEventListener('change',e=>setFps(e.target.checked));
+$('set-ctl').addEventListener('change',e=>setClassicControls(e.target.checked));
 $('set-grav').addEventListener('change',e=>{setClassicGravity(e.target.checked);if(window.ghostLoad&&typeof LVc!=='undefined'&&LVc)try{ghostLoad()}catch(_){}});
 $('set-hap').addEventListener('change',e=>{setHaptics(e.target.checked);const b=$('v-hap');if(b)b.checked=e.target.checked});
 $('set-reset').addEventListener('click',e=>{const b=e.target;if(b.textContent==='Reset'){b.textContent='Tap again to confirm';return}   // two taps, so it can't happen by accident

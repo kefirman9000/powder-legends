@@ -2,6 +2,9 @@
 // ctl.y / ctl.x are a pose that the mouse pushes around and that clamps at its limits.
 const SENS_Y=.6,SENS_X=.5; // tweak: pose travel per screen size, flip strength per px
 let lastMove=0;
+// Classic controls (as in the original game): where the pointer is on the game screen IS the pose. Top = stand, bottom = crouch, right = lean forward.
+function aimAt(cx_,cy_){const r=cv.getBoundingClientRect();lastMove=performance.now();
+  ctl.x=Math.min(1,Math.max(0,(cx_-r.left)/r.width));ctl.y=Math.min(1,Math.max(0,1-(cy_-r.top)/r.height))}
 function move(dx,dy){if(dx||dy)lastMove=performance.now();
   const r=cv.getBoundingClientRect();
   // A head impact briefly makes the controls feel sluggish for the full 2-second dizzy period.
@@ -15,6 +18,7 @@ function move(dx,dy){if(dx||dy)lastMove=performance.now();
 const TOUCH_BOOST=1.2,TOUCH_ACCEL=.25,TOUCH_ACCEL_MAX=.5;   // touch only: base gain, extra gain per px/ms of finger speed, and cap on that extra
 const fingers=[];   // active touch/pen pointers, in the order they went down: fingers[0] moves, any extra finger brakes
 cv.addEventListener('pointermove',e=>{
+  if(classicCtl&&(e.pointerType==='mouse'||fingers[0]&&fingers[0].id===e.pointerId)){aimAt(e.clientX,e.clientY);const f=fingers[0];if(f){f.x=e.clientX;f.y=e.clientY}return}   // Classic controls: the pointer's position is the pose
   if(e.pointerType==='mouse'){if(document.pointerLockElement===cv)move(e.movementX,e.movementY);else{if(lastM)move(e.clientX-lastM.x,e.clientY-lastM.y);lastM={x:e.clientX,y:e.clientY}}return}
   const f=fingers.find(q=>q.id===e.pointerId);if(!f)return;
   if(f===fingers[0]){
@@ -36,6 +40,7 @@ cv.addEventListener('pointerdown',e=>{
     if(document.pointerLockElement===cv&&document.exitPointerLock)document.exitPointerLock();return}
   if(st.crash||st.done){reset();return}                    // tap after a wipeout / finish: restart
   fingers.push({id:e.pointerId,x:e.clientX,y:e.clientY,t:e.timeStamp});
+  if(classicCtl&&fingers.length===1)aimAt(e.clientX,e.clientY);
   braking=fingers.length>1;                                // second finger down = brake
   try{cv.setPointerCapture(e.pointerId)}catch(_){}
 });

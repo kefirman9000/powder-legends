@@ -3,7 +3,7 @@
 // Tunable constants can be edited live; leaving debug mode puts every value back to its default.
 (function(){
 const $=id=>document.getElementById(id);
-const ACC={GRAV:[()=>GRAV,v=>{GRAV=v}],AIRDRAG:[()=>AIRDRAG,v=>{AIRDRAG=v}],LAND:[()=>LAND,v=>{LAND=v}],LANDT:[()=>LANDT,v=>{LANDT=v}],SKIT:[()=>SKIT,v=>{SKIT=v}],SKIAD:[()=>SKIAD,v=>{SKIAD=v}],SKIRB:[()=>SKIRB,v=>{SKIRB=v}],SKIRK:[()=>SKIRK,v=>{SKIRK=v}],ANK:[()=>ANK,v=>{ANK=v}],ANKD:[()=>ANKD,v=>{ANKD=v}],JD:[()=>JD,v=>{JD=v}],KK:[()=>KK,v=>{KK=v}],KH:[()=>KH,v=>{KH=v}],KA:[()=>KA,v=>{KA=v}],SHIN:[()=>SHIN,v=>{SHIN=v}],HIPMAX:[()=>HIPMAX,v=>{HIPMAX=v}],CONSERVE:[()=>CONSERVE,v=>{CONSERVE=v}],UPRC:[()=>UPRC,v=>{UPRC=v}],UPRD:[()=>UPRD,v=>{UPRD=v}],UPR0:[()=>UPR0,v=>{UPR0=v}],JUMP:[()=>JUMP,v=>{JUMP=v}],RISE0:[()=>RISE0,v=>{RISE0=v}],JUMPUP:[()=>JUMPUP,v=>{JUMPUP=v}],COY:[()=>COY,v=>{COY=v}],BODYOFF:[()=>BODYOFF,v=>{BODYOFF=v}],SKIHARD:[()=>SKIHARD,v=>{SKIHARD=v}],DMGMIN:[()=>DMGMIN,v=>{DMGMIN=v}],DMGK:[()=>DMGK,v=>{DMGK=v}],DMGMAX:[()=>DMGMAX,v=>{DMGMAX=v}],BRAKE0:[()=>BRAKE0,v=>{BRAKE0=v}],BRAKE1:[()=>BRAKE1,v=>{BRAKE1=v}],SMX:[()=>SMX,v=>{SMX=v}],SMY:[()=>SMY,v=>{SMY=v}],DAMP:[()=>DAMP,v=>{DAMP=v}],GAIN:[()=>GAIN,v=>{GAIN=v}],CROUCH:[()=>CROUCH,v=>{CROUCH=v}]};   // direct getters/setters for the tunables (no eval, so it works under any CSP / in-app browser)
+const ACC={CJK:[()=>CJK,v=>{CJK=v}],CJH:[()=>CJH,v=>{CJH=v}],CJA:[()=>CJA,v=>{CJA=v}],GRAV:[()=>GRAV,v=>{GRAV=v}],AIRDRAG:[()=>AIRDRAG,v=>{AIRDRAG=v}],LAND:[()=>LAND,v=>{LAND=v}],LANDT:[()=>LANDT,v=>{LANDT=v}],SKIT:[()=>SKIT,v=>{SKIT=v}],SKIAD:[()=>SKIAD,v=>{SKIAD=v}],SKIRB:[()=>SKIRB,v=>{SKIRB=v}],SKIRK:[()=>SKIRK,v=>{SKIRK=v}],ANK:[()=>ANK,v=>{ANK=v}],ANKD:[()=>ANKD,v=>{ANKD=v}],JD:[()=>JD,v=>{JD=v}],KK:[()=>KK,v=>{KK=v}],KH:[()=>KH,v=>{KH=v}],KA:[()=>KA,v=>{KA=v}],SHIN:[()=>SHIN,v=>{SHIN=v}],HIPMAX:[()=>HIPMAX,v=>{HIPMAX=v}],CONSERVE:[()=>CONSERVE,v=>{CONSERVE=v}],UPRC:[()=>UPRC,v=>{UPRC=v}],UPRD:[()=>UPRD,v=>{UPRD=v}],UPR0:[()=>UPR0,v=>{UPR0=v}],JUMP:[()=>JUMP,v=>{JUMP=v}],RISE0:[()=>RISE0,v=>{RISE0=v}],JUMPUP:[()=>JUMPUP,v=>{JUMPUP=v}],COY:[()=>COY,v=>{COY=v}],BODYOFF:[()=>BODYOFF,v=>{BODYOFF=v}],SKIHARD:[()=>SKIHARD,v=>{SKIHARD=v}],DMGMIN:[()=>DMGMIN,v=>{DMGMIN=v}],DMGK:[()=>DMGK,v=>{DMGK=v}],DMGMAX:[()=>DMGMAX,v=>{DMGMAX=v}],BRAKE0:[()=>BRAKE0,v=>{BRAKE0=v}],BRAKE1:[()=>BRAKE1,v=>{BRAKE1=v}],SMX:[()=>SMX,v=>{SMX=v}],SMY:[()=>SMY,v=>{SMY=v}],DAMP:[()=>DAMP,v=>{DAMP=v}],GAIN:[()=>GAIN,v=>{GAIN=v}],CROUCH:[()=>CROUCH,v=>{CROUCH=v}]};   // direct getters/setters for the tunables (no eval, so it works under any CSP / in-app browser)
 const GE=n=>ACC[n][0](),SE=(n,v)=>{ACC[n][1](+v)};
 const NAMES=['tail','tip','ankle','knee','hip','shoulder','head','hand'];
 const TUN=[['World','GRAV',0,.2,.0005],['World','AIRDRAG',.99,1,.0001],
@@ -14,6 +14,7 @@ const TUN=[['World','GRAV',0,.2,.0005],['World','AIRDRAG',.99,1,.0001],
  ['Pop','JUMP',0,5,.05],['Pop','RISE0',0,.02,.0005],['Pop','JUMPUP',0,1,.05],['Pop','COY',0,.5,.01],
  ['Damage','BODYOFF',0,6000,50],['Damage','SKIHARD',0,10000,50],['Damage','DMGMIN',0,3000,25],['Damage','DMGK',0,.2,.001],['Damage','DMGMAX',1,400,1],
  ['Brake','BRAKE0',0,.05,.0005],['Brake','BRAKE1',0,.1,.0005],
+ ['Classic controls','CJK',100,3000,25],['Classic controls','CJH',100,3000,25],['Classic controls','CJA',100,3000,25],
  ['Pose','SMX',0,1,.01],['Pose','SMY',0,1,.01],['Pose','DAMP',.5,1,.005],['Pose','GAIN',0,3,.05],['Pose','CROUCH',0,3,.05]];
 const DEF={};TUN.forEach(t=>{try{DEF[t[1]]=GE(t[1])}catch(e){console.warn('debug tunable missing:',t[1])}});
 const TL=TUN.filter(t=>t[1] in DEF);
@@ -27,7 +28,7 @@ function mkLevel(){const k=track(),sl=dbg.slope,a=-dbg.kAng,L=dbg.kLen;k.line(90
 function applyLevel(){LVc=mkLevel();T=LVc.T;FINISH=LVc.fin}
 function start(){tId++;fxStop();popsE.replaceChildren();dbg.on=true;dbg.frozen=false;dbg.ts=1;dbg.stepN=0;dbg.trail.length=0;dbg.hist.length=0;applyLevel();closeMenu();reset();sync()}
 window.exitDebug=()=>exit();
-function exit(){if(!dbg.on)return;dbg.on=false;dbg.frozen=false;dbg.ts=1;TL.forEach(t=>SE(t[1],DEF[t[1]]));panel.style.display='none'}
+function exit(){if(!dbg.on)return;dbg.on=false;dbg.frozen=false;dbg.ts=1;TL.forEach(t=>SE(t[1],DEF[t[1]]));setClassicGravity(classicGrav);panel.style.display='none'}   // re-apply the gravity mode chosen in Settings
 const _go=go;go=function(){exit();return _go.apply(this,arguments)};
 const _om=openMenu;openMenu=function(f){if(dbg.on&&f===true){reset();return}return _om.apply(this,arguments)};   // a run can never "finish" or save a score in debug mode
 

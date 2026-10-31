@@ -43,6 +43,8 @@ const SCORE_X=100;                            // points multiplier
 const RESET_PENALTY=25000; let resetsUsed=0,resetPenaltyTotal=0;
 let KK=.7,KH=.5,KA=.25;                    // joint motor strengths (original kp: knee > hip > shoulder)
 let GRAV=900/14400,AIRDRAG=.9995;   // gravity (px per step^2) and per-step air drag on the skier (Classic gravity in Settings changes these, see setClassicGravity)
+let classicCtl=false;try{classicCtl=localStorage.getItem('skiClassicCtl')==='1'}catch(e){}   // Classic controls (Settings): see classicPose()
+function setClassicControls(on){classicCtl=!!on;cq=null;try{localStorage.setItem('skiClassicCtl',classicCtl?'1':'0')}catch(e){}cvx=cvy=0}
 let IMPS=120;                      // turns an impact speed in px/step into the px/s that the crash and damage limits are tuned for. 120 at normal gravity; Classic gravity raises it so impacts are judged as hard as they would be at normal gravity
 const dbg={on:false,frozen:false,ts:1,stepN:0,imp:[0,0,0,0,0,0,0,0],impT:[0,0,0,0,0,0,0,0],lock:false,auto:false,steps:0,trail:[],hist:[],crashAt:0,slope:.3,kick:true,show:{vec:true,norm:true,trail:true,rule:true,lab:true}};   // debug mode state (see the debug module at the end of the file)
 let skiT=0,hit=false,dmg=0,braking=false,gT=0,lndT=0,cvx=0,cvy=0,pop=0,prevY=NY,snap=null,al=1,fdt=1/60,P,len,st,sm,ctl,cam={x:0,y:0},lastM=null,headHitFx=0,damagePulseAt=0,crashWasActive=false;
@@ -91,7 +93,7 @@ function reset(){
   resetsUsed=0;resetPenaltyTotal=0;updateResetButton();
   dmg=0;braking=false;brakeT=0;fingers.length=0;snow.length=0;
   const x0=300,g=ter(x0),ux=g.tx,uy=g.ty,nx=g.ty,ny=-g.tx;
-  sm={x:.5,y:NY};ctl={x:.5,y:NY};pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
+  sm={x:.5,y:NY};ctl={x:.5,y:NY};cq=null;pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
   // forward kinematics in the ski frame (u forward, v up; angles CCW)
   const dir=a=>[Math.cos(a),Math.sin(a)],add=(p,d,l)=>[p[0]+d[0]*l,p[1]+d[1]*l];
   const ph=Math.PI/2-SHIN,pt=ph+pz.knee,pb=pt-pz.fold,pa=pb-(Math.PI-pz.arm);
@@ -127,7 +129,7 @@ function respawnAt(x0){
   headHitFx=0;lastM=null;lastMove=performance.now();braking=false;brakeT=0;fingers.length=0;
   if(document.pointerLockElement===cv&&document.exitPointerLock)document.exitPointerLock();
   dmg=0;snow.length=0;
-  sm={x:.5,y:NY};ctl={x:.5,y:NY};pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
+  sm={x:.5,y:NY};ctl={x:.5,y:NY};cq=null;pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
   const dir=a=>[Math.cos(a),Math.sin(a)],add=(p,d,l)=>[p[0]+d[0]*l,p[1]+d[1]*l];
   const ph=Math.PI/2-SHIN,pt=ph+pz.knee,pb=pt-pz.fold,pa=pb-(Math.PI-pz.arm);
   const ank=[-BOOT_BACK,8],kn=add(ank,dir(ph),SEG.shin),hip=add(kn,dir(pt),SEG.thigh),sh=add(hip,dir(pb),SEG.torso);
@@ -270,7 +272,35 @@ function motor(ia,ij,ic,target,s){
 //   knee (joint 2): y 100->0   x 60->0   limits 0..100
 //   hip  (joint 3): y -130->20 x 20->-20 limits -110..20
 //   arm  (joint 4): y 20->70 (here the arm swings forward when you crouch, as in v2)
+// ---- Classic controls: the original Ski Stunt Simulator's posture and mouse mapping ------------------------------------------
+// Checked against the original's 99 bundled replays: with these formulas the recorded hip angle is predicted to within ~2 degrees
+// from the knee and arm angles, so this is how the original turned the mouse into a pose.
+//  * The mouse POSITION on screen is the pose (top = standing, bottom = crouched, right = lean forward), not mouse movement.
+//  * Joint targets in the original's degrees (skier.keys mousemap, clamped to the jt_pd limits):
+//      knee = 100(1-y) + 60(1-x)   [0..100]     hip = -110 + 150y - 40x   [-110..20]     arm = 20 + 50y   [-90..70]
+//  * Converted to this skier's frame from the original body (skier.afig): at 0 the original's thigh already leans back 22.8deg
+//    from vertical, the torso is folded 38.3deg forward of the thigh, and the arm points straight forward from the torso.
+//    So the original skier rides deeper in the knees than ours, with arms held out in front at about shoulder height.
+const CK={thigh:112.8,fold:38.3,arm:90.5};   // original rest-figure offsets (deg), measured from skier.afig
+let CSM=.25,CKS=[.7,.5,.25],CPOP=false;  // classic: how fast the pose follows the pointer, joint strengths (knee, hip, arm), and no pop boost (the original's jumps came from the legs alone)
+let CJK=650,CJH=650,CJA=850;   // classic: fastest each joint can swing (deg/s: knee, hip, arm), from the original's replays (fast moves on the snow reach ~600 deg/s)
+                           // The original's joints had torque limits, so a sudden mouse jump takes ~0.1-0.15 s to reach, not one frame
+let cq=null;               // classic: current joint targets [knee, hip, arm] in the original's degrees, slewing toward the mouse pose
+function classicTarget(){
+  const x=Math.min(Math.max(sm.x,0),1),y=Math.min(Math.max(sm.y,0),1),cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+  return[cl(100*(1-y)+60*(1-x),0,100),cl(-110+150*y-40*x,-110,20),cl(20+50*y,-90,70)];
+}
+function classicSlew(){   // once per physics step: move each joint target toward the mouse pose, no faster than CJK/CJH/CJA
+  const t=classicTarget();if(!cq){cq=t;return}
+  const R=[CJK,CJH,CJA];for(let k=0;k<3;k++){const m=R[k]/120;cq[k]+=Math.max(-m,Math.min(m,t[k]-cq[k]))}
+}
+function classicPose(){
+  if(!cq)cq=classicTarget();
+  const D=Math.PI/180,[q2,q3,q4]=cq;
+  return{knee:(CK.thigh+q2)*D-(Math.PI/2-SHIN),fold:(CK.fold-q3)*D,arm:(CK.arm+q4)*D};
+}
 function pose(){
+  if(classicCtl)return classicPose();
   const x=Math.min(Math.max(sm.x,XMIN),XMAX),y=Math.min(Math.max(sm.y,0),1),D=Math.PI/180;
   const g=x<.5?XGB:XGF,ce=CROUCH*(1-y)*(1-y),knee=Math.min(100+25*CROUCH,Math.max(0,100*(1-y)+25*ce+30+g*(30-66*x)))*D;
   const hip=Math.min(HIPMAX,Math.max(-110-15*CROUCH,-130-15*ce+150*y+g*(20-44*x)))*D;
@@ -319,29 +349,30 @@ function step(){
   if(RESETPOSE>0&&!st.onAir&&!st.crash&&!st.done&&!fingers.length&&performance.now()-lastMove>RESETIDLE){   // on the snow with no input: settle back to the standard crouch so every jump starts from the same stance
     ctl.y+=(NY-ctl.y)*RESETPOSE;ctl.x+=(.5-ctl.x)*RESETPOSE;cvx*=.8;cvy*=.8}
   cvx*=DAMP;cvy*=DAMP;                                           // friction: acceleration tapers off, pose holds where it ends
-  sm.x+=(ctl.x-sm.x)*SMX;sm.y+=(ctl.y-sm.y)*SMY;
+  if(classicCtl){cvx=cvy=0;sm.x+=(ctl.x-sm.x)*CSM;sm.y+=(ctl.y-sm.y)*CSM}else{sm.x+=(ctl.x-sm.x)*SMX;sm.y+=(ctl.y-sm.y)*SMY}
   pop+=(Math.min(1,Math.max(0,((sm.y-prevY)*POPK*10-.3)/.7))-pop)*POPS;const rise=sm.y-prevY;prevY=sm.y;   // standing-up speed -> arm throw
   {  // POP: legs pushing off the snow. A pure linear launch impulse on every body part (a push through the centre of mass: no torque, no spin correction). All rotation is natural physics.
     const pe=Math.max(0,rise-RISE0);
-    if(pe>0&&gT<COY&&!st.crash&&!st.done){
+    if(pe>0&&gT<COY&&!st.crash&&!st.done&&!(classicCtl&&!CPOP)){
       const g=ter((P[0].x+P[1].x)/2);let ux=g.ty*(1-JUMPUP),uy=-g.tx*(1-JUMPUP)-JUMPUP;const ul=Math.hypot(ux,uy)||1;ux/=ul;uy/=ul;
       const dv=JUMP*pe;P.forEach(p=>{p.px-=ux*dv;p.py-=uy*dv});
     }
   }
+  if(classicCtl)classicSlew();
   const pz=pose(),sf=Math.min(1,Math.max(0,(sm.y-.12)/.38));   // sf: 0 crouched .. 1 standing. The glide and landing assists fade out as you tuck, so nothing fights a tucked spin
   hit=false;const s0=CONSERVE&&st.onAir&&!st.crash?spinL():null;
   for(let k=0;k<6;k++){
     if(st.crash&&SKISOFF)st.skisOff=true;
     C.forEach(([a,b],i)=>{if(st.skisOff&&(i===1||i===2||i>=8))return;pull(a,b,len[i],i>=8?ANK:1)});   // once the skis are off, only the ski's own tail-tip link remains   // last two links are the ankle braces
-    {const f=st.crash?DEADK:1;motor(2,3,4,-pz.knee,KK*f);motor(3,4,5,pz.fold,KH*f);motor(4,5,7,Math.PI-pz.arm,KA*f);motor(4,5,6,.15,.3*f)}  // knee, hip, shoulder, neck
+    {const f=st.crash?DEADK:1;const ck=classicCtl?CKS:null;motor(2,3,4,-pz.knee,(ck?ck[0]:KK)*f);motor(3,4,5,pz.fold,(ck?ck[1]:KH)*f);motor(4,5,7,Math.PI-pz.arm,(ck?ck[2]:KA)*f);motor(4,5,6,.15,.3*f)}  // knee, hip, shoulder, neck
     collide();collideBoxes();collideProps();
   }
   if(s0&&!hit){const s1=spinL(),dw=(s0.L-s1.L)/(s1.I||1);P.forEach(p=>{p.px+=dw*(p.y-s1.gy);p.py-=dw*(p.x-s1.gx)})}   // give back the spin the solver bled off (only while nothing is touching the body)
-  if(AIRD>0&&st.onAir&&!st.crash&&!hit&&Math.abs(st.rot)<1.2&&Math.abs(sm.x-.5)<.12&&lastMove<st.t0-250){const q=spinL(),w=q.L/(q.I||1);if(w>0&&w<AIRT){const dw=-w*AIRD*sf;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}
-  if(UPRD>0&&st.onAir&&!st.crash&&!hit){const u=Math.max(0,(sm.y-UPR0)/(1-UPR0)),q=spinL(),w=q.L/(q.I||1),ex=Math.abs(w)-UPRC;if(u>0&&ex>0){const dw=-Math.sign(w)*ex*UPRD*u*u;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}   // upright speed limit: standing tall in the air bleeds off only the spin above UPRC, so a stretched skier can't whirl; tucked spins (u=0) are untouched
-  if(LEANH>0&&st.onAir&&!st.crash&&!hit){const ln=sm.x-.5,mag=Math.abs(ln);if(mag>.06){const dw=Math.sign(ln)*(mag-.06)*LEANH;const q=spinL();P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}   // held lean: slight steady rotation bias in the air (lean forward = forward spin, back = backward)
-  if(LEANB>0&&st.onAir&&!st.crash&&!hit&&Math.abs(cvx)>1e-5){const q=spinL(),dw=cvx*LEANB;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}
-  if(LASS>0&&st.onAir&&!st.crash&&!hit&&P[2].y>P[2].py){const g=ter((P[0].x+P[1].x)/2);const gap=g.y-Math.max(P[0].y,P[1].y);if(gap<220){const fade=Math.max(0,1-gap/220),fa=fade*fade*(3-2*fade);const a=Math.atan2(P[5].y-P[2].y,P[5].x-P[2].x),e=wrap(Math.atan2(-g.tx,g.ty)-a);
+  if(!classicCtl&&AIRD>0&&st.onAir&&!st.crash&&!hit&&Math.abs(st.rot)<1.2&&Math.abs(sm.x-.5)<.12&&lastMove<st.t0-250){const q=spinL(),w=q.L/(q.I||1);if(w>0&&w<AIRT){const dw=-w*AIRD*sf;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}
+  if(!classicCtl&&UPRD>0&&st.onAir&&!st.crash&&!hit){const u=Math.max(0,(sm.y-UPR0)/(1-UPR0)),q=spinL(),w=q.L/(q.I||1),ex=Math.abs(w)-UPRC;if(u>0&&ex>0){const dw=-Math.sign(w)*ex*UPRD*u*u;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}   // upright speed limit: standing tall in the air bleeds off only the spin above UPRC, so a stretched skier can't whirl; tucked spins (u=0) are untouched
+  if(!classicCtl&&LEANH>0&&st.onAir&&!st.crash&&!hit){const ln=sm.x-.5,mag=Math.abs(ln);if(mag>.06){const dw=Math.sign(ln)*(mag-.06)*LEANH;const q=spinL();P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}   // held lean: slight steady rotation bias in the air (lean forward = forward spin, back = backward)
+  if(!classicCtl&&LEANB>0&&st.onAir&&!st.crash&&!hit&&Math.abs(cvx)>1e-5){const q=spinL(),dw=cvx*LEANB;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}
+  if(!classicCtl&&LASS>0&&st.onAir&&!st.crash&&!hit&&P[2].y>P[2].py){const g=ter((P[0].x+P[1].x)/2);const gap=g.y-Math.max(P[0].y,P[1].y);if(gap<220){const fade=Math.max(0,1-gap/220),fa=fade*fade*(3-2*fade);const a=Math.atan2(P[5].y-P[2].y,P[5].x-P[2].x),e=wrap(Math.atan2(-g.tx,g.ty)-a);
     if(Math.abs(e)<1.4){const q=spinL(),dw=(e*LASS-q.L/(q.I||1)*.04)*sf*fa;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}}
   if(!st.skisOff){   // ankle damper: equal & opposite angular impulses on the shin {ankle,knee} and the ski {tail,tip}
     const sub=(a,b)=>{const A=P[a],B=P[b],ma=M[a],mb=M[b],g={x:(ma*A.x+mb*B.x)/(ma+mb),y:(ma*A.y+mb*B.y)/(ma+mb)},

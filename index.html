@@ -4,8 +4,8 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.6.0';
-window.GAME_NOTES='New: Classic gravity (Settings). The original Ski Stunt feel, with lighter, floatier jumps and more hang time for flips.';
+window.GAME_VERSION='1.7.0';
+window.GAME_NOTES='New: Classic controls (Settings). Steer like the original Ski Stunt: the pointer\'s position sets the pose, with the original posture and no flip helpers.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
 window.verCmp=function(a,b){a=String(a).split('.').map(Number);b=String(b).split('.').map(Number);for(var i=0;i<Math.max(a.length,b.length);i++){var d=(a[i]||0)-(b[i]||0);if(d)return d>0?1:-1}return 0};
@@ -471,6 +471,8 @@ const SCORE_X=100;                            // points multiplier
 const RESET_PENALTY=25000; let resetsUsed=0,resetPenaltyTotal=0;
 let KK=.7,KH=.5,KA=.25;                    // joint motor strengths (original kp: knee > hip > shoulder)
 let GRAV=900/14400,AIRDRAG=.9995;   // gravity (px per step^2) and per-step air drag on the skier (Classic gravity in Settings changes these, see setClassicGravity)
+let classicCtl=false;try{classicCtl=localStorage.getItem('skiClassicCtl')==='1'}catch(e){}   // Classic controls (Settings): see classicPose()
+function setClassicControls(on){classicCtl=!!on;cq=null;try{localStorage.setItem('skiClassicCtl',classicCtl?'1':'0')}catch(e){}cvx=cvy=0}
 let IMPS=120;                      // turns an impact speed in px/step into the px/s that the crash and damage limits are tuned for. 120 at normal gravity; Classic gravity raises it so impacts are judged as hard as they would be at normal gravity
 const dbg={on:false,frozen:false,ts:1,stepN:0,imp:[0,0,0,0,0,0,0,0],impT:[0,0,0,0,0,0,0,0],lock:false,auto:false,steps:0,trail:[],hist:[],crashAt:0,slope:.3,kick:true,show:{vec:true,norm:true,trail:true,rule:true,lab:true}};   // debug mode state (see the debug module at the end of the file)
 let skiT=0,hit=false,dmg=0,braking=false,gT=0,lndT=0,cvx=0,cvy=0,pop=0,prevY=NY,snap=null,al=1,fdt=1/60,P,len,st,sm,ctl,cam={x:0,y:0},lastM=null,headHitFx=0,damagePulseAt=0,crashWasActive=false;
@@ -519,7 +521,7 @@ function reset(){
   resetsUsed=0;resetPenaltyTotal=0;updateResetButton();
   dmg=0;braking=false;brakeT=0;fingers.length=0;snow.length=0;
   const x0=300,g=ter(x0),ux=g.tx,uy=g.ty,nx=g.ty,ny=-g.tx;
-  sm={x:.5,y:NY};ctl={x:.5,y:NY};pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
+  sm={x:.5,y:NY};ctl={x:.5,y:NY};cq=null;pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
   // forward kinematics in the ski frame (u forward, v up; angles CCW)
   const dir=a=>[Math.cos(a),Math.sin(a)],add=(p,d,l)=>[p[0]+d[0]*l,p[1]+d[1]*l];
   const ph=Math.PI/2-SHIN,pt=ph+pz.knee,pb=pt-pz.fold,pa=pb-(Math.PI-pz.arm);
@@ -555,7 +557,7 @@ function respawnAt(x0){
   headHitFx=0;lastM=null;lastMove=performance.now();braking=false;brakeT=0;fingers.length=0;
   if(document.pointerLockElement===cv&&document.exitPointerLock)document.exitPointerLock();
   dmg=0;snow.length=0;
-  sm={x:.5,y:NY};ctl={x:.5,y:NY};pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
+  sm={x:.5,y:NY};ctl={x:.5,y:NY};cq=null;pop=0;prevY=NY;cvx=cvy=0;lndT=0;gT=0;const pz=pose();
   const dir=a=>[Math.cos(a),Math.sin(a)],add=(p,d,l)=>[p[0]+d[0]*l,p[1]+d[1]*l];
   const ph=Math.PI/2-SHIN,pt=ph+pz.knee,pb=pt-pz.fold,pa=pb-(Math.PI-pz.arm);
   const ank=[-BOOT_BACK,8],kn=add(ank,dir(ph),SEG.shin),hip=add(kn,dir(pt),SEG.thigh),sh=add(hip,dir(pb),SEG.torso);
@@ -698,7 +700,35 @@ function motor(ia,ij,ic,target,s){
 //   knee (joint 2): y 100->0   x 60->0   limits 0..100
 //   hip  (joint 3): y -130->20 x 20->-20 limits -110..20
 //   arm  (joint 4): y 20->70 (here the arm swings forward when you crouch, as in v2)
+// ---- Classic controls: the original Ski Stunt Simulator's posture and mouse mapping ------------------------------------------
+// Checked against the original's 99 bundled replays: with these formulas the recorded hip angle is predicted to within ~2 degrees
+// from the knee and arm angles, so this is how the original turned the mouse into a pose.
+//  * The mouse POSITION on screen is the pose (top = standing, bottom = crouched, right = lean forward), not mouse movement.
+//  * Joint targets in the original's degrees (skier.keys mousemap, clamped to the jt_pd limits):
+//      knee = 100(1-y) + 60(1-x)   [0..100]     hip = -110 + 150y - 40x   [-110..20]     arm = 20 + 50y   [-90..70]
+//  * Converted to this skier's frame from the original body (skier.afig): at 0 the original's thigh already leans back 22.8deg
+//    from vertical, the torso is folded 38.3deg forward of the thigh, and the arm points straight forward from the torso.
+//    So the original skier rides deeper in the knees than ours, with arms held out in front at about shoulder height.
+const CK={thigh:112.8,fold:38.3,arm:90.5};   // original rest-figure offsets (deg), measured from skier.afig
+let CSM=.25,CKS=[.7,.5,.25],CPOP=false;  // classic: how fast the pose follows the pointer, joint strengths (knee, hip, arm), and no pop boost (the original's jumps came from the legs alone)
+let CJK=650,CJH=650,CJA=850;   // classic: fastest each joint can swing (deg/s: knee, hip, arm), from the original's replays (fast moves on the snow reach ~600 deg/s)
+                           // The original's joints had torque limits, so a sudden mouse jump takes ~0.1-0.15 s to reach, not one frame
+let cq=null;               // classic: current joint targets [knee, hip, arm] in the original's degrees, slewing toward the mouse pose
+function classicTarget(){
+  const x=Math.min(Math.max(sm.x,0),1),y=Math.min(Math.max(sm.y,0),1),cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+  return[cl(100*(1-y)+60*(1-x),0,100),cl(-110+150*y-40*x,-110,20),cl(20+50*y,-90,70)];
+}
+function classicSlew(){   // once per physics step: move each joint target toward the mouse pose, no faster than CJK/CJH/CJA
+  const t=classicTarget();if(!cq){cq=t;return}
+  const R=[CJK,CJH,CJA];for(let k=0;k<3;k++){const m=R[k]/120;cq[k]+=Math.max(-m,Math.min(m,t[k]-cq[k]))}
+}
+function classicPose(){
+  if(!cq)cq=classicTarget();
+  const D=Math.PI/180,[q2,q3,q4]=cq;
+  return{knee:(CK.thigh+q2)*D-(Math.PI/2-SHIN),fold:(CK.fold-q3)*D,arm:(CK.arm+q4)*D};
+}
 function pose(){
+  if(classicCtl)return classicPose();
   const x=Math.min(Math.max(sm.x,XMIN),XMAX),y=Math.min(Math.max(sm.y,0),1),D=Math.PI/180;
   const g=x<.5?XGB:XGF,ce=CROUCH*(1-y)*(1-y),knee=Math.min(100+25*CROUCH,Math.max(0,100*(1-y)+25*ce+30+g*(30-66*x)))*D;
   const hip=Math.min(HIPMAX,Math.max(-110-15*CROUCH,-130-15*ce+150*y+g*(20-44*x)))*D;
@@ -747,29 +777,30 @@ function step(){
   if(RESETPOSE>0&&!st.onAir&&!st.crash&&!st.done&&!fingers.length&&performance.now()-lastMove>RESETIDLE){   // on the snow with no input: settle back to the standard crouch so every jump starts from the same stance
     ctl.y+=(NY-ctl.y)*RESETPOSE;ctl.x+=(.5-ctl.x)*RESETPOSE;cvx*=.8;cvy*=.8}
   cvx*=DAMP;cvy*=DAMP;                                           // friction: acceleration tapers off, pose holds where it ends
-  sm.x+=(ctl.x-sm.x)*SMX;sm.y+=(ctl.y-sm.y)*SMY;
+  if(classicCtl){cvx=cvy=0;sm.x+=(ctl.x-sm.x)*CSM;sm.y+=(ctl.y-sm.y)*CSM}else{sm.x+=(ctl.x-sm.x)*SMX;sm.y+=(ctl.y-sm.y)*SMY}
   pop+=(Math.min(1,Math.max(0,((sm.y-prevY)*POPK*10-.3)/.7))-pop)*POPS;const rise=sm.y-prevY;prevY=sm.y;   // standing-up speed -> arm throw
   {  // POP: legs pushing off the snow. A pure linear launch impulse on every body part (a push through the centre of mass: no torque, no spin correction). All rotation is natural physics.
     const pe=Math.max(0,rise-RISE0);
-    if(pe>0&&gT<COY&&!st.crash&&!st.done){
+    if(pe>0&&gT<COY&&!st.crash&&!st.done&&!(classicCtl&&!CPOP)){
       const g=ter((P[0].x+P[1].x)/2);let ux=g.ty*(1-JUMPUP),uy=-g.tx*(1-JUMPUP)-JUMPUP;const ul=Math.hypot(ux,uy)||1;ux/=ul;uy/=ul;
       const dv=JUMP*pe;P.forEach(p=>{p.px-=ux*dv;p.py-=uy*dv});
     }
   }
+  if(classicCtl)classicSlew();
   const pz=pose(),sf=Math.min(1,Math.max(0,(sm.y-.12)/.38));   // sf: 0 crouched .. 1 standing. The glide and landing assists fade out as you tuck, so nothing fights a tucked spin
   hit=false;const s0=CONSERVE&&st.onAir&&!st.crash?spinL():null;
   for(let k=0;k<6;k++){
     if(st.crash&&SKISOFF)st.skisOff=true;
     C.forEach(([a,b],i)=>{if(st.skisOff&&(i===1||i===2||i>=8))return;pull(a,b,len[i],i>=8?ANK:1)});   // once the skis are off, only the ski's own tail-tip link remains   // last two links are the ankle braces
-    {const f=st.crash?DEADK:1;motor(2,3,4,-pz.knee,KK*f);motor(3,4,5,pz.fold,KH*f);motor(4,5,7,Math.PI-pz.arm,KA*f);motor(4,5,6,.15,.3*f)}  // knee, hip, shoulder, neck
+    {const f=st.crash?DEADK:1;const ck=classicCtl?CKS:null;motor(2,3,4,-pz.knee,(ck?ck[0]:KK)*f);motor(3,4,5,pz.fold,(ck?ck[1]:KH)*f);motor(4,5,7,Math.PI-pz.arm,(ck?ck[2]:KA)*f);motor(4,5,6,.15,.3*f)}  // knee, hip, shoulder, neck
     collide();collideBoxes();collideProps();
   }
   if(s0&&!hit){const s1=spinL(),dw=(s0.L-s1.L)/(s1.I||1);P.forEach(p=>{p.px+=dw*(p.y-s1.gy);p.py-=dw*(p.x-s1.gx)})}   // give back the spin the solver bled off (only while nothing is touching the body)
-  if(AIRD>0&&st.onAir&&!st.crash&&!hit&&Math.abs(st.rot)<1.2&&Math.abs(sm.x-.5)<.12&&lastMove<st.t0-250){const q=spinL(),w=q.L/(q.I||1);if(w>0&&w<AIRT){const dw=-w*AIRD*sf;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}
-  if(UPRD>0&&st.onAir&&!st.crash&&!hit){const u=Math.max(0,(sm.y-UPR0)/(1-UPR0)),q=spinL(),w=q.L/(q.I||1),ex=Math.abs(w)-UPRC;if(u>0&&ex>0){const dw=-Math.sign(w)*ex*UPRD*u*u;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}   // upright speed limit: standing tall in the air bleeds off only the spin above UPRC, so a stretched skier can't whirl; tucked spins (u=0) are untouched
-  if(LEANH>0&&st.onAir&&!st.crash&&!hit){const ln=sm.x-.5,mag=Math.abs(ln);if(mag>.06){const dw=Math.sign(ln)*(mag-.06)*LEANH;const q=spinL();P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}   // held lean: slight steady rotation bias in the air (lean forward = forward spin, back = backward)
-  if(LEANB>0&&st.onAir&&!st.crash&&!hit&&Math.abs(cvx)>1e-5){const q=spinL(),dw=cvx*LEANB;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}
-  if(LASS>0&&st.onAir&&!st.crash&&!hit&&P[2].y>P[2].py){const g=ter((P[0].x+P[1].x)/2);const gap=g.y-Math.max(P[0].y,P[1].y);if(gap<220){const fade=Math.max(0,1-gap/220),fa=fade*fade*(3-2*fade);const a=Math.atan2(P[5].y-P[2].y,P[5].x-P[2].x),e=wrap(Math.atan2(-g.tx,g.ty)-a);
+  if(!classicCtl&&AIRD>0&&st.onAir&&!st.crash&&!hit&&Math.abs(st.rot)<1.2&&Math.abs(sm.x-.5)<.12&&lastMove<st.t0-250){const q=spinL(),w=q.L/(q.I||1);if(w>0&&w<AIRT){const dw=-w*AIRD*sf;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}
+  if(!classicCtl&&UPRD>0&&st.onAir&&!st.crash&&!hit){const u=Math.max(0,(sm.y-UPR0)/(1-UPR0)),q=spinL(),w=q.L/(q.I||1),ex=Math.abs(w)-UPRC;if(u>0&&ex>0){const dw=-Math.sign(w)*ex*UPRD*u*u;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}   // upright speed limit: standing tall in the air bleeds off only the spin above UPRC, so a stretched skier can't whirl; tucked spins (u=0) are untouched
+  if(!classicCtl&&LEANH>0&&st.onAir&&!st.crash&&!hit){const ln=sm.x-.5,mag=Math.abs(ln);if(mag>.06){const dw=Math.sign(ln)*(mag-.06)*LEANH;const q=spinL();P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}   // held lean: slight steady rotation bias in the air (lean forward = forward spin, back = backward)
+  if(!classicCtl&&LEANB>0&&st.onAir&&!st.crash&&!hit&&Math.abs(cvx)>1e-5){const q=spinL(),dw=cvx*LEANB;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}
+  if(!classicCtl&&LASS>0&&st.onAir&&!st.crash&&!hit&&P[2].y>P[2].py){const g=ter((P[0].x+P[1].x)/2);const gap=g.y-Math.max(P[0].y,P[1].y);if(gap<220){const fade=Math.max(0,1-gap/220),fa=fade*fade*(3-2*fade);const a=Math.atan2(P[5].y-P[2].y,P[5].x-P[2].x),e=wrap(Math.atan2(-g.tx,g.ty)-a);
     if(Math.abs(e)<1.4){const q=spinL(),dw=(e*LASS-q.L/(q.I||1)*.04)*sf*fa;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}}
   if(!st.skisOff){   // ankle damper: equal & opposite angular impulses on the shin {ankle,knee} and the ski {tail,tip}
     const sub=(a,b)=>{const A=P[a],B=P[b],ma=M[a],mb=M[b],g={x:(ma*A.x+mb*B.x)/(ma+mb),y:(ma*A.y+mb*B.y)/(ma+mb)},
@@ -1218,6 +1249,9 @@ function draw(){
 // ctl.y / ctl.x are a pose that the mouse pushes around and that clamps at its limits.
 const SENS_Y=.6,SENS_X=.5; // tweak: pose travel per screen size, flip strength per px
 let lastMove=0;
+// Classic controls (as in the original game): where the pointer is on the game screen IS the pose. Top = stand, bottom = crouch, right = lean forward.
+function aimAt(cx_,cy_){const r=cv.getBoundingClientRect();lastMove=performance.now();
+  ctl.x=Math.min(1,Math.max(0,(cx_-r.left)/r.width));ctl.y=Math.min(1,Math.max(0,1-(cy_-r.top)/r.height))}
 function move(dx,dy){if(dx||dy)lastMove=performance.now();
   const r=cv.getBoundingClientRect();
   // A head impact briefly makes the controls feel sluggish for the full 2-second dizzy period.
@@ -1231,6 +1265,7 @@ function move(dx,dy){if(dx||dy)lastMove=performance.now();
 const TOUCH_BOOST=1.2,TOUCH_ACCEL=.25,TOUCH_ACCEL_MAX=.5;   // touch only: base gain, extra gain per px/ms of finger speed, and cap on that extra
 const fingers=[];   // active touch/pen pointers, in the order they went down: fingers[0] moves, any extra finger brakes
 cv.addEventListener('pointermove',e=>{
+  if(classicCtl&&(e.pointerType==='mouse'||fingers[0]&&fingers[0].id===e.pointerId)){aimAt(e.clientX,e.clientY);const f=fingers[0];if(f){f.x=e.clientX;f.y=e.clientY}return}   // Classic controls: the pointer's position is the pose
   if(e.pointerType==='mouse'){if(document.pointerLockElement===cv)move(e.movementX,e.movementY);else{if(lastM)move(e.clientX-lastM.x,e.clientY-lastM.y);lastM={x:e.clientX,y:e.clientY}}return}
   const f=fingers.find(q=>q.id===e.pointerId);if(!f)return;
   if(f===fingers[0]){
@@ -1252,6 +1287,7 @@ cv.addEventListener('pointerdown',e=>{
     if(document.pointerLockElement===cv&&document.exitPointerLock)document.exitPointerLock();return}
   if(st.crash||st.done){reset();return}                    // tap after a wipeout / finish: restart
   fingers.push({id:e.pointerId,x:e.clientX,y:e.clientY,t:e.timeStamp});
+  if(classicCtl&&fingers.length===1)aimAt(e.clientX,e.clientY);
   braking=fingers.length>1;                                // second finger down = brake
   try{cv.setPointerCapture(e.pointerId)}catch(_){}
 });
@@ -2481,7 +2517,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){if(!paused
 // Tunable constants can be edited live; leaving debug mode puts every value back to its default.
 (function(){
 const $=id=>document.getElementById(id);
-const ACC={GRAV:[()=>GRAV,v=>{GRAV=v}],AIRDRAG:[()=>AIRDRAG,v=>{AIRDRAG=v}],LAND:[()=>LAND,v=>{LAND=v}],LANDT:[()=>LANDT,v=>{LANDT=v}],SKIT:[()=>SKIT,v=>{SKIT=v}],SKIAD:[()=>SKIAD,v=>{SKIAD=v}],SKIRB:[()=>SKIRB,v=>{SKIRB=v}],SKIRK:[()=>SKIRK,v=>{SKIRK=v}],ANK:[()=>ANK,v=>{ANK=v}],ANKD:[()=>ANKD,v=>{ANKD=v}],JD:[()=>JD,v=>{JD=v}],KK:[()=>KK,v=>{KK=v}],KH:[()=>KH,v=>{KH=v}],KA:[()=>KA,v=>{KA=v}],SHIN:[()=>SHIN,v=>{SHIN=v}],HIPMAX:[()=>HIPMAX,v=>{HIPMAX=v}],CONSERVE:[()=>CONSERVE,v=>{CONSERVE=v}],UPRC:[()=>UPRC,v=>{UPRC=v}],UPRD:[()=>UPRD,v=>{UPRD=v}],UPR0:[()=>UPR0,v=>{UPR0=v}],JUMP:[()=>JUMP,v=>{JUMP=v}],RISE0:[()=>RISE0,v=>{RISE0=v}],JUMPUP:[()=>JUMPUP,v=>{JUMPUP=v}],COY:[()=>COY,v=>{COY=v}],BODYOFF:[()=>BODYOFF,v=>{BODYOFF=v}],SKIHARD:[()=>SKIHARD,v=>{SKIHARD=v}],DMGMIN:[()=>DMGMIN,v=>{DMGMIN=v}],DMGK:[()=>DMGK,v=>{DMGK=v}],DMGMAX:[()=>DMGMAX,v=>{DMGMAX=v}],BRAKE0:[()=>BRAKE0,v=>{BRAKE0=v}],BRAKE1:[()=>BRAKE1,v=>{BRAKE1=v}],SMX:[()=>SMX,v=>{SMX=v}],SMY:[()=>SMY,v=>{SMY=v}],DAMP:[()=>DAMP,v=>{DAMP=v}],GAIN:[()=>GAIN,v=>{GAIN=v}],CROUCH:[()=>CROUCH,v=>{CROUCH=v}]};   // direct getters/setters for the tunables (no eval, so it works under any CSP / in-app browser)
+const ACC={CJK:[()=>CJK,v=>{CJK=v}],CJH:[()=>CJH,v=>{CJH=v}],CJA:[()=>CJA,v=>{CJA=v}],GRAV:[()=>GRAV,v=>{GRAV=v}],AIRDRAG:[()=>AIRDRAG,v=>{AIRDRAG=v}],LAND:[()=>LAND,v=>{LAND=v}],LANDT:[()=>LANDT,v=>{LANDT=v}],SKIT:[()=>SKIT,v=>{SKIT=v}],SKIAD:[()=>SKIAD,v=>{SKIAD=v}],SKIRB:[()=>SKIRB,v=>{SKIRB=v}],SKIRK:[()=>SKIRK,v=>{SKIRK=v}],ANK:[()=>ANK,v=>{ANK=v}],ANKD:[()=>ANKD,v=>{ANKD=v}],JD:[()=>JD,v=>{JD=v}],KK:[()=>KK,v=>{KK=v}],KH:[()=>KH,v=>{KH=v}],KA:[()=>KA,v=>{KA=v}],SHIN:[()=>SHIN,v=>{SHIN=v}],HIPMAX:[()=>HIPMAX,v=>{HIPMAX=v}],CONSERVE:[()=>CONSERVE,v=>{CONSERVE=v}],UPRC:[()=>UPRC,v=>{UPRC=v}],UPRD:[()=>UPRD,v=>{UPRD=v}],UPR0:[()=>UPR0,v=>{UPR0=v}],JUMP:[()=>JUMP,v=>{JUMP=v}],RISE0:[()=>RISE0,v=>{RISE0=v}],JUMPUP:[()=>JUMPUP,v=>{JUMPUP=v}],COY:[()=>COY,v=>{COY=v}],BODYOFF:[()=>BODYOFF,v=>{BODYOFF=v}],SKIHARD:[()=>SKIHARD,v=>{SKIHARD=v}],DMGMIN:[()=>DMGMIN,v=>{DMGMIN=v}],DMGK:[()=>DMGK,v=>{DMGK=v}],DMGMAX:[()=>DMGMAX,v=>{DMGMAX=v}],BRAKE0:[()=>BRAKE0,v=>{BRAKE0=v}],BRAKE1:[()=>BRAKE1,v=>{BRAKE1=v}],SMX:[()=>SMX,v=>{SMX=v}],SMY:[()=>SMY,v=>{SMY=v}],DAMP:[()=>DAMP,v=>{DAMP=v}],GAIN:[()=>GAIN,v=>{GAIN=v}],CROUCH:[()=>CROUCH,v=>{CROUCH=v}]};   // direct getters/setters for the tunables (no eval, so it works under any CSP / in-app browser)
 const GE=n=>ACC[n][0](),SE=(n,v)=>{ACC[n][1](+v)};
 const NAMES=['tail','tip','ankle','knee','hip','shoulder','head','hand'];
 const TUN=[['World','GRAV',0,.2,.0005],['World','AIRDRAG',.99,1,.0001],
@@ -2492,6 +2528,7 @@ const TUN=[['World','GRAV',0,.2,.0005],['World','AIRDRAG',.99,1,.0001],
  ['Pop','JUMP',0,5,.05],['Pop','RISE0',0,.02,.0005],['Pop','JUMPUP',0,1,.05],['Pop','COY',0,.5,.01],
  ['Damage','BODYOFF',0,6000,50],['Damage','SKIHARD',0,10000,50],['Damage','DMGMIN',0,3000,25],['Damage','DMGK',0,.2,.001],['Damage','DMGMAX',1,400,1],
  ['Brake','BRAKE0',0,.05,.0005],['Brake','BRAKE1',0,.1,.0005],
+ ['Classic controls','CJK',100,3000,25],['Classic controls','CJH',100,3000,25],['Classic controls','CJA',100,3000,25],
  ['Pose','SMX',0,1,.01],['Pose','SMY',0,1,.01],['Pose','DAMP',.5,1,.005],['Pose','GAIN',0,3,.05],['Pose','CROUCH',0,3,.05]];
 const DEF={};TUN.forEach(t=>{try{DEF[t[1]]=GE(t[1])}catch(e){console.warn('debug tunable missing:',t[1])}});
 const TL=TUN.filter(t=>t[1] in DEF);
@@ -2505,7 +2542,7 @@ function mkLevel(){const k=track(),sl=dbg.slope,a=-dbg.kAng,L=dbg.kLen;k.line(90
 function applyLevel(){LVc=mkLevel();T=LVc.T;FINISH=LVc.fin}
 function start(){tId++;fxStop();popsE.replaceChildren();dbg.on=true;dbg.frozen=false;dbg.ts=1;dbg.stepN=0;dbg.trail.length=0;dbg.hist.length=0;applyLevel();closeMenu();reset();sync()}
 window.exitDebug=()=>exit();
-function exit(){if(!dbg.on)return;dbg.on=false;dbg.frozen=false;dbg.ts=1;TL.forEach(t=>SE(t[1],DEF[t[1]]));panel.style.display='none'}
+function exit(){if(!dbg.on)return;dbg.on=false;dbg.frozen=false;dbg.ts=1;TL.forEach(t=>SE(t[1],DEF[t[1]]));setClassicGravity(classicGrav);panel.style.display='none'}   // re-apply the gravity mode chosen in Settings
 const _go=go;go=function(){exit();return _go.apply(this,arguments)};
 const _om=openMenu;openMenu=function(f){if(dbg.on&&f===true){reset();return}return _om.apply(this,arguments)};   // a run can never "finish" or save a score in debug mode
 
@@ -2848,6 +2885,7 @@ m.innerHTML=`<div id="set-card"><h3>⚙ Settings <button type="button" id="set-c
  <div class="set-row"><div>Game version<small id="set-ver"></small></div><button type="button" id="set-upd">Check for updates</button></div>
  <div class="set-row"><div>Graphics<small id="set-gfx-note"></small></div><select id="set-gfx"><option value="auto">Auto</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
  <div class="set-row"><div>Classic gravity<small>The original Ski Stunt feel: floatier jumps with more hang time for flips</small></div><input type="checkbox" id="set-grav"></div>
+ <div class="set-row"><div>Classic controls<small>The original's mouse control: where the pointer is on screen sets the pose (top = stand, bottom = crouch, right = lean forward). No flip or landing helpers</small></div><input type="checkbox" id="set-ctl"></div>
  <div class="set-row"><div>Show FPS<small>A small frame-rate counter in the corner, handy if the game feels choppy</small></div><input type="checkbox" id="set-fps"></div>
  <div class="set-row"><div>Best-run ghost<small>Race a see-through copy of your best run on each level</small></div><input type="checkbox" id="set-ghost"></div>
  <div class="set-row" id="set-hap-row"><div>Vibration<small>Short buzzes on landings, flips and crashes (Android phones)</small></div><input type="checkbox" id="set-hap"></div>
@@ -2856,7 +2894,7 @@ document.body.appendChild(m);
 function open(){
   $('set-ver').textContent='v'+GAME_VERSION+(window.__SKI_FROM_UPDATE?' (installed update)':'');
   const ok=typeof HAPTIC_OK!=='undefined'&&HAPTIC_OK;$('set-hap-row').style.display=ok?'':'none';if(ok)$('set-hap').checked=hapOn;
-  $('set-gfx').value=qMode;gfxNote();$('set-fps').checked=fpsOn;$('set-grav').checked=classicGrav;$('set-ghost').checked=ghostOn();
+  $('set-gfx').value=qMode;gfxNote();$('set-fps').checked=fpsOn;$('set-grav').checked=classicGrav;$('set-ctl').checked=classicCtl;$('set-ghost').checked=ghostOn();
   $('set-reset').textContent='Reset';m.style.display='flex'}
 function gfxNote(){$('set-gfx-note').textContent=qMode==='auto'?'Adjusts itself if your device struggles (now: '+qCur().name+')':'Fixed at '+qCur().name}
 const close=()=>{m.style.display='none'};
@@ -2866,6 +2904,7 @@ $('set-upd').addEventListener('click',()=>{close();if(window.updCheck)updCheck()
 $('set-gfx').addEventListener('change',e=>{setQualityMode(e.target.value);gfxNote()});
 $('set-ghost').addEventListener('change',e=>setGhost(e.target.checked));
 $('set-fps').addEventListener('change',e=>setFps(e.target.checked));
+$('set-ctl').addEventListener('change',e=>setClassicControls(e.target.checked));
 $('set-grav').addEventListener('change',e=>{setClassicGravity(e.target.checked);if(window.ghostLoad&&typeof LVc!=='undefined'&&LVc)try{ghostLoad()}catch(_){}});
 $('set-hap').addEventListener('change',e=>{setHaptics(e.target.checked);const b=$('v-hap');if(b)b.checked=e.target.checked});
 $('set-reset').addEventListener('click',e=>{const b=e.target;if(b.textContent==='Reset'){b.textContent='Tap again to confirm';return}   // two taps, so it can't happen by accident
