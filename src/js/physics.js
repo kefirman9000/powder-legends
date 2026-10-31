@@ -283,7 +283,7 @@ function motor(ia,ij,ic,target,s){
 //    So the original skier rides deeper in the knees than ours, with arms held out in front at about shoulder height.
 const CK={thigh:112.8,fold:38.3,arm:90.5};   // original rest-figure offsets (deg), measured from skier.afig
 let CSM=.25,CKS=[.7,.5,.25],CPOP=false;  // classic: how fast the pose follows the pointer, joint strengths (knee, hip, arm), and no pop boost (the original's jumps came from the legs alone)
-let CJK=650,CJH=650,CJA=850;   // classic: fastest each joint can swing (deg/s: knee, hip, arm), from the original's replays (fast moves on the snow reach ~600 deg/s)
+let CJK=800,CJH=800,CJA=1000,CPW=.35,CPH=.6;   // classic: fastest each joint can swing (deg/s: knee, hip, arm). The original's replays show at least ~600-900 deg/s (players' hands were the limit); 800 gives the same hop as normal controls. CPW/CPH: size of the pointer box (see aimAt)
                            // The original's joints had torque limits, so a sudden mouse jump takes ~0.1-0.15 s to reach, not one frame
 let cq=null;               // classic: current joint targets [knee, hip, arm] in the original's degrees, slewing toward the mouse pose
 function classicTarget(){

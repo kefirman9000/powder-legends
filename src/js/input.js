@@ -3,8 +3,10 @@
 const SENS_Y=.6,SENS_X=.5; // tweak: pose travel per screen size, flip strength per px
 let lastMove=0;
 // Classic controls (as in the original game): where the pointer is on the game screen IS the pose. Top = stand, bottom = crouch, right = lean forward.
-function aimAt(cx_,cy_){const r=cv.getBoundingClientRect();lastMove=performance.now();
-  ctl.x=Math.min(1,Math.max(0,(cx_-r.left)/r.width));ctl.y=Math.min(1,Math.max(0,1-(cy_-r.top)/r.height))}
+// The pose spans a box in the middle of the screen (CPW x CPH of its width/height), not the whole screen: the original ran in a small
+// window, and a full-screen browser would otherwise need huge arm movements. Outside the box the pose just stays at its limit.
+function aimAt(cx_,cy_){const r=cv.getBoundingClientRect(),w=r.width*CPW,h=r.height*CPH;lastMove=performance.now();
+  ctl.x=Math.min(1,Math.max(0,(cx_-(r.left+(r.width-w)/2))/w));ctl.y=Math.min(1,Math.max(0,1-(cy_-(r.top+(r.height-h)/2))/h))}
 function move(dx,dy){if(dx||dy)lastMove=performance.now();
   const r=cv.getBoundingClientRect();
   // A head impact briefly makes the controls feel sluggish for the full 2-second dizzy period.
