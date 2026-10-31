@@ -4,7 +4,7 @@
 // Next time you play that level, a see-through ghost skier replays it in step with your run so you can race it.
 // Not used on Ski School or the Endless Run (its course is different every time).
 const GH={fps:20,per:6,frames:null,n:0,best:0,fade:0};   // per: physics steps (120/s) per ghost frame
-const GH_KEY=n=>'skiGhost:'+n;
+const GH_KEY=n=>'skiGhost:'+(classicGrav?'classic:':'')+n;   // Classic gravity keeps its own ghosts (a normal-gravity ghost would fall out of step)
 function ghostOn(){try{return localStorage.getItem('skiGhostOn')==='1'}catch(e){return false}}   // off unless turned on in Settings
 function setGhost(on){try{localStorage.setItem('skiGhostOn',on?'1':'0')}catch(e){}ghostLoad()}
 const ghostAllowed=l=>l&&!l.endless&&!l.tutorial;

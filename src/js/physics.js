@@ -42,7 +42,8 @@ const snow=[];let brakeT=0,snowC=0;
 const SCORE_X=100;                            // points multiplier
 const RESET_PENALTY=25000; let resetsUsed=0,resetPenaltyTotal=0;
 let KK=.7,KH=.5,KA=.25;                    // joint motor strengths (original kp: knee > hip > shoulder)
-let GRAV=900/14400,AIRDRAG=.9995;   // gravity (px per step^2) and per-step air drag on the skier
+let GRAV=900/14400,AIRDRAG=.9995;   // gravity (px per step^2) and per-step air drag on the skier (Classic gravity in Settings changes these, see setClassicGravity)
+let IMPS=120;                      // turns an impact speed in px/step into the px/s that the crash and damage limits are tuned for. 120 at normal gravity; Classic gravity raises it so impacts are judged as hard as they would be at normal gravity
 const dbg={on:false,frozen:false,ts:1,stepN:0,imp:[0,0,0,0,0,0,0,0],impT:[0,0,0,0,0,0,0,0],lock:false,auto:false,steps:0,trail:[],hist:[],crashAt:0,slope:.3,kick:true,show:{vec:true,norm:true,trail:true,rule:true,lab:true}};   // debug mode state (see the debug module at the end of the file)
 let skiT=0,hit=false,dmg=0,braking=false,gT=0,lndT=0,cvx=0,cvy=0,pop=0,prevY=NY,snap=null,al=1,fdt=1/60,P,len,st,sm,ctl,cam={x:0,y:0},lastM=null,headHitFx=0,damagePulseAt=0,crashWasActive=false;
 let checkpoints=[];
@@ -162,20 +163,35 @@ function collide(){
     const g=ter(p.x),off=i<2?3:i===2?4:0;if(p.y<=g.y-off)return;
     const nx=g.ty,ny=-g.tx,imp=(p.x-p.px)*nx+(p.y-p.py)*ny,dep=(p.y-g.y+off)*-ny;
     p.x+=nx*dep;p.y+=ny*dep;p.px+=nx*dep;p.py+=ny*dep;
-    let vx=p.x-p.px,vy=p.y-p.py;const vn=Math.min(vx*nx+vy*ny,0);vx-=nx*vn;vy-=ny*vn;p.px=p.x-vx;p.py=p.y-vy;ct[i]=[nx,ny];hit=true;if(dbg.on&&imp<0){dbg.imp[i]=-imp*120;dbg.impT[i]=performance.now()}
+    let vx=p.x-p.px,vy=p.y-p.py;const vn=Math.min(vx*nx+vy*ny,0);vx-=nx*vn;vy-=ny*vn;
+    if(BODYFRIC>0&&i>=3){const tx=-ny,ty=nx,vt=vx*tx+vy*ty,cut=Math.min(Math.abs(vt),BODYFRIC*(Math.abs(vn)+GRAV));vx-=tx*Math.sign(vt)*cut;vy-=ty*Math.sign(vt)*cut}   // Classic: body parts drag on the snow (skis stay frictionless)
+    p.px=p.x-vx;p.py=p.y-vy;ct[i]=[nx,ny];hit=true;if(dbg.on&&imp<0){dbg.imp[i]=-imp*120;dbg.impT[i]=performance.now()}
     let al8=0;if(i<2){   // landing alignment: 1 when the skis lie flat along the slope (within ~8deg), fading to 0 by ~30deg of misalignment
       const ux=P[1].x-P[0].x,uy=P[1].y-P[0].y,ul=Math.hypot(ux,uy)||1,tl=Math.hypot(g.tx,g.ty)||1,dt=Math.abs((ux*g.tx+uy*g.ty)/(ul*tl)),th_=Math.acos(Math.min(1,dt));
       const q=Math.max(0,Math.min(1,(.52-th_)/(.52-.14)));al8=q*q*(3-2*q)}
-    {const hv=-imp*120,protect=skiBindingBoost(),th=touchMode?TOUCH_HOLD:1,bodyLimit=BODYOFF*(1+protect*4)*th,skiLimit=SKIHARD*(1+protect*5)*th*(1+ALIGN_HOLD*al8);if(i===6&&hv>420)headHitFx=performance.now();if(i>=3&&i<=6)st.hv=Math.max(st.hv||0,hv);if(!st.skisOff&&((i>=4&&i<=6&&hv>bodyLimit)||(i<2&&hv>skiLimit)))skisFly()}
-    if(i<2&&-imp*120>250)skiT=SKIT;   // a real ski impact arms the tip-bounce control (smooth riding and takeoffs never do)
-    if(i<2&&-imp*120>DMGMIN)hurt((-imp*120-DMGMIN)*DMGK*(1-ALIGN_SOFT*al8));
-    if(!st.crash&&((i>=4&&i<=6)||(i<2&&-imp*120>1800*(1+skiBindingBoost()*1.2)))){st.crash=true;st.msg=(st.skisOff?'No skis, no balance! ':'')+(st.air>.4||st.lr?'Wipeout on the landing! Right-click, tap or press R to retry.':'Wipeout! Right-click, tap or press R to retry.');}
+    {const hv=-imp*IMPS,protect=skiBindingBoost(),th=touchMode?TOUCH_HOLD:1,bodyLimit=BODYOFF*(1+protect*4)*th,skiLimit=SKIHARD*(1+protect*5)*th*(1+ALIGN_HOLD*al8);if(i===6&&hv>420)headHitFx=performance.now();if(i>=3&&i<=6)st.hv=Math.max(st.hv||0,hv);if(!st.skisOff&&((i>=4&&i<=6&&hv>bodyLimit)||(i<2&&hv>skiLimit)))skisFly()}
+    if(i<2&&-imp*IMPS>250)skiT=SKIT;   // a real ski impact arms the tip-bounce control (smooth riding and takeoffs never do)
+    if(i<2&&-imp*IMPS>DMGMIN)hurt((-imp*IMPS-DMGMIN)*DMGK*(1-ALIGN_SOFT*al8));
+    if(!st.crash&&((i>=4&&i<=6)||(i<2&&-imp*IMPS>1800*(1+skiBindingBoost()*1.2)))){st.crash=true;st.msg=(st.skisOff?'No skis, no balance! ':'')+(st.air>.4||st.lr?'Wipeout on the landing! Right-click, tap or press R to retry.':'Wipeout! Right-click, tap or press R to retry.');}
   });
   {const mx=(P[0].x+P[1].x)/2,my=(P[0].y+P[1].y)/2,g=ter(mx),d=my-(g.y-3);if(d>0){const nx=g.ty,ny=-g.tx,dep=d*-ny;for(const j of [0,1]){P[j].x+=nx*dep;P[j].y+=ny*dep;P[j].px+=nx*dep;P[j].py+=ny*dep}}}
 }
 
 // ---- Crates: simple 2D rigid bodies (impulse based) that the skier can crash into, knock over and stack ------------------
-const boxes=[],GR={x:0,y:0,vx:0,vy:0,w:0,m:Infinity,I:Infinity},GP=900/14400,CRATE=34;
+const boxes=[],GR={x:0,y:0,vx:0,vy:0,w:0,m:Infinity,I:Infinity},CRATE=34;let GP=900/14400;   // GP: gravity on crates, bridge planks and rocks (follows GRAV)
+// ---- Classic gravity: the original Ski Stunt Simulator's physics, measured from its 99 bundled replays --------------------
+// The original falls at 9.8 m/s^2 with no air drag. Its skier is ~2 m tall and ours ~90 px, so that is ~440 px/s^2 here (normal mode: 900).
+// Lower gravity = slower, floatier arcs with more time to tuck and flip, while the pose and pop stay just as quick. The pop is scaled so a hop
+// reaches the same height, and impact speeds are judged relative to gravity (IMPS) so landings and crashes are exactly as forgiving as normal.
+// Classic also gives the body (not the skis) some snow friction, like the original (body 0.5 x snow 0.6), so a wipeout scrapes to a stop.
+const GMODES={normal:{g:900,drag:.9995,bodyFric:0},classic:{g:440,drag:1,bodyFric:.3}};
+let classicGrav=false,BODYFRIC=0;try{classicGrav=localStorage.getItem('skiClassicGrav')==='1'}catch(e){}
+function setClassicGravity(on){
+  classicGrav=!!on;try{localStorage.setItem('skiClassicGrav',classicGrav?'1':'0')}catch(e){}
+  const m=classicGrav?GMODES.classic:GMODES.normal,r=Math.sqrt(m.g/900);   // r: how much slower everything falls and lands
+  GRAV=m.g/14400;GP=GRAV;AIRDRAG=m.drag;BODYFRIC=m.bodyFric;JUMP=1.6*r;IMPS=120/r;
+}
+
 function addCrate(x,y,a=0,sz=CRATE,m=6){boxes.push({x,y,a,vx:0,vy:0,w:0,hw:sz/2,hh:sz/2,m,I:m*sz*sz/6})}
 function pyramid(x,rows){const g=ter(x),a=Math.atan2(g.ty,g.tx);for(let r=0;r<rows;r++)for(let c=0;c<rows-r;c++){addCrate(x+(c-(rows-r-1)/2)*(CRATE+1),g.y-CRATE/2-1-r*(CRATE+.5),0)}}
 function corners(b){const c=Math.cos(b.a),s=Math.sin(b.a);return[[-1,-1],[1,-1],[1,1],[-1,1]].map(([i,j])=>{const lx=i*b.hw,ly=j*b.hh;return[b.x+lx*c-ly*s,b.y+lx*s+ly*c]})}
@@ -227,7 +243,7 @@ function collideBoxes(){
       if(b.deck){const c=Math.cos(b.a),s=Math.sin(b.a),ly=-(p.x-b.x)*s+(p.y-b.y)*c;if(ly<0){h.nx=s;h.ny=-c;h.d=b.hh+2+ly}}   // bridge decks: always push up off the top, so plank seams never snag the skis
       const pt={x:p.x,y:p.y,vx:p.x-p.px,vy:p.y-p.py,w:0,m:M[i]*3,I:Infinity};          // x3: a rider is heavier than a point
       const k=(1/b.m)/(1/b.m+1/pt.m);p.x+=h.nx*h.d*(1-k);p.y+=h.ny*h.d*(1-k);b.x-=h.nx*h.d*k;b.y-=h.ny*h.d*k;hit=true;if(b.deck&&b.fixed&&!b.tm)b.tm=b.hold||18;
-      const sp=contactBB(b,pt,p.x,p.y,h.nx,h.ny,b.mu||.5)*120;if(i<2)hurt((sp-250)*.03);
+      const sp=contactBB(b,pt,p.x,p.y,h.nx,h.ny,b.mu||.5)*IMPS;if(i<2)hurt((sp-250)*.03);
       p.px=p.x-pt.vx;p.py=p.y-pt.vy;
       const L=b.lim||[650,380];if(!st.crash&&!st.done&&sp>(i<2?L[0]:L[1])){st.crash=true;st.msg=(b.say||'Crashed into a crate!')+' Right-click, tap or press R to retry.'}
     }
@@ -409,4 +425,4 @@ function step(){
   if(st.sharkDeath&&!st.shown&&(performance.now()-st.sharkStarted)/1000>2.2){st.shown=true;openMenu(true)}
   if(st.crash){st.adrenaline=0;updateAdrenalineUI()}
 }
-
+setClassicGravity(classicGrav);   // apply the saved gravity mode at startup

@@ -36,7 +36,7 @@ function collideProps(){
         p.x+=nx*pen;p.y+=ny*pen;p.px+=nx*pen;p.py+=ny*pen;hit=true;
         if(vn<0){const lev=rx*ny-ry*nx,j=-1.12*vn/(1/m+lev*lev/I);
           p.px-=nx*j/m;p.py-=ny*j/m;t.w+=j*(-lev-.45*ry)/I;          // the skier's weight (plus ski drag) bends the tree forward
-          const sp=-vn*120,th=k===0?(i<4?(t.soft?1e9:420):(t.soft?520:250)):(i<4?1e9:520);   // treetops are soft; the trunk is not
+          const sp=-vn*IMPS,th=k===0?(i<4?(t.soft?1e9:420):(t.soft?520:250)):(i<4?1e9:520);   // treetops are soft; the trunk is not
           if(i<2)hurt((sp-200)*(t.soft?.008:.03));
           if(sp>th&&!st.crash&&!st.done){st.crash=true;st.msg=(k?'Crunched through the treetops!':'Hit a tree trunk!')+' Right-click, tap or press R to retry.'}}
       }
@@ -49,8 +49,8 @@ function collideProps(){
       p.x+=nx*pen*(1-k);p.y+=ny*pen*(1-k);p.px+=nx*pen*(1-k);p.py+=ny*pen*(1-k);q.x-=nx*pen*k;q.y-=ny*pen*k;hit=true;
       const vn=(p.x-p.px-q.vx)*nx+(p.y-p.py-q.vy)*ny;
       if(vn<0){p.px+=nx*vn*(1+E)*(1-k);p.py+=ny*vn*(1+E)*(1-k);q.vx+=nx*vn*(1+E)*k;q.vy+=ny*vn*(1+E)*k;
-        if(i<2)hurt((-vn*120-150)*(q.soft?.016:.04));
-        if(-vn*120>(i<2?(q.soft?1300:380):i<4?(q.soft?700:260):150)&&!st.crash&&!st.done){st.crash=true;st.msg=(q.dyn?'Flattened by a boulder!':'Smashed into a rock!')+' Right-click, tap or press R to retry.'}}
+        if(i<2)hurt((-vn*IMPS-150)*(q.soft?.016:.04));
+        if(-vn*IMPS>(i<2?(q.soft?1300:380):i<4?(q.soft?700:260):150)&&!st.crash&&!st.done){st.crash=true;st.msg=(q.dyn?'Flattened by a boulder!':'Smashed into a rock!')+' Right-click, tap or press R to retry.'}}
     }
   });
 }
