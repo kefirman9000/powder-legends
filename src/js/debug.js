@@ -150,7 +150,7 @@ function update(){const vis=dbg.on&&!paused;panel.style.display=vis?'flex':'none
   const n=performance.now(),dt=(n-lastT)/1000;if(dt>.4){sps=(dbg.steps-lastS)/dt;fps=(frames-lastF)/dt;lastT=n;lastS=dbg.steps;lastF=frames}
   if($('d-ro').closest('.sb').hidden)return;
   const p=P[4],vx=(p.x-p.px)*120,vy=(p.y-p.py)*120,sp=Math.hypot(vx,vy),g=ter(p.x),tl=Math.hypot(g.tx,g.ty)||1,tx=g.tx/tl,ty=g.ty/tl,vt=vx*tx+vy*ty,vn=vx*ty-vy*tx,slope=deg(Math.atan2(ty,tx)),q=spinL(),w=q.L/(q.I||1)*120;
-  const prot=skiBindingBoost(),th=touchMode?TOUCH_HOLD:1,bl=BODYOFF*(1+prot*4)*th,sl=SKIHARD*(1+prot*5)*th;
+  const prot=skiBindingBoost(),th=touchMode?TOUCH_HOLD:1,bl=BODYOFF*BINDK*(1+prot*4)*th,sl=SKIHARD*BINDK*(1+prot*5)*th;
   const con=P.map((c,i)=>{const gg=ter(c.x),off=i<2?3:i===2?4:0;return c.y>=gg.y-off-.8?NAMES[i]:null}).filter(Boolean);
   const skiA=deg(nrm(ang(0,1)-Math.atan2(ty,tx))),ankle=deg(nrm(ang(2,3)-ang(0,1))),knee=Math.abs(deg(nrm(ang(3,2)-ang(3,4)))),hip=Math.abs(deg(nrm(ang(4,3)-ang(4,5))));
   const age=i=>dbg.impT[i]?f((n-dbg.impT[i])/1000,1)+'s ago':'-';

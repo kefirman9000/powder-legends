@@ -19,6 +19,12 @@ let CROUCH=1.4;                              // extra-deep crouch at the bottom 
 let ARMTOP=1.1;                             // extra arm raise (rad) as you reach a full stand, on top of the pop throw. 0 = old arms
 let CONSERVE=1;                             // spin conservation in the air. The solver that holds the body together (6 passes of joint/limb constraints) quietly bleeds off spin, and the faster you spin (tucked) the more it bleeds. 1 = the solver gives back exactly what it takes (true physics: tucking speeds you up and nothing slows you), 0 = old behaviour
 const CAMX=.27,CAMY=.51;                       // where the skier sits on screen (fraction from the left / top). Original was .35 / .55; lower X = more of the slope ahead visible
+// Ski bindings (Settings), from the original game's binding strength: how hard a landing you survive before the skis pop off.
+// Scales the ski pop-off limits, the hard-landing wipeout and the point where landings start damaging the skis.
+// The original's values were Very Loose 500, Loose 900, Normal 1300, Tight 2600, Very Tight 3900; scaled here from Normal.
+const BINDINGS={vloose:500/1300,loose:900/1300,normal:1,tight:2,vtight:3};let bindMode='normal',BINDK=1;
+try{const v=localStorage.getItem('skiBinding');if(v&&BINDINGS[v]){bindMode=v;BINDK=BINDINGS[v]}}catch(e){}
+function setBinding(v){if(!BINDINGS[v])return;bindMode=v;BINDK=BINDINGS[v];try{localStorage.setItem('skiBinding',v)}catch(e){}}
 let BODYOFF=1000,SKIHARD=2300;               // body / ski impact speed (px/s) that rips the skis off
 const SKISOFF=true;                            // on any wipeout, skis can pop off the boots and tumble on their own; no level-specific exceptions
 let HIPMAX=65;                              // hip limit in degrees (was 20). Higher = torso can lean back past the thigh line
@@ -36,6 +42,7 @@ let SMX=.12,SMY=.2;                        // how fast the "muscles" follow the 
 let DMGMAX=100;                             // ski damage that makes the skis snap off
 let DMGMIN=450;                             // ski-vs-ground impact speed (px/s) below which nothing is damaged
 let DMGK=1/30;                              // damage per px/s above DMGMIN, per ski end (a hard landing hits both ends)
+const CDEAD=.02;   // Classic controls: like the original (relaxJtPd), a crashed skier's joints go almost limp, so the body flops like a ragdoll
 const DEADK=.2;                               // after a wipeout the joint motors keep this fraction of their strength, so the mouse can still move the body a little
 let BRAKE0=.004,BRAKE1=.011,BRAMP=.5;      // click-and-hold brake: fraction of speed removed per physics step on the snow, ramping from BRAKE0 to BRAKE1 over BRAMP seconds of holding
 const snow=[];let brakeT=0,snowC=0;
@@ -172,10 +179,10 @@ function collide(){
     let al8=0;if(i<2){   // landing alignment: 1 when the skis lie flat along the slope (within ~8deg), fading to 0 by ~30deg of misalignment
       const ux=P[1].x-P[0].x,uy=P[1].y-P[0].y,ul=Math.hypot(ux,uy)||1,tl=Math.hypot(g.tx,g.ty)||1,dt=Math.abs((ux*g.tx+uy*g.ty)/(ul*tl)),th_=Math.acos(Math.min(1,dt));
       const q=Math.max(0,Math.min(1,(.52-th_)/(.52-.14)));al8=q*q*(3-2*q)}
-    {const hv=-imp*IMPS,protect=skiBindingBoost(),th=touchMode?TOUCH_HOLD:1,bodyLimit=BODYOFF*(1+protect*4)*th,skiLimit=SKIHARD*(1+protect*5)*th*(1+ALIGN_HOLD*al8);if(i===6&&hv>420)headHitFx=performance.now();if(i>=3&&i<=6)st.hv=Math.max(st.hv||0,hv);if(!st.skisOff&&((i>=4&&i<=6&&hv>bodyLimit)||(i<2&&hv>skiLimit)))skisFly()}
+    {const hv=-imp*IMPS,protect=skiBindingBoost(),th=touchMode?TOUCH_HOLD:1,bodyLimit=BODYOFF*BINDK*(1+protect*4)*th,skiLimit=SKIHARD*BINDK*(1+protect*5)*th*(1+ALIGN_HOLD*al8);if(i===6&&hv>420)headHitFx=performance.now();if(i>=3&&i<=6)st.hv=Math.max(st.hv||0,hv);if(!st.skisOff&&((i>=4&&i<=6&&hv>bodyLimit)||(i<2&&hv>skiLimit)))skisFly()}
     if(i<2&&-imp*IMPS>250)skiT=SKIT;   // a real ski impact arms the tip-bounce control (smooth riding and takeoffs never do)
-    if(i<2&&-imp*IMPS>DMGMIN)hurt((-imp*IMPS-DMGMIN)*DMGK*(1-ALIGN_SOFT*al8));
-    if(!st.crash&&((i>=4&&i<=6)||(i<2&&-imp*IMPS>1800*(1+skiBindingBoost()*1.2)))){st.crash=true;st.msg=(st.skisOff?'No skis, no balance! ':'')+(st.air>.4||st.lr?'Wipeout on the landing! Right-click, tap or press R to retry.':'Wipeout! Right-click, tap or press R to retry.');}
+    if(i<2&&-imp*IMPS>DMGMIN*BINDK)hurt((-imp*IMPS-DMGMIN*BINDK)*DMGK*(1-ALIGN_SOFT*al8));
+    if(!st.crash&&((i>=4&&i<=6)||(i<2&&-imp*IMPS>1800*BINDK*(1+skiBindingBoost()*1.2)))){st.crash=true;st.msg=(st.skisOff?'No skis, no balance! ':'')+(st.air>.4||st.lr?'Wipeout on the landing! Right-click, tap or press R to retry.':'Wipeout! Right-click, tap or press R to retry.');}
   });
   {const mx=(P[0].x+P[1].x)/2,my=(P[0].y+P[1].y)/2,g=ter(mx),d=my-(g.y-3);if(d>0){const nx=g.ty,ny=-g.tx,dep=d*-ny;for(const j of [0,1]){P[j].x+=nx*dep;P[j].y+=ny*dep;P[j].px+=nx*dep;P[j].py+=ny*dep}}}
 }
@@ -371,7 +378,7 @@ function step(){
   for(let k=0;k<6;k++){
     if(st.crash&&SKISOFF)st.skisOff=true;
     C.forEach(([a,b],i)=>{if(st.skisOff&&(i===1||i===2||i>=8))return;pull(a,b,len[i],i>=8?ANK:1)});   // once the skis are off, only the ski's own tail-tip link remains   // last two links are the ankle braces
-    {const f=st.crash?DEADK:1;const ck=classicCtl?CKS:null;motor(2,3,4,-pz.knee,(ck?ck[0]:KK)*f);motor(3,4,5,pz.fold,(ck?ck[1]:KH)*f);motor(4,5,7,Math.PI-pz.arm,(ck?ck[2]:KA)*f);motor(4,5,6,.15,.3*f)}  // knee, hip, shoulder, neck
+    {const f=st.crash?(classicCtl?CDEAD:DEADK):1;const ck=classicCtl?CKS:null;motor(2,3,4,-pz.knee,(ck?ck[0]:KK)*f);motor(3,4,5,pz.fold,(ck?ck[1]:KH)*f);motor(4,5,7,Math.PI-pz.arm,(ck?ck[2]:KA)*f);motor(4,5,6,.15,.3*f)}  // knee, hip, shoulder, neck
     collide();collideBoxes();collideProps();if(LVc.collide)LVc.collide();
   }
   if(s0&&!hit){const s1=spinL(),dw=(s0.L-s1.L)/(s1.I||1);P.forEach(p=>{p.px+=dw*(p.y-s1.gy);p.py-=dw*(p.x-s1.gx)})}   // give back the spin the solver bled off (only while nothing is touching the body)
