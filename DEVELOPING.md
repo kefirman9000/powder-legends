@@ -49,7 +49,7 @@ reports whether `index.html` is up to date.
 | `src/js/props.js` | Trees, rocks, crates, replay recorder, saved scores |
 | `src/js/skijump.js` | Ski Jump Hill: distance, hill record, markers |
 | `src/js/endless.js` | Endless Run course generator |
-| `src/js/levels.js` | **All levels** (terrain, obstacles, colors) |
+| `src/js/levels.js` | **All levels** (terrain, obstacles, colors), including the Loop de Loop ring physics |
 | `src/js/menu.js` | Level select, grades, awards, results screen, progress |
 | `src/js/intro.js` | Title screen (sunset + snow-gust title) |
 | `src/js/main.js` | Game loop |

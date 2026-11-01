@@ -65,6 +65,7 @@ function buildCheckpoints(){
     if(rocks.some(r=>Math.abs(r.x-x)<220))return false;
     if((LVc&&LVc.lava||[]).some(L=>x>L.x0-900&&x<L.x1+150))return false;   // never respawn someone on the brink of a lava pit
     if(boxes.some(b=>Math.abs(b.x-x)<(b.hw||0)+180))return false;
+    if((LVc&&LVc.loops||[]).some(L=>Math.abs(L.cx-x)<L.R+600))return false;   // never respawn inside or right before a loop
     return true;
   };
   for(let i=1;i<pts.length-1;i++){
@@ -371,7 +372,7 @@ function step(){
     if(st.crash&&SKISOFF)st.skisOff=true;
     C.forEach(([a,b],i)=>{if(st.skisOff&&(i===1||i===2||i>=8))return;pull(a,b,len[i],i>=8?ANK:1)});   // once the skis are off, only the ski's own tail-tip link remains   // last two links are the ankle braces
     {const f=st.crash?DEADK:1;const ck=classicCtl?CKS:null;motor(2,3,4,-pz.knee,(ck?ck[0]:KK)*f);motor(3,4,5,pz.fold,(ck?ck[1]:KH)*f);motor(4,5,7,Math.PI-pz.arm,(ck?ck[2]:KA)*f);motor(4,5,6,.15,.3*f)}  // knee, hip, shoulder, neck
-    collide();collideBoxes();collideProps();
+    collide();collideBoxes();collideProps();if(LVc.collide)LVc.collide();
   }
   if(s0&&!hit){const s1=spinL(),dw=(s0.L-s1.L)/(s1.I||1);P.forEach(p=>{p.px+=dw*(p.y-s1.gy);p.py-=dw*(p.x-s1.gx)})}   // give back the spin the solver bled off (only while nothing is touching the body)
   if(!classicCtl&&AIRD>0&&st.onAir&&!st.crash&&!hit&&Math.abs(st.rot)<1.2&&Math.abs(sm.x-.5)<.12&&lastMove<st.t0-250){const q=spinL(),w=q.L/(q.I||1);if(w>0&&w<AIRT){const dw=-w*AIRD*sf;P.forEach(p=>{p.px+=dw*(p.y-q.gy);p.py-=dw*(p.x-q.gx)})}}
@@ -414,7 +415,7 @@ function step(){
   P.forEach((p,i)=>{const c=ct[i];if(!c)return;ct[i]=0;const vx=p.x-p.px,vy=p.y-p.py,vn=vx*c[0]+vy*c[1],m=i<2?.0025:.08;p.px=p.x-(vx-c[0]*vn)*(1-m)-c[0]*vn;p.py=p.y-(vy-c[1]*vn)*(1-m)-c[1]*vn});
   // stunt tracking
   if(!st.crash&&!st.done){st.time+=1/120;const v=Math.hypot(P[4].x-P[4].px,P[4].y-P[4].py)*120;if(v>st.maxV)st.maxV=v}
-  const air=st.skisOff?ter(P[2].x).y-P[2].y>9:[P[0],P[1]].every(p=>ter(p.x).y-p.y>5);
+  const air=(st.skisOff?ter(P[2].x).y-P[2].y>9:[P[0],P[1]].every(p=>ter(p.x).y-p.y>5))&&!(LVc.ground&&LVc.ground());   // a level can add riding surfaces (Loop de Loop)
   if(st.crash){st.adrenaline=0}else if(!st.done){if(air&&!st.crash){const flips=Math.abs(st.rot)/6.2832;st.adrenaline=Math.min(100,(st.adrenaline||0)+(2.6+Math.min(3.8,flips*1.5))/120)}else st.adrenaline=Math.max(0,(st.adrenaline||0)-.22/120);updateAdrenalineUI()}
   const ang=Math.atan2(P[5].y-P[2].y,P[5].x-P[2].x);
   if(st.ang!==null&&st.onAir){let d=ang-st.ang;if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;st.rot+=d}

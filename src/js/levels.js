@@ -139,6 +139,50 @@ const longHaul=(()=>{const k=track();
 const school=(()=>{const k=track();k.line(700,0);k.ease(300,.3);k.line(1500,.3);
   const L1=jmp(k,.35,260);k.line(400,.35);k.ease(300,.42);k.line(1100,.42);
   const L2=jmp(k,.6,340);k.line(500,.35);k.ease(300,.45);k.line(2600,.45);return{t:k.t,L1,L2}})();
+// ---- Loop de Loop: full loop-the-loops built on flat ground -------------------------------------------------------------
+// The terrain is a height-per-x line, so a loop can't be part of it. Each loop is a ring standing on flat snow. It tracks how
+// far round its centre you have travelled (prog: 0 at the bottom on the way in, 2*PI back at the bottom on the way out), and
+// only the part of the ring ahead of you is solid: you ride in at the bottom, go all the way round and leave on the same
+// flat snow. While you are inside a loop you count as on the snow (no air, no flips). Head or body on the ring = wipeout.
+// Going round takes speed: about sqrt(5 g r) at the bottom, so each loop sits at the end of a steep run-in.
+const loopy=(()=>{const k=track(),loops=[];
+  const loop=R=>{const x=k.x+R+260;k.line(2*R+620,0);loops.push({x,cx:x,cy:k.y-R,R,prog:null,ac:0,count:0})};   // flat pad with the loop in the middle
+  k.line(1100,.62);k.ease(380,0);k.line(250,0);loop(150);                       // loop 1
+  k.ease(300,.6);k.line(900,.6);k.ease(380,0);k.line(250,0);loop(185);          // loop 2: bigger, so more speed
+  k.ease(300,.55);k.line(700,.55);k.ease(380,0);k.line(200,0);loop(150);        // loop 3, then straight into the finale kicker
+  const lip=jmp(k,.45,300);k.line(500,.35);k.ease(300,.42);k.line(2200,.42);
+  return{t:k.t,loops,fin:lip+2100}})();
+const TAU=2*Math.PI,wrapA=a=>Math.atan2(Math.sin(a),Math.cos(a));
+const loopAng=(L,x,y)=>Math.atan2(x-L.cx,y-L.cy);   // 0 = bottom, PI/2 = right side, PI = top, -PI/2 = left side
+function loopCom(){let x=0,y=0,m=0;P.forEach((p,i)=>{x+=M[i]*p.x;y+=M[i]*p.y;m+=M[i]});return{x:x/m,y:y/m}}
+function loopReset(){for(const L of loopy.loops){L.prog=null;L.ac=0;L.count=0}}
+function loopPost(){   // once per physics step: track progress round each loop and pay the bonus
+  if(!P)return;const c=loopCom();
+  for(const L of loopy.loops){const d=Math.hypot(c.x-L.cx,c.y-L.cy),a=loopAng(L,c.x,c.y);
+    if(L.prog===null){if(d<L.R+220&&c.x<L.cx)L.prog=a;L.ac=a;continue}   // start tracking on the way in
+    const was=L.prog;L.prog+=wrapA(a-L.ac);L.ac=a;
+    if(was<TAU&&L.prog>=TAU&&!st.crash&&!st.done){L.count++;const pts=L.R>170?20000:12000;
+      st.score+=pts;spray('LOOP THE LOOP!','+'+pts.toLocaleString(),true,pts,'landed');if(window.buzz)try{buzz(40)}catch(_){}}
+    if(d>L.R+260)L.prog=null}}
+function loopInside(){return loopy.loops.some(L=>L.prog!==null&&L.prog>0&&L.prog<TAU)}
+function loopCollide(){   // called inside the physics solver, next to the snow collisions
+  for(const L of loopy.loops){if(L.prog===null||L.prog<-1.2||L.prog>TAU+1.2)continue;
+    P.forEach((p,i)=>{
+      const dx=p.x-L.cx,dy=p.y-L.cy,d=Math.hypot(dx,dy)||1e-6,ap=L.prog+wrapA(loopAng(L,p.x,p.y)-L.ac);
+      if(ap<=0||ap>=TAU)return;                          // behind the entry or past the exit: the flat snow handles it
+      const off=i<2?3:i===2?4:0,lim=L.R-off;if(d<=lim)return;
+      const nx=-dx/d,ny=-dy/d,dep=d-lim,imp=(p.x-p.px)*nx+(p.y-p.py)*ny;   // normal points from the ring toward the centre
+      p.x+=nx*dep;p.y+=ny*dep;p.px+=nx*dep;p.py+=ny*dep;
+      let vx=p.x-p.px,vy=p.y-p.py;const vn=Math.min(vx*nx+vy*ny,0);vx-=nx*vn;vy-=ny*vn;p.px=p.x-vx;p.py=p.y-vy;ct[i]=[nx,ny];hit=true;
+      if(!st.crash&&((i>=4&&i<=6)||(i<2&&-imp*IMPS>1800))){st.crash=true;st.msg='Wiped out in the loop! Right-click, tap or press R to retry.'}
+    })}}
+function loopDraw(){   // the ring of snow, with arrows showing the way round
+  for(const L of loopy.loops){const r0=L.R,r1=L.R+18;cx.save();cx.beginPath();cx.rect(L.cx-r1-5,L.cy-r1-5,2*r1+10,r1+r0+5);cx.clip();   // stop at the snow line
+    cx.beginPath();cx.arc(L.cx,L.cy,r1,0,TAU);cx.arc(L.cx,L.cy,r0,0,TAU,true);cx.fillStyle=LVc.snow;cx.fill('evenodd');
+    cx.lineWidth=3;cx.strokeStyle=LVc.edge;cx.beginPath();cx.arc(L.cx,L.cy,r1,0,TAU);cx.stroke();cx.beginPath();cx.arc(L.cx,L.cy,r0,0,TAU);cx.stroke();
+    cx.fillStyle='#ff7a3c';for(let a=.35;a<TAU-.2;a+=.6){const x=L.cx+Math.sin(a)*(r0+9),y=L.cy+Math.cos(a)*(r0+9),t=a+.08,tx=Math.cos(t),ty=-Math.sin(t);   // arrows point along the direction of travel
+      cx.beginPath();cx.moveTo(x+tx*7,y+ty*7);cx.lineTo(x-tx*4-ty*4,y-ty*4+tx*4);cx.lineTo(x-tx*4+ty*4,y-ty*4-tx*4);cx.closePath();cx.fill()}
+    cx.restore();if(L.count){cx.fillStyle='#1a8f4f';cx.font='700 20px system-ui';cx.textAlign='center';cx.fillText('✓',L.cx,L.cy+6)}}}
 const LV=[
  {n:'Ski School',d:'New here? Start with this. Six quick steps teach the controls: crouch, stand, lean, brake, jump and flip. No score and no pressure; skip it any time.',
   T:school.t,fin:1e9,tutorial:true,L1:school.L1,L2:school.L2,sky:['#5aa7e8','#e3f2fc'],far:'#a8c2dc',snow:'#f8fbff',edge:'#8bb2d8'},
@@ -179,6 +223,9 @@ const LV=[
   },
  {n:'Ski Jump Hill',d:'One giant Olympic-style ski jump. Crouch on the inrun, pop off the edge of the table, and lean forward in the air so you do not rotate onto your back. Fly as far as you can and land it clean: every metre is worth 1,000 points, and your longest jump is saved as the hill record. K marks 120 m. Land past it and the hill flattens out under you, so the landings get harder.',
   T:sjh.t,fin:sjh.fin,jump:true,post:jumpPost,onReset:jumpReset,drawFront:jumpDrawFront,sky:['#3f86d6','#d9ecfb'],far:'#93add0',snow:'#f8fbff',edge:'#7ea6d0'},
+ {n:'Loop de Loop',d:'Three full loop-the-loops. Drop in fast, keep your skis on the ring and ride all the way round: too slow and you fall off the top. Each loop you complete pays a bonus, and the middle one is the biggest. One last kicker to finish.',
+  T:loopy.t,fin:loopy.fin,loops:loopy.loops,post:loopPost,onReset:loopReset,collide:loopCollide,ground:loopInside,drawFront:loopDraw,
+  sky:['#ff9a3c','#ffe3a8'],far:'#d9a070',snow:'#fff8ef',edge:'#e0904a'},
  {n:'Fireworks Hill',d:'A night run down a long hill with three kickers while fireworks go off in the sky ahead of you the whole way down. Flip in time with the show.',
   T:fwk.t,fin:fwk.fin,sky:['#060924','#3a2866'],far:'#1b1842',snow:'#dfe6ff',edge:'#8d9ee0',fw:{from:500,gap:230}},
  {n:'Glacier Run',d:'The long one. Roll over gentle swells to build speed, clear two mellow jumps, then send the big glacier kicker at the end.',
@@ -196,9 +243,9 @@ const LV=[
 // Finish lines sit a bit farther down every course so there's room to land and settle before crossing. The shark pool gets extra.
 const FIN_EXTRA=500,FIN_EXTRA_SHARK=900;
 // Level order, easiest first (based on jump size, hazards, length and how often a hands-off test run crashes).
-const LEVEL_ORDER=['Ski School','Sunset Double','Pine Hop','Icefall Slalom','Avalanche Escape','Lantern Forest','Crate Stack','Rickety Bridge','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Ski Jump Hill','Mega Ramp','Inferno Walls','Shark Pool','Volcano Run','Death Valley','The Long Haul','Endless Run'];
+const LEVEL_ORDER=['Ski School','Sunset Double','Pine Hop','Icefall Slalom','Avalanche Escape','Lantern Forest','Crate Stack','Rickety Bridge','Fireworks Hill','Mogul Field','Glacier Run','Quarter Pipe','Loop de Loop','Ski Jump Hill','Mega Ramp','Inferno Walls','Shark Pool','Volcano Run','Death Valley','The Long Haul','Endless Run'];
 LV.sort((a,b)=>LEVEL_ORDER.indexOf(a.n)-LEVEL_ORDER.indexOf(b.n));
 LV.forEach(l=>{if(l.endless||l.tutorial)return;const add=l.water?FIN_EXTRA_SHARK:FIN_EXTRA;l.fin+=add;const e=l.T[l.T.length-1];if(e[0]<l.fin+800)l.T.push([l.fin+800,e[1]])});   // flat ground already continues past a course's last point; the extra point just keeps it drawn past the new line
 let CRX=[480,5,680,4];
-const PAR={'Ski Jump Hill':.55,'Pine Hop':.8,'Death Valley':.8,'Inferno Walls':1,'Shark Pool':.9,'Mega Ramp':1.5,'Crate Stack':1.1,'Mogul Field':1.1,'Quarter Pipe':1.5,'Sunset Double':.9,'Rickety Bridge':1,'Volcano Run':1.1,'Lantern Forest':.8,'Glacier Run':1.6,'Fireworks Hill':1};
+const PAR={'Ski Jump Hill':.55,'Pine Hop':.8,'Death Valley':.8,'Inferno Walls':1,'Shark Pool':.9,'Mega Ramp':1.5,'Crate Stack':1.1,'Mogul Field':1.1,'Quarter Pipe':1.5,'Sunset Double':.9,'Rickety Bridge':1,'Volcano Run':1.1,'Lantern Forest':.8,'Glacier Run':1.6,'Fireworks Hill':1,'Loop de Loop':1.1};
 LV.forEach(l=>l.par=l.par||PAR[l.n]||1);   // par: how big a score counts as an S on each level (times SPAR)
