@@ -8,6 +8,10 @@ let lastMove=0;
 let lastAim=null;   // last pointer position seen (Classic controls), so a restart can begin in that pose
 function aimAt(cx_,cy_){const r=cv.getBoundingClientRect(),w=r.width*CPW,h=r.height*CPH;lastMove=performance.now();lastAim={x:cx_,y:cy_};
   ctl.x=Math.min(1,Math.max(0,(cx_-(r.left+(r.width-w)/2))/w));ctl.y=Math.min(1,Math.max(0,1-(cy_-(r.top+(r.height-h)/2))/h))}
+// Touch version of Classic controls: a drag moves the pose by the same amount the pointer box would (no glide), so a touch
+// anywhere never makes the skier jump.
+function dragAim(dx,dy){const r=cv.getBoundingClientRect();lastMove=performance.now();
+  ctl.x=Math.min(1,Math.max(0,ctl.x+dx/(r.width*CPW)));ctl.y=Math.min(1,Math.max(0,ctl.y-dy/(r.height*CPH)))}
 function move(dx,dy){if(dx||dy)lastMove=performance.now();
   const r=cv.getBoundingClientRect();
   // A head impact briefly makes the controls feel sluggish for the full 2-second dizzy period.
@@ -21,7 +25,8 @@ function move(dx,dy){if(dx||dy)lastMove=performance.now();
 const TOUCH_BOOST=1.2,TOUCH_ACCEL=.25,TOUCH_ACCEL_MAX=.5;   // touch only: base gain, extra gain per px/ms of finger speed, and cap on that extra
 const fingers=[];   // active touch/pen pointers, in the order they went down: fingers[0] moves, any extra finger brakes
 cv.addEventListener('pointermove',e=>{
-  if(classicCtl&&(e.pointerType==='mouse'||fingers[0]&&fingers[0].id===e.pointerId)){aimAt(e.clientX,e.clientY);const f=fingers[0];if(f){f.x=e.clientX;f.y=e.clientY}return}   // Classic controls: the pointer's position is the pose
+  if(classicCtl&&e.pointerType==='mouse'){aimAt(e.clientX,e.clientY);return}   // Classic controls, mouse: the pointer's position is the pose
+  if(classicCtl&&fingers[0]&&fingers[0].id===e.pointerId){const f=fingers[0];dragAim(e.clientX-f.x,e.clientY-f.y);f.x=e.clientX;f.y=e.clientY;f.t=e.timeStamp;return}   // Classic controls, touch: drag moves the pose
   if(e.pointerType==='mouse'){if(document.pointerLockElement===cv)move(e.movementX,e.movementY);else{if(lastM)move(e.clientX-lastM.x,e.clientY-lastM.y);lastM={x:e.clientX,y:e.clientY}}return}
   const f=fingers.find(q=>q.id===e.pointerId);if(!f)return;
   if(f===fingers[0]){
@@ -43,7 +48,8 @@ cv.addEventListener('pointerdown',e=>{
     if(document.pointerLockElement===cv&&document.exitPointerLock)document.exitPointerLock();return}
   if(st.crash||st.done){reset();return}                    // tap after a wipeout / finish: restart
   fingers.push({id:e.pointerId,x:e.clientX,y:e.clientY,t:e.timeStamp});
-  if(classicCtl&&fingers.length===1)aimAt(e.clientX,e.clientY);
+  // Classic controls on touch: putting a finger down does NOT jump the pose to where you touched (that straightened the legs
+  // in one go and launched the skier). The pose stays put and dragging moves it from there.
   braking=fingers.length>1;                                // second finger down = brake
   try{cv.setPointerCapture(e.pointerId)}catch(_){}
 });
