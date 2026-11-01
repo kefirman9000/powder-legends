@@ -140,49 +140,75 @@ const school=(()=>{const k=track();k.line(700,0);k.ease(300,.3);k.line(1500,.3);
   const L1=jmp(k,.35,260);k.line(400,.35);k.ease(300,.42);k.line(1100,.42);
   const L2=jmp(k,.6,340);k.line(500,.35);k.ease(300,.45);k.line(2600,.45);return{t:k.t,L1,L2}})();
 // ---- Loop de Loop: full loop-the-loops built on flat ground -------------------------------------------------------------
-// The terrain is a height-per-x line, so a loop can't be part of it. Each loop is a ring standing on flat snow. It tracks how
-// far round its centre you have travelled (prog: 0 at the bottom on the way in, 2*PI back at the bottom on the way out), and
-// only the part of the ring ahead of you is solid: you ride in at the bottom, go all the way round and leave on the same
-// flat snow. While you are inside a loop you count as on the snow (no air, no flips). Head or body on the ring = wipeout.
-// Going round takes speed: about sqrt(5 g r) at the bottom, so each loop sits at the end of a steep run-in.
-const loopy=(()=>{const k=track(),loops=[];
-  const loop=R=>{const x=k.x+R+260;k.line(2*R+620,0);loops.push({x,cx:x,cy:k.y-R,R,prog:null,ac:0,count:0})};   // flat pad with the loop in the middle
-  k.line(1100,.62);k.ease(380,0);k.line(250,0);loop(150);                       // loop 1
-  k.ease(300,.6);k.line(900,.6);k.ease(380,0);k.line(250,0);loop(185);          // loop 2: bigger, so more speed
-  k.ease(300,.55);k.line(700,.55);k.ease(380,0);k.line(200,0);loop(150);        // loop 3, then straight into the finale kicker
-  const lip=jmp(k,.45,300);k.line(500,.35);k.ease(300,.42);k.line(2200,.42);
-  return{t:k.t,loops,fin:lip+2100}})();
+// The terrain is a height-per-x line, so a loop can't be part of it. Each loop is a separate track standing on flat snow, shaped
+// like a real loop: a teardrop that is gentle where you ride in and tightens toward the top (like a roller-coaster loop), so it
+// looks natural and the G-force at the bottom stays sane. It tracks how far round its centre you have travelled (prog: 0 at the
+// bottom on the way in, 2*PI back at the bottom on the way out), and only the part of the track ahead of you is solid: you ride
+// in at the bottom, go all the way round and leave on the same flat snow. Inside a loop you count as on the snow (no air, no
+// flips). Head or body hitting the track hard = wipeout (a brush is forgiven). Drawn as a band of ice that thickens toward the top under a cap of snow.
 const TAU=2*Math.PI,wrapA=a=>Math.atan2(Math.sin(a),Math.cos(a));
+function makeLoop(cx,gy,W,Hh,pinch){
+  const N=360,cy=gy-Hh,pts=[],L={x:cx,cx,cy,W,Hh,pts,nrm:[],bin:[],prog:null,ac:0,count:0,ext:0};
+  for(let k=0;k<N;k++){const t=k/N*TAU,u=(1-Math.cos(t))/2;pts.push({x:cx+W*Math.sin(t)*(1-pinch*u*u*u),y:gy-Hh*(1-Math.cos(t)),t})}
+  for(let k=0;k<N;k++){const a=pts[k],b=pts[(k+1)%N],dx=b.x-a.x,dy=b.y-a.y,l=Math.hypot(dx,dy)||1;let nx=-dy/l,ny=dx/l;
+    const mx=(a.x+b.x)/2-cx,my=(a.y+b.y)/2-cy;if(nx*mx+ny*my>0){nx=-nx;ny=-ny}L.nrm.push([nx,ny]);L.ext=Math.max(L.ext,Math.hypot(mx,my))}   // inward normals
+  for(let b=0;b<720;b++){const a=-Math.PI+b/720*TAU;let best=0,bd=9;pts.forEach((p,k)=>{const d=Math.abs(wrapA(Math.atan2(p.x-cx,p.y-cy)-a));if(d<bd){bd=d;best=k}});L.bin.push(best)}   // polar angle -> nearest track segment
+  return L}
+const loopy=(()=>{const k=track(),loops=[];
+  const loop=(W,Hh,p)=>{const x=k.x+W+300;loops.push(makeLoop(x,k.y,W,Hh,p));k.line(2*W+700,0)};   // flat pad with the loop in the middle
+  // Shape: gentle at the bottom (curve radius W*W/Hh, ~450 px, so riding in is under 3 G, not a squash) and a little tighter at the
+  // top (~250 px). The top must stay well wider than the skier is tall (~90 px) or the head reaches the other side of the loop.
+  k.line(1550,.62);k.ease(420,0);k.line(250,0);loop(300,200,.25);                       // loop 1: 400 px tall
+  k.ease(900,.62);k.line(900,.62);k.ease(420,0);k.line(250,0);loop(340,240,.25);       // loop 2: the big one, 480 px tall (long rounded crest first, so you
+  k.ease(900,.6);k.line(800,.6);                                                         // leave each loop at speed without being launched off the drop)
+  k.ease(420,0);k.line(200,0);loop(300,200,.25);         // loop 3, then the finale kicker
+  const lip=jmp(k,.45,300);k.line(500,.35);k.ease(300,.42);k.line(2200,.42);
+  return{t:k.t,loops,lip,fin:lip+2100}})();
+const LOOP_BODY_HIT=900;   // inside a loop the G-force can fold you onto the track: a brush of the head or body is forgiven, a real hit (px/s, as at normal gravity) is a wipeout
 const loopAng=(L,x,y)=>Math.atan2(x-L.cx,y-L.cy);   // 0 = bottom, PI/2 = right side, PI = top, -PI/2 = left side
 function loopCom(){let x=0,y=0,m=0;P.forEach((p,i)=>{x+=M[i]*p.x;y+=M[i]*p.y;m+=M[i]});return{x:x/m,y:y/m}}
 function loopReset(){for(const L of loopy.loops){L.prog=null;L.ac=0;L.count=0}}
 function loopPost(){   // once per physics step: track progress round each loop and pay the bonus
   if(!P)return;const c=loopCom();
   for(const L of loopy.loops){const d=Math.hypot(c.x-L.cx,c.y-L.cy),a=loopAng(L,c.x,c.y);
-    if(L.prog===null){if(d<L.R+220&&c.x<L.cx)L.prog=a;L.ac=a;continue}   // start tracking on the way in
+    if(L.prog===null){if(d<L.ext+220&&c.x<L.cx)L.prog=a;L.ac=a;continue}   // start tracking on the way in
     const was=L.prog;L.prog+=wrapA(a-L.ac);L.ac=a;
-    if(was<TAU&&L.prog>=TAU&&!st.crash&&!st.done){L.count++;const pts=L.R>170?20000:12000;
+    if(was<TAU&&L.prog>=TAU&&!st.crash&&!st.done){L.count++;const pts=L.Hh>210?20000:12000;
       st.score+=pts;spray('LOOP THE LOOP!','+'+pts.toLocaleString(),true,pts,'landed');if(window.buzz)try{buzz(40)}catch(_){}}
-    if(d>L.R+260)L.prog=null}}
+    if(d>L.ext+260)L.prog=null}}
 function loopInside(){return loopy.loops.some(L=>L.prog!==null&&L.prog>0&&L.prog<TAU)}
 function loopCollide(){   // called inside the physics solver, next to the snow collisions
-  for(const L of loopy.loops){if(L.prog===null||L.prog<-1.2||L.prog>TAU+1.2)continue;
+  for(const L of loopy.loops){if(L.prog===null||L.prog<-1.2||L.prog>TAU+1.2)continue;const N=L.pts.length;
     P.forEach((p,i)=>{
-      const dx=p.x-L.cx,dy=p.y-L.cy,d=Math.hypot(dx,dy)||1e-6,ap=L.prog+wrapA(loopAng(L,p.x,p.y)-L.ac);
+      const a=loopAng(L,p.x,p.y),ap=L.prog+wrapA(a-L.ac);
       if(ap<=0||ap>=TAU)return;                          // behind the entry or past the exit: the flat snow handles it
-      const off=i<2?3:i===2?4:0,lim=L.R-off;if(d<=lim)return;
-      const nx=-dx/d,ny=-dy/d,dep=d-lim,imp=(p.x-p.px)*nx+(p.y-p.py)*ny;   // normal points from the ring toward the centre
+      const b0=L.bin[Math.min(719,Math.max(0,Math.floor((a+Math.PI)/TAU*720)))];let bs=1e9,bk=-1;
+      for(let o=-5;o<=5;o++){const k=(b0+o+N)%N,A=L.pts[k],B=L.pts[(k+1)%N],ex=B.x-A.x,ey=B.y-A.y,u=Math.max(0,Math.min(1,((p.x-A.x)*ex+(p.y-A.y)*ey)/(ex*ex+ey*ey||1))),
+        d=Math.hypot(p.x-A.x-ex*u,p.y-A.y-ey*u);if(d<bs){bs=d;bk=k}}
+      const A=L.pts[bk],[nx,ny]=L.nrm[bk],sd=(p.x-A.x)*nx+(p.y-A.y)*ny,off=i<2?3:i===2?4:0;   // sd: how far inside the track the point is
+      if(sd>=off)return;
+      const dep=off-sd,imp=(p.x-p.px)*nx+(p.y-p.py)*ny;
       p.x+=nx*dep;p.y+=ny*dep;p.px+=nx*dep;p.py+=ny*dep;
       let vx=p.x-p.px,vy=p.y-p.py;const vn=Math.min(vx*nx+vy*ny,0);vx-=nx*vn;vy-=ny*vn;p.px=p.x-vx;p.py=p.y-vy;ct[i]=[nx,ny];hit=true;
-      if(!st.crash&&((i>=4&&i<=6)||(i<2&&-imp*IMPS>1800))){st.crash=true;st.msg='Wiped out in the loop! Right-click, tap or press R to retry.'}
+      if(!st.crash&&((i>=4&&i<=6&&-imp*IMPS>LOOP_BODY_HIT)||(i<2&&-imp*IMPS>1800))){st.crash=true;st.msg='Wiped out in the loop! Right-click, tap or press R to retry.'}
     })}}
-function loopDraw(){   // the ring of snow, with arrows showing the way round
-  for(const L of loopy.loops){const r0=L.R,r1=L.R+18;cx.save();cx.beginPath();cx.rect(L.cx-r1-5,L.cy-r1-5,2*r1+10,r1+r0+5);cx.clip();   // stop at the snow line
-    cx.beginPath();cx.arc(L.cx,L.cy,r1,0,TAU);cx.arc(L.cx,L.cy,r0,0,TAU,true);cx.fillStyle=LVc.snow;cx.fill('evenodd');
-    cx.lineWidth=3;cx.strokeStyle=LVc.edge;cx.beginPath();cx.arc(L.cx,L.cy,r1,0,TAU);cx.stroke();cx.beginPath();cx.arc(L.cx,L.cy,r0,0,TAU);cx.stroke();
-    cx.fillStyle='#ff7a3c';for(let a=.35;a<TAU-.2;a+=.6){const x=L.cx+Math.sin(a)*(r0+9),y=L.cy+Math.cos(a)*(r0+9),t=a+.08,tx=Math.cos(t),ty=-Math.sin(t);   // arrows point along the direction of travel
-      cx.beginPath();cx.moveTo(x+tx*7,y+ty*7);cx.lineTo(x-tx*4-ty*4,y-ty*4+tx*4);cx.lineTo(x-tx*4+ty*4,y-ty*4-tx*4);cx.closePath();cx.fill()}
-    cx.restore();if(L.count){cx.fillStyle='#1a8f4f';cx.font='700 20px system-ui';cx.textAlign='center';cx.fillText('✓',L.cx,L.cy+6)}}}
+function loopDraw(){   // a band of ice that grows thicker toward the top, with a lumpy snow cap and a few glints
+  for(const L of loopy.loops){const N=L.pts.length,gy=L.cy+L.Hh;
+    const thick=t=>{const u=(1-Math.cos(t))/2;return 10+44*u*u},cap=t=>{const u=Math.max(0,(-Math.cos(t)-.35)/.65);return u*(9+5*Math.sin(t*9)+3*Math.sin(t*23))};
+    const out=(k,extra)=>{const p=L.pts[k],n=L.nrm[k],d=thick(p.t)+extra;return[p.x-n[0]*d,p.y-n[1]*d]};
+    cx.save();cx.beginPath();cx.rect(L.cx-L.W-120,L.cy-L.Hh-120,2*L.W+240,2*L.Hh+120);cx.clip();   // stop at the snow line
+    const g=cx.createLinearGradient(0,L.cy-L.Hh-60,0,gy);g.addColorStop(0,'#f2fbff');g.addColorStop(.55,'#cdeaf7');g.addColorStop(1,'#a9d6ee');
+    cx.beginPath();for(let k=0;k<=N;k++){const [x,y]=out(k%N,0);k?cx.lineTo(x,y):cx.moveTo(x,y)}
+    for(let k=N;k>=0;k--){const p=L.pts[k%N];cx.lineTo(p.x,p.y)}cx.closePath();cx.fillStyle=g;cx.fill();
+    cx.strokeStyle='rgba(90,150,190,.7)';cx.lineWidth=2;cx.beginPath();for(let k=0;k<=N;k++){const [x,y]=out(k%N,0);k?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke();
+    {const ks=[];for(let k=0;k<N;k++)if(cap(L.pts[k].t)>.5)ks.push(k);   // contiguous run of track points around the top
+     if(ks.length){cx.beginPath();ks.forEach((k,n)=>{const [x,y]=out(k,cap(L.pts[k].t));n?cx.lineTo(x,y):cx.moveTo(x,y)});
+       for(let n=ks.length-1;n>=0;n--){const [x,y]=out(ks[n],0);cx.lineTo(x,y)}
+       cx.closePath();cx.fillStyle=LVc.snow;cx.fill();cx.strokeStyle='rgba(120,150,175,.5)';cx.lineWidth=1.5;cx.stroke()}}   // snow cap on top
+    cx.strokeStyle='rgba(255,255,255,.75)';cx.lineWidth=4;cx.lineCap='round';cx.beginPath();for(let k=0;k<=N;k++){const p=L.pts[k%N];k?cx.lineTo(p.x,p.y):cx.moveTo(p.x,p.y)}cx.stroke();   // packed-snow riding surface
+    cx.strokeStyle='rgba(255,255,255,.55)';cx.lineWidth=2;for(const [t0,t1,f] of [[2.4,2.9,.55],[3.5,3.8,.45],[1.5,1.75,.6]]){cx.beginPath();for(let t=t0;t<=t1;t+=.04){const k=Math.round(t/TAU*N)%N,[x,y]=out(k,-thick(t)*f);t===t0?cx.moveTo(x,y):cx.lineTo(x,y)}cx.stroke()}   // glints in the ice
+    cx.restore();
+    if(L.count){cx.fillStyle='#1a8f4f';cx.font='700 22px system-ui';cx.textAlign='center';cx.fillText('✓',L.cx,L.cy+8)}}}
 const LV=[
  {n:'Ski School',d:'New here? Start with this. Six quick steps teach the controls: crouch, stand, lean, brake, jump and flip. No score and no pressure; skip it any time.',
   T:school.t,fin:1e9,tutorial:true,L1:school.L1,L2:school.L2,sky:['#5aa7e8','#e3f2fc'],far:'#a8c2dc',snow:'#f8fbff',edge:'#8bb2d8'},
@@ -223,8 +249,8 @@ const LV=[
   },
  {n:'Ski Jump Hill',d:'One giant Olympic-style ski jump. Crouch on the inrun, pop off the edge of the table, and lean forward in the air so you do not rotate onto your back. Fly as far as you can and land it clean: every metre is worth 1,000 points, and your longest jump is saved as the hill record. K marks 120 m. Land past it and the hill flattens out under you, so the landings get harder.',
   T:sjh.t,fin:sjh.fin,jump:true,post:jumpPost,onReset:jumpReset,drawFront:jumpDrawFront,sky:['#3f86d6','#d9ecfb'],far:'#93add0',snow:'#f8fbff',edge:'#7ea6d0'},
- {n:'Loop de Loop',d:'Three full loop-the-loops. Drop in fast, keep your skis on the ring and ride all the way round: too slow and you fall off the top. Each loop you complete pays a bonus, and the middle one is the biggest. One last kicker to finish.',
-  T:loopy.t,fin:loopy.fin,loops:loopy.loops,post:loopPost,onReset:loopReset,collide:loopCollide,ground:loopInside,drawFront:loopDraw,
+ {n:'Loop de Loop',d:'Three giant loop-the-loops carved out of ice. Drop in fast, keep your skis on the track and ride all the way round: too slow and you fall off the top. Each loop you complete pays a bonus, and the middle one is the biggest. One last kicker to finish.',
+  T:loopy.t,fin:loopy.fin,lip:loopy.lip,loops:loopy.loops,post:loopPost,onReset:loopReset,collide:loopCollide,ground:loopInside,drawFront:loopDraw,
   sky:['#ff9a3c','#ffe3a8'],far:'#d9a070',snow:'#fff8ef',edge:'#e0904a'},
  {n:'Fireworks Hill',d:'A night run down a long hill with three kickers while fireworks go off in the sky ahead of you the whole way down. Flip in time with the show.',
   T:fwk.t,fin:fwk.fin,sky:['#060924','#3a2866'],far:'#1b1842',snow:'#dfe6ff',edge:'#8d9ee0',fw:{from:500,gap:230}},

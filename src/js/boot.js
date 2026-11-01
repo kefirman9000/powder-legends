@@ -1,8 +1,8 @@
 /* ===== VERSION + UPDATE BOOTLOADER =====
    To ship an update: bump GAME_VERSION (and GAME_NOTES), commit index.html to the GitHub repo below.
    Players press "Update" in the menu, accept, and the new version installs and runs from then on. */
-window.GAME_VERSION='1.8.0';
-window.GAME_NOTES='New level: Loop de Loop. Ride three full loop-the-loops; keep your speed or fall off the top.';
+window.GAME_VERSION='1.8.1';
+window.GAME_NOTES='Loop de Loop: bigger, more natural ice loops. Debug mode moved into Settings.';
 window.UPDATE_REPO='kefirman9000/powder-legends';
 window.UPDATE_BRANCH='main';
 window.verCmp=function(a,b){a=String(a).split('.').map(Number);b=String(b).split('.').map(Number);for(var i=0;i<Math.max(a.length,b.length);i++){var d=(a[i]||0)-(b[i]||0);if(d)return d>0?1:-1}return 0};

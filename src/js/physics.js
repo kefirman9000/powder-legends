@@ -65,7 +65,7 @@ function buildCheckpoints(){
     if(rocks.some(r=>Math.abs(r.x-x)<220))return false;
     if((LVc&&LVc.lava||[]).some(L=>x>L.x0-900&&x<L.x1+150))return false;   // never respawn someone on the brink of a lava pit
     if(boxes.some(b=>Math.abs(b.x-x)<(b.hw||0)+180))return false;
-    if((LVc&&LVc.loops||[]).some(L=>Math.abs(L.cx-x)<L.R+600))return false;   // never respawn inside or right before a loop
+    if((LVc&&LVc.loops||[]).some(L=>Math.abs(L.cx-x)<L.W+600))return false;   // never respawn inside or right before a loop
     return true;
   };
   for(let i=1;i<pts.length-1;i++){

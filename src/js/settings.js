@@ -24,6 +24,7 @@ m.innerHTML=`<div id="set-card"><h3>⚙ Settings <button type="button" id="set-c
  <div class="set-row"><div>Show FPS<small>A small frame-rate counter in the corner, handy if the game feels choppy</small></div><input type="checkbox" id="set-fps"></div>
  <div class="set-row"><div>Best-run ghost<small>Race a see-through copy of your best run on each level</small></div><input type="checkbox" id="set-ghost"></div>
  <div class="set-row" id="set-hap-row"><div>Vibration<small>Short buzzes on landings, flips and crashes (Android phones)</small></div><input type="checkbox" id="set-hap"></div>
+ <div class="set-row"><div>Debug mode<small>A plain downhill with live physics values, an overlay on the skier and tuning sliders</small></div><button type="button" id="set-dbg">Open</button></div>
  <div class="set-row"><div>Reset all scores<small>Clears best scores, grades and records. Unlocked gear is kept.</small></div><button type="button" class="danger" id="set-reset">Reset</button></div></div>`;
 document.body.appendChild(m);
 function open(){
@@ -35,6 +36,7 @@ function gfxNote(){$('set-gfx-note').textContent=qMode==='auto'?'Adjusts itself 
 const close=()=>{m.style.display='none'};
 $('set-btn').addEventListener('click',open);$('set-close').addEventListener('click',close);
 m.addEventListener('pointerdown',e=>{if(e.target===m)close()});m.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape')close()});
+$('set-dbg').addEventListener('click',()=>{close();const b=$('dbg-open');if(b)b.click()});   // the old corner button stays wired but hidden
 $('set-upd').addEventListener('click',()=>{close();if(window.updCheck)updCheck()});
 $('set-gfx').addEventListener('change',e=>{setQualityMode(e.target.value);gfxNote()});
 $('set-ghost').addEventListener('change',e=>setGhost(e.target.checked));
